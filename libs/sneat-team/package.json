@@ -1,0 +1,8 @@
+{
+  "name": "@sneat/extension-team-contract",
+  "version": "0.1.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}
