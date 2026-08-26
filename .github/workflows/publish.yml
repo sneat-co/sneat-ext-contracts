@@ -39,6 +39,8 @@ jobs:
   dry-run-dispatch:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    outputs:
+      released-modules: ${{ steps.go-families.outputs.json }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -75,6 +77,44 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Manual dispatch bypasses the CI-success gate that `release-on-main`
+      # relies on, so it must resolve its own Go-tag forwarding too — this
+      # step is the fix for the exact gap the 2026-08-26 batch-3 manual
+      # dispatch hit: nx-release-publish had already published npm and
+      # pushed the release commit + npm tags, but because `release-on-main`
+      # and `go-module-tags` are both gated on `github.event_name ==
+      # 'workflow_run'`, no job ever forwarded {dir, version} pairs for the
+      # families that also carry a Go module, and the Go tags never fired.
+      # Identical resolution logic to `release-on-main`'s own step below —
+      # keep both in sync if the tag pattern or manifest path ever changes.
+      - name: Resolve {dir, version} pairs for families with a Go module
+        id: go-families
+        if: inputs.dry_run == false
+        run: |
+          pairs='[]'
+          for gomod in */go.mod; do
+            [ -e "$gomod" ] || continue
+            family="$(dirname "$gomod")"
+            pkg="libs/${family}/package.json"
+            if [ ! -f "$pkg" ]; then
+              echo "::warning::${gomod} has no matching libs/${family}/package.json — skipping Go tag resolution for ${family}."
+              continue
+            fi
+            version="$(node -p "require('./${pkg}').version")"
+            tag="${family}-contract-v${version}"
+            if git tag --points-at HEAD | grep -qx "$tag"; then
+              echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
+              pairs="$(echo "$pairs" | node -e "
+                const fs=require('fs');
+                const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                arr.push({dir: process.argv[1], version: process.argv[2]});
+                process.stdout.write(JSON.stringify(arr));
+              " "$family" "$version")"
+            fi
+          done
+          echo "Resolved Go-module {dir, version} pairs: $pairs"
+          echo "json=$pairs" >> "$GITHUB_OUTPUT"
 
   release-on-main:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
@@ -165,6 +205,20 @@ jobs:
           done
           echo "Resolved Go-module {dir, version} pairs: $pairs"
           echo "json=$pairs" >> "$GITHUB_OUTPUT"
+
+  # Manual-dispatch counterpart to `go-module-tags` below — same reusable
+  # workflow, fed by `dry-run-dispatch`'s own {dir, version} resolution
+  # instead of `release-on-main`'s, since the two jobs never both run for
+  # the same event (`workflow_dispatch` vs `workflow_run`).
+  go-module-tags-dispatch:
+    needs: dry-run-dispatch
+    if: github.event_name == 'workflow_dispatch' && needs.dry-run-dispatch.outputs.released-modules != '[]' && needs.dry-run-dispatch.outputs.released-modules != ''
+    permissions:
+      contents: write
+    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
+    with:
+      modules: ${{ needs.dry-run-dispatch.outputs.released-modules }}
+    secrets: inherit
 
   # Armed 2026-08-26 (Phase 0 taxus seed lane): sneat-co/cicd/.github/
   # workflows/go-module-tags.yml landed on cicd main (input contract:
