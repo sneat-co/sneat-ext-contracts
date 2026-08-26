@@ -1,0 +1,11 @@
+{
+  "name": "contract-generator",
+  "version": "0.1",
+  "generators": {
+    "contract": {
+      "factory": "./src/generators/contract/generator",
+      "schema": "./src/generators/contract/schema.json",
+      "description": "Scaffold a new libs/<family> extension contract (Nx project \"<family>-contract\", npm package \"@sneat/extension-<family>-contract\"), optionally with a <family>/go.mod Go module, and register the family in the shared files (contracts.json, eslint.config.mjs boundary config, docs/boundaries.md)."
+    }
+  }
+}
