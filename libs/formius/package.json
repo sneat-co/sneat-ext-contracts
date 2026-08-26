@@ -1,0 +1,17 @@
+{
+  "name": "@sneat/extension-formius-contract",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "rxjs": "^7.0.0",
+    "@sneat/core": "^0.22.1",
+    "@sneat/data": "^0.22.1",
+    "@sneat/dto": "^0.22.1",
+    "@sneat/space-models": "^0.22.1",
+    "vitest": "^4.0.9"
+  },
+  "sideEffects": false
+}
