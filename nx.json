@@ -83,9 +83,11 @@
   "release": {
     "// note-1": "INDEPENDENT mode per spec REQ per-contract-independent-versioning — supersedes sneat-libs' fixed-train release config on purpose: a frozen contract must be able to republish never.",
     "// note-1b": "'!sneat-ext-contracts' excludes the workspace ROOT package.json — Nx auto-registers any named, private root package.json as a project ('nx show projects' proves it), and it must never be version-planned or published as if it were a contract.",
+    "// note-1c": "'!contract-generator' excludes tools/contract-generator/package.json — same auto-registration behavior as note-1b (Nx discovers any package.json workspace-wide, independent of pnpm-workspace.yaml's 'libs/*' glob). It is a local generator manifest (private:true, no publishConfig), never a contract.",
     "projects": [
       "*",
-      "!sneat-ext-contracts"
+      "!sneat-ext-contracts",
+      "!contract-generator"
     ],
     "projectsRelationship": "independent",
     "versionPlans": true,
