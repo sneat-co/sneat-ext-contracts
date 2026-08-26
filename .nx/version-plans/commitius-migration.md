@@ -1,6 +1,5 @@
 ---
-projects:
-  commitius-contract: patch
+commitius-contract: patch
 ---
 
 feat(commitius-contract): migrate commitius contract into sneat-ext-contracts (first-publish)
