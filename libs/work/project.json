@@ -1,0 +1,24 @@
+{
+  "name": "work-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/work/src",
+  "projectType": "library",
+  "tags": ["family:work", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/work/ng-package.json",
+        "tsConfig": "libs/work/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/work/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}

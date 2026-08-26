@@ -1,0 +1,24 @@
+{
+  "name": "budgetus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/budgetus/src",
+  "projectType": "library",
+  "tags": ["family:budgetus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/budgetus/ng-package.json",
+        "tsConfig": "libs/budgetus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/budgetus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}

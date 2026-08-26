@@ -1,0 +1,35 @@
+{
+  "name": "yardius-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/yardius/src",
+  "projectType": "library",
+  "tags": ["family:yardius", "layer:contract"],
+  "targets": {
+    "vite:test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "viTestConfig": "libs/yardius/vitest.config.mts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": { "update": false, "run": true, "coverage": true }
+      }
+    },
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/yardius/ng-package.json",
+        "tsConfig": "libs/yardius/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/yardius/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}

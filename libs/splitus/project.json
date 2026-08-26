@@ -1,0 +1,24 @@
+{
+  "name": "splitus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/splitus/src",
+  "projectType": "library",
+  "tags": ["family:splitus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/splitus/ng-package.json",
+        "tsConfig": "libs/splitus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/splitus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
