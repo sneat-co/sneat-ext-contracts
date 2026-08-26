@@ -1,0 +1,31 @@
+{
+  "name": "communitycentrum-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/communitycentrum/src",
+  "projectType": "library",
+  "tags": ["family:communitycentrum", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/communitycentrum/ng-package.json",
+        "tsConfig": "libs/communitycentrum/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/communitycentrum/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/communitycentrum/vitest.config.ts"
+      }
+    }
+  }
+}

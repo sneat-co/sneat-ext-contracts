@@ -1,0 +1,15 @@
+{
+  "name": "@sneat/extension-sportius-contract",
+  "version": "0.3.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "@sneat/dto": "^0.22.1",
+    "@sneat/space-models": "^0.22.1",
+    "rxjs": "^7.0.0",
+    "vitest": "4.1.0"
+  },
+  "sideEffects": false
+}

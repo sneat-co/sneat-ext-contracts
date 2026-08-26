@@ -1,0 +1,38 @@
+{
+  "name": "debtus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/debtus/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": ["dist/{projectRoot}"],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "tags": ["family:debtus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/debtus/ng-package.json",
+        "tsConfig": "libs/debtus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/debtus/tsconfig.lib.prod.json" },
+        "development": {}
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": { "options": { "packageRoot": "dist/{projectRoot}" } },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/debtus/vitest.config.ts"
+      }
+    }
+  }
+}

@@ -44,11 +44,11 @@ Both cross-extension interaction directions carry over unchanged:
 
 ## Allowed cross-contract edges
 
-Empty at Phase 0 — this repo has migrated no family yet. The measured import
-graph (2026-08-26 fleet audit: 934 contract imports, 84% intra-family / 16%
-cross-family, contactus receiving 81 of 148 cross-family imports) names
-**contactus** and **assetus** as the only platform-like targets expected to
-gain entries, arriving in Phase 2 of the migration plan.
+The measured import graph (2026-08-26 fleet audit: 934 contract imports, 84%
+intra-family / 16% cross-family, contactus receiving 81 of 148 cross-family
+imports) names **contactus** and **assetus** as the only platform-like
+targets expected to gain further entries, arriving in Phase 2 of the
+migration plan.
 
 When a family needs to depend on another family's contract, add a row here
 AND the matching `depConstraints` entry in `eslint.config.mjs` in the same
@@ -56,7 +56,7 @@ change:
 
 | Source family | Allowed target | Why | Added in |
 | --- | --- | --- | --- |
-| _(none yet)_ | | | |
+| commitius | template | commitius specializes the maintained list/template extension; `libs/commitius/src/index.ts` re-exports `@sneat/extension-template-contract` types (`ITemplateService`, `ITemplateSpaceDbo`) and depends on it as a peer. `template` is not yet migrated into this monorepo (still external npm), so this edge is a forward declaration for when it lands. | batch 3 (families: assetus, listus, debtus, sportius, contactus, calendarius, commitius, communitycentrum, togethered) |
 
 ## Adding a new family lib
 

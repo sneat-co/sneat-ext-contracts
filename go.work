@@ -17,10 +17,13 @@ go 1.26.0
 // than a single root module.
 use (
 	./bookius
-	./gameboard
+	./calendarius
+	./contactus
 	./eventius
-	./trackus
-	./schoolus
+	./gameboard
 	./kids-club
+	./schoolus
 	./sneat-team
+	./sportius
+	./trackus
 )
