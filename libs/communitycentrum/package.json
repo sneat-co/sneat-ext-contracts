@@ -1,0 +1,12 @@
+{
+  "name": "@sneat/extension-communitycentrum-contract",
+  "version": "0.1.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "vitest": "^4.0.9"
+  },
+  "sideEffects": false
+}
