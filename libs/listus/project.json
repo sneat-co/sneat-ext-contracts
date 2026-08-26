@@ -1,0 +1,31 @@
+{
+  "name": "listus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/listus/src",
+  "projectType": "library",
+  "tags": ["family:listus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/listus/ng-package.json",
+        "tsConfig": "libs/listus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/listus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/listus/vitest.config.ts"
+      }
+    }
+  }
+}
