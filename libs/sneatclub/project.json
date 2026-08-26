@@ -1,0 +1,24 @@
+{
+  "name": "sneatclub-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sneatclub/src",
+  "projectType": "library",
+  "tags": ["family:sneatclub", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/sneatclub/ng-package.json",
+        "tsConfig": "libs/sneatclub/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/sneatclub/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
