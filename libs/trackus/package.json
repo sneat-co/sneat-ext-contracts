@@ -1,0 +1,32 @@
+{
+  "name": "@sneat/extension-trackus-contract",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "rxjs": "^7.0.0",
+    "@firebase/firestore": "4.14.1",
+    "@sneat/core": "^0.22.0",
+    "@sneat/space-models": "^0.22.0",
+    "@sneat/space-services": "^0.22.0",
+    "vitest": "^4.0.9"
+  },
+  "sideEffects": false,
+  "module": "fesm2022/sneat-extension-trackus-contract.mjs",
+  "typings": "types/sneat-extension-trackus-contract.d.ts",
+  "exports": {
+    "./package.json": {
+      "default": "./package.json"
+    },
+    ".": {
+      "types": "./types/sneat-extension-trackus-contract.d.ts",
+      "default": "./fesm2022/sneat-extension-trackus-contract.mjs"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}
