@@ -1,0 +1,17 @@
+{
+  "name": "@sneat/extension-sourcer-contract",
+  "version": "0.1.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "rxjs": "^7.0.0",
+    "@sneat/core": "^0.22.1 || ^0.24.0",
+    "@sneat/data": "^0.22.1 || ^0.24.0",
+    "@sneat/dto": "^0.22.1 || ^0.24.0",
+    "@sneat/space-models": "^0.22.1 || ^0.24.0",
+    "vitest": "^4.0.9"
+  },
+  "sideEffects": false
+}
