@@ -1,6 +1,5 @@
 ---
-projects:
-  togethered-contract: patch
+togethered-contract: patch
 ---
 
 feat(togethered-contract): migrate togethered contract into sneat-ext-contracts (first-publish)
