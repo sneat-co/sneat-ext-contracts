@@ -1,0 +1,31 @@
+{
+  "name": "togethered-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/togethered/src",
+  "projectType": "library",
+  "tags": ["family:togethered", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/togethered/ng-package.json",
+        "tsConfig": "libs/togethered/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/togethered/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/togethered/vitest.config.ts"
+      }
+    }
+  }
+}
