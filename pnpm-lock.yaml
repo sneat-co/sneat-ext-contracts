@@ -128,7 +128,7 @@ importers:
         specifier: ^4.1.10
         version: 4.1.11(@types/node@26.3.0)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@28.1.0)(vite@8.1.5(@types/node@26.3.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.50.0)(yaml@2.9.0))
 
-  libs/formius:
+  libs/remindius:
     dependencies:
       '@angular/core':
         specifier: ^21.0.0
