@@ -1,4 +1,4 @@
-go 1.25.0
+go 1.26.0
 
 // Ritual: this workspace file enumerates every Go module family owns in this
 // repo. It starts empty because Phase 0 (this bootstrap) migrates no family —
@@ -18,4 +18,9 @@ go 1.25.0
 use (
 	./bookius
 	./gameboard
+	./eventius
+	./trackus
+	./schoolus
+	./kids-club
+	./sneat-team
 )

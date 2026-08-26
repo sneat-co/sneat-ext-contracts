@@ -29,6 +29,18 @@ function readTypescriptVersion() {
   return rootPkg.devDependencies?.typescript ?? 'latest';
 }
 
+// A contracts.json entry is either a plain string (npm package follows the
+// default @sneat/extension-<entry>-contract pattern) or, when the published
+// name doesn't match its dir/family tag, { dir, npmName }. `dir` is what we
+// display and log; `npmName` (defaulting to `dir`) is the middle segment of
+// the actual npm package name.
+function entryDir(entry) {
+  return typeof entry === 'string' ? entry : entry.dir;
+}
+function entryNpmName(entry) {
+  return typeof entry === 'string' ? entry : (entry.npmName ?? entry.dir);
+}
+
 function main() {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   const families = manifest.families ?? [];
@@ -47,7 +59,7 @@ function main() {
   // currently serves as latest for every owned family installs together.
   const dependencies = {};
   for (const family of families) {
-    dependencies[`@sneat/extension-${family}-contract`] = 'latest';
+    dependencies[`@sneat/extension-${entryNpmName(family)}-contract`] = 'latest';
   }
 
   writeFileSync(
@@ -88,20 +100,30 @@ function main() {
   );
 
   const imports = families
-    .map((family) => `import '@sneat/extension-${family}-contract';`)
+    .map((family) => `import '@sneat/extension-${entryNpmName(family)}-contract';`)
     .join('\n');
   writeFileSync(path.join(workDir, 'import-everything.ts'), `${imports}\n`);
 
   console.log(
-    `tier-coherence: installing latest of ${families.length} contract(s): ${families.join(', ')}`,
+    `tier-coherence: installing latest of ${families.length} contract(s): ${families.map(entryDir).join(', ')}`,
   );
   // --ignore-workspace: this dir is NOT a member of the repo's pnpm workspace
   // (it depends on published npm versions, not workspace:* sources) and it
   // sits nested under one anyway (tools/tier-coherence/.tmp/consumer) — without
   // this flag pnpm walks up and treats it as a workspace member.
+  //
+  // --ignore-scripts: being outside the workspace, this install has none of
+  // the root pnpm-workspace.yaml's `onlyBuiltDependencies` allowlist, so pnpm
+  // hard-errors (ERR_PNPM_IGNORED_BUILDS) the moment any transitive dep from
+  // an owned family's dependency tree ships a postinstall/build script that
+  // isn't pre-approved here too (first hit: batch-2 families transitively
+  // pulling in @firebase/util and protobufjs). This consumer only needs each
+  // package's published .d.ts/.js on disk for `tsc` to type-check against —
+  // it never executes any package's code — so skipping build scripts
+  // entirely is correct here, not a risk tolerated for convenience.
   execFileSync(
     'pnpm',
-    ['install', '--ignore-workspace', '--no-frozen-lockfile'],
+    ['install', '--ignore-workspace', '--ignore-scripts', '--no-frozen-lockfile'],
     { cwd: workDir, stdio: 'inherit' },
   );
 
