@@ -21,6 +21,15 @@
     "requoter",
     { "dir": "kids-club", "npmName": "kidsclub" },
     { "dir": "sneat-team", "npmName": "team" },
-    { "dir": "rsvp-express", "npmName": "rsvpexpress" }
+    { "dir": "rsvp-express", "npmName": "rsvpexpress" },
+    "assetus",
+    "listus",
+    "debtus",
+    "sportius",
+    "contactus",
+    "calendarius",
+    "commitius",
+    "communitycentrum",
+    "togethered"
   ]
 }

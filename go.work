@@ -23,4 +23,7 @@ use (
 	./schoolus
 	./kids-club
 	./sneat-team
+	./sportius
+	./contactus
+	./calendarius
 )

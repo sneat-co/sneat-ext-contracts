@@ -57,6 +57,19 @@ export default [
             { sourceTag: 'family:kids-club', onlyDependOnLibsWithTags: ['family:kids-club'] },
             { sourceTag: 'family:sneat-team', onlyDependOnLibsWithTags: ['family:sneat-team'] },
             { sourceTag: 'family:rsvp-express', onlyDependOnLibsWithTags: ['family:rsvp-express'] },
+            { sourceTag: 'family:assetus', onlyDependOnLibsWithTags: ['family:assetus'] },
+            { sourceTag: 'family:listus', onlyDependOnLibsWithTags: ['family:listus'] },
+            { sourceTag: 'family:debtus', onlyDependOnLibsWithTags: ['family:debtus'] },
+            { sourceTag: 'family:sportius', onlyDependOnLibsWithTags: ['family:sportius'] },
+            { sourceTag: 'family:contactus', onlyDependOnLibsWithTags: ['family:contactus'] },
+            { sourceTag: 'family:calendarius', onlyDependOnLibsWithTags: ['family:calendarius'] },
+            // commitius specializes the not-yet-migrated `template` extension
+            // (@sneat/extension-template-contract, an external npm peer today —
+            // its index.ts re-exports that package's service/DBO types).
+            // Declared cross-family exception; see docs/boundaries.md.
+            { sourceTag: 'family:commitius', onlyDependOnLibsWithTags: ['family:commitius', 'family:template'] },
+            { sourceTag: 'family:communitycentrum', onlyDependOnLibsWithTags: ['family:communitycentrum'] },
+            { sourceTag: 'family:togethered', onlyDependOnLibsWithTags: ['family:togethered'] },
           ],
         },
       ],
