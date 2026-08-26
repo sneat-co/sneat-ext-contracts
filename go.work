@@ -16,4 +16,6 @@ go 1.26
 // — for why this is a multi-module (one go.mod per extension) layout rather
 // than a single root module.
 use (
+	./bookius
+	./gameboard
 )
