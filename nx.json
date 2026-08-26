@@ -68,7 +68,8 @@
       "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test"
-      }
+      },
+      "exclude": ["tools/contract-generator/**"]
     }
   ],
   "generators": {
