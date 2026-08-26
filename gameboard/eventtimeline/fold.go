@@ -5,14 +5,14 @@ import "sort"
 // State is the deterministic projection of an event log up to a point in order.
 // Two consumers folding the same events MUST obtain an identical State.
 type State struct {
-	Status       GameStatus       `json:"status"`
-	Period       int              `json:"period"`
-	GameClockMs  int64            `json:"gameClockMs"`
-	ClockRunning bool             `json:"clockRunning"`
-	Scores       map[TeamSide]int `json:"scores"`
-	TeamFouls    map[TeamSide]int `json:"teamFouls"`
-	TimeoutsUsed map[TeamSide]int `json:"timeoutsUsed"`
-	Possession   TeamSide         `json:"possession"`
+	Status       GameStatus            `json:"status"`
+	Period       int                   `json:"period"`
+	GameClockMs  int64                 `json:"gameClockMs"`
+	ClockRunning bool                  `json:"clockRunning"`
+	Scores       map[TeamSide]int      `json:"scores"`
+	TeamFouls    map[TeamSide]int      `json:"teamFouls"`
+	TimeoutsUsed map[TeamSide]int      `json:"timeoutsUsed"`
+	Possession   TeamSide              `json:"possession"`
 	OnCourt      map[TeamSide][]string `json:"onCourt"`
 
 	// Per-player box score (post-game-recap): points → assists, keyed by playerID.

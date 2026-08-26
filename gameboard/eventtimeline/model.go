@@ -83,18 +83,18 @@ const (
 // key and as the idempotency key (a replayed append with the same id is a
 // no-op). Total order is by WallClockMs ascending, ties broken by EventID.
 type Event struct {
-	EventID    string    `json:"eventID"`
-	Type       EventType `json:"type"`
-	Source     Source    `json:"source"`
-	WallClockMs int64    `json:"wallClockMs"`
-	Period     int       `json:"period"`
-	GameClockMs int64    `json:"gameClockMs"` // remaining time on the game clock
+	EventID     string    `json:"eventID"`
+	Type        EventType `json:"type"`
+	Source      Source    `json:"source"`
+	WallClockMs int64     `json:"wallClockMs"`
+	Period      int       `json:"period"`
+	GameClockMs int64     `json:"gameClockMs"` // remaining time on the game clock
 
 	// Payload (by type; only the fields relevant to Type are set):
 	Status      GameStatus  `json:"status,omitempty"`
 	ClockAction ClockAction `json:"clockAction,omitempty"`
 	Side        TeamSide    `json:"side,omitempty"`
-	Points      int         `json:"points,omitempty"`   // score: 1, 2 or 3
+	Points      int         `json:"points,omitempty"`    // score: 1, 2 or 3
 	ScorerID    string      `json:"scorerID,omitempty"`  // optional
 	AssistID    string      `json:"assistID,omitempty"`  // optional
 	PlayerOn    string      `json:"playerOn,omitempty"`  // substitution
