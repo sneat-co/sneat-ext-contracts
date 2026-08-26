@@ -1,5 +1,5 @@
 ---
-projects: ["docus-contract"]
+docus-contract: patch
 ---
 
 feat(docus-contract): migrate docus contract from sneat-co/docus

@@ -1,5 +1,5 @@
 ---
-projects: ["splitus-contract"]
+splitus-contract: patch
 ---
 
 feat(splitus-contract): migrate splitus contract from sneat-co/debtus

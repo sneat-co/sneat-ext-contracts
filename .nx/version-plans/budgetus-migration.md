@@ -1,5 +1,5 @@
 ---
-projects: ["budgetus-contract"]
+budgetus-contract: patch
 ---
 
 feat(budgetus-contract): migrate budgetus contract from sneat-co/budgetus

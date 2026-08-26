@@ -1,5 +1,5 @@
 ---
-projects: ["sizeus-contract"]
+sizeus-contract: patch
 ---
 
 feat(sizeus-contract): migrate sizeus contract from sneat-co/ext-sizeus

@@ -1,5 +1,5 @@
 ---
-projects: ["sourcer-contract"]
+sourcer-contract: patch
 ---
 
 feat(sourcer-contract): migrate sourcer contract from sneat-co/sourcer
