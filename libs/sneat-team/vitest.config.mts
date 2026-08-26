@@ -20,5 +20,11 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     reporters: ['default'],
+    // No spec exists upstream either (verified against sneat-co/ext-sneat-team) —
+    // the contract is genuinely just two request/response types plus one
+    // facade interface, confirmed byte-identical to source, never tested.
+    // Without this, Vitest's own "no test files found" default exits 1 and
+    // fails CI.
+    passWithNoTests: true,
   },
 });

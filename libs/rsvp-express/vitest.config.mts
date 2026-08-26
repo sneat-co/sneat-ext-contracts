@@ -20,5 +20,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     reporters: ['default'],
+    // No spec exists upstream either (verified against sneat-co/ext-rsvp-express) —
+    // a genuinely test-free contract lib, not a dropped suite. Without this,
+    // Vitest's own "no test files found" default exits 1 and fails CI.
+    passWithNoTests: true,
   },
 });

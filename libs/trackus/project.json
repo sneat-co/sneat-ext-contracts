@@ -17,10 +17,6 @@
       },
       "defaultConfiguration": "production"
     },
-    "test": {
-      "executor": "@nx/vitest:vitest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
-    },
     "nx-release-publish": {
       "options": { "packageRoot": "dist/{projectRoot}" }
     }
