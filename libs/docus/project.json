@@ -1,0 +1,24 @@
+{
+  "name": "docus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/docus/src",
+  "projectType": "library",
+  "tags": ["family:docus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/docus/ng-package.json",
+        "tsConfig": "libs/docus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/docus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
