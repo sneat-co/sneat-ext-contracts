@@ -9,4 +9,5 @@ the private RSVP Express repository.
 Migrated from `sneat-co/ext-rsvp-express` (`frontend/libs/extensions/rsvpexpress/contract/`), commit
 `9f90116dd7cc7bd38c794df0a70349c7232bb66d` (`origin/main`, 2026-08-26 read).
 
-This is a first-publish — no npm baseline exists.
+Published on npm as @sneat/extension-rsvpexpress-contract@0.0.2. Note: npm package name
+uses non-hyphenated "rsvpexpress", while Nx project directory is hyphenated "rsvp-express".
