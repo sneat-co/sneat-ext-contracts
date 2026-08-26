@@ -1,6 +1,5 @@
 ---
-projects:
-  communitycentrum-contract: patch
+communitycentrum-contract: patch
 ---
 
 feat(communitycentrum-contract): migrate communitycentrum contract into sneat-ext-contracts (first-publish)
