@@ -1,0 +1,24 @@
+{
+  "name": "taxus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/taxus/src",
+  "projectType": "library",
+  "tags": ["family:taxus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/taxus/ng-package.json",
+        "tsConfig": "libs/taxus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/taxus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}

@@ -35,7 +35,9 @@ export default [
         {
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
-          depConstraints: [],
+          depConstraints: [
+            { sourceTag: 'family:taxus', onlyDependOnLibsWithTags: ['family:taxus'] },
+          ],
         },
       ],
     },
