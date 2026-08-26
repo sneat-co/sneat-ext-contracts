@@ -1,0 +1,31 @@
+{
+  "name": "sportius-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sportius/src",
+  "projectType": "library",
+  "tags": ["family:sportius", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/sportius/ng-package.json",
+        "tsConfig": "libs/sportius/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/sportius/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/sportius/vitest.config.ts"
+      }
+    }
+  }
+}
