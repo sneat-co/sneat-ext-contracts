@@ -4,13 +4,6 @@
   "sourceRoot": "libs/debtus/src",
   "prefix": "lib",
   "projectType": "library",
-  "release": {
-    "version": {
-      "manifestRootsToUpdate": ["dist/{projectRoot}"],
-      "currentVersionResolver": "git-tag",
-      "fallbackCurrentVersionResolver": "disk"
-    }
-  },
   "tags": ["family:debtus", "layer:contract"],
   "targets": {
     "build": {
