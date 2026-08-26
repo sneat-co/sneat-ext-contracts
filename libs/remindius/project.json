@@ -1,0 +1,31 @@
+{
+  "name": "remindius-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remindius/src",
+  "projectType": "library",
+  "tags": ["family:remindius", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/remindius/ng-package.json",
+        "tsConfig": "libs/remindius/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/remindius/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/remindius/vitest.config.ts"
+      }
+    }
+  }
+}
