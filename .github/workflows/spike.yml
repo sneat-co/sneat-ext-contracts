@@ -1,0 +1,16 @@
+name: Spike
+on: workflow_dispatch
+
+jobs:
+  real:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "real job ran"
+
+  disarmed:
+    needs: real
+    if: false
+    uses: sneat-co/cicd/.github/workflows/this-file-does-not-exist.yml@main
+    with:
+      modules: "[]"
+    secrets: inherit
