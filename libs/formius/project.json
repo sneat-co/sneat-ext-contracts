@@ -1,0 +1,31 @@
+{
+  "name": "formius-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/formius/src",
+  "projectType": "library",
+  "tags": ["family:formius", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/formius/ng-package.json",
+        "tsConfig": "libs/formius/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/formius/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/formius/vitest.config.ts"
+      }
+    }
+  }
+}
