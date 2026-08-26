@@ -1,6 +1,5 @@
 ---
-projects:
-  sneat-team-contract: patch
+sneat-team-contract: patch
 ---
 
 feat(sneat-team): migrate sneat-team contract into sneat-ext-contracts (first-publish)

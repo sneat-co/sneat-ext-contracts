@@ -1,6 +1,5 @@
 ---
-projects:
-  requoter-contract: patch
+requoter-contract: patch
 ---
 
 migrate requoter contract into sneat-ext-contracts (provenance: sneat-co/ext-requoter@2905d9cf3ecd5e195f09ce2c047d5c3957d6d163)

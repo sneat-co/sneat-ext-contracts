@@ -1,6 +1,5 @@
 ---
-projects:
-  kids-club-contract: patch
+kids-club-contract: patch
 ---
 
 feat(kids-club): migrate kids-club contract into sneat-ext-contracts (first-publish)

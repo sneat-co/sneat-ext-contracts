@@ -1,6 +1,5 @@
 ---
-projects:
-  rsvp-express-contract: patch
+rsvp-express-contract: patch
 ---
 
 migrate rsvp-express contract into sneat-ext-contracts (provenance: sneat-co/ext-rsvp-express@9f90116dd7cc7bd38c794df0a70349c7232bb66d)
