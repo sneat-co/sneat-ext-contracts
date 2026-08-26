@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "SneatExtensionContract",
+  "cli": "nx",
+  "title": "Scaffold a new @sneat/extension-<family>-contract library",
+  "description": "Creates libs/<family> (Nx project \"<family>-contract\", npm package \"@sneat/extension-<family>-contract\") with every sneat-ext-contracts lib convention (project.json, package.json with live peer floors, tsconfig*, vitest config, src/index.ts stub, README with a provenance/purpose stub), and registers the family in the shared files: contracts.json, the depConstraints boundary entry in eslint.config.mjs, and the family table in docs/boundaries.md. Pass --go to also scaffold <family>/go.mod (github.com/sneat-co/sneat-ext-contracts/<family>) plus a doc.go stub, and register it in go.work.",
+  "type": "object",
+  "properties": {
+    "family": {
+      "type": "string",
+      "description": "Family name — lowercase, kebab-case (letters, digits, single hyphens, starting with a letter — e.g. \"taxus\", \"kids-club\"). Becomes the Nx project \"<family>-contract\" and npm package \"@sneat/extension-<family>-contract\". With --go, the Go package identifier sanitizes hyphens to underscores (module path keeps the hyphen).",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "What is the family name?",
+      "x-priority": "important"
+    },
+    "go": {
+      "type": "boolean",
+      "description": "Also scaffold <family>/go.mod (module github.com/sneat-co/sneat-ext-contracts/<family>) with a doc.go stub, and add \"./<family>\" to go.work's use block.",
+      "default": false
+    }
+  },
+  "required": ["family"],
+  "examples": [
+    {
+      "command": "nx g ./tools/contract-generator:contract widgetus",
+      "description": "Scaffold libs/widgetus (npm-only family)."
+    },
+    {
+      "command": "nx g ./tools/contract-generator:contract widgetus --go",
+      "description": "Scaffold libs/widgetus AND widgetus/go.mod, registered in go.work."
+    }
+  ]
+}

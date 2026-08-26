@@ -1,0 +1,16 @@
+{
+  "name": "<%= npmName %>",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "<%= angularPeer %>",
+    "rxjs": "<%= rxjsPeer %>",
+    "@sneat/core": "<%= sneatCorePeer %>",
+    "@sneat/data": "<%= sneatDataPeer %>",
+    "@sneat/dto": "<%= sneatDtoPeer %>",
+    "@sneat/space-models": "<%= sneatSpaceModelsPeer %>"
+  },
+  "sideEffects": false
+}

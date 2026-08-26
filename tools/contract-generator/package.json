@@ -1,0 +1,7 @@
+{
+  "name": "contract-generator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local Nx generator collection for sneat-ext-contracts. Not an npm-published package, not a workspace member (outside pnpm-workspace.yaml's \"libs/*\" glob) — this package.json exists solely so Nx can resolve the generator collection by relative path.",
+  "generators": "./generators.json"
+}
