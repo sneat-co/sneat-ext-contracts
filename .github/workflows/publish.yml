@@ -23,6 +23,19 @@ on:
         type: boolean
         required: false
         default: true
+      go_module_tags:
+        description: >-
+          Rare catch-up escape hatch — leave empty for a normal run. JSON
+          array of {"dir","version"} pairs to forward to go-module-tags
+          DIRECTLY, bypassing the "does a release tag point at HEAD"
+          resolution. Needed only when a family's npm release commit is no
+          longer HEAD by the time you can re-dispatch (e.g. an unrelated
+          fix landed on top of it in between), so the normal resolution in
+          the "Resolve {dir, version} pairs" step can no longer see its
+          release tag at HEAD. Ignored when dry_run is true.
+        type: string
+        required: false
+        default: ""
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -91,7 +104,15 @@ jobs:
       - name: Resolve {dir, version} pairs for families with a Go module
         id: go-families
         if: inputs.dry_run == false
+        env:
+          GO_MODULE_TAGS_INPUT: ${{ inputs.go_module_tags }}
         run: |
+          if [[ -n "$GO_MODULE_TAGS_INPUT" ]]; then
+            echo "Using explicit go_module_tags input (bypassing tag-at-HEAD resolution): $GO_MODULE_TAGS_INPUT"
+            node -e "JSON.parse(process.argv[1])" "$GO_MODULE_TAGS_INPUT"
+            echo "json=$GO_MODULE_TAGS_INPUT" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           pairs='[]'
           for gomod in */go.mod; do
             [ -e "$gomod" ] || continue
