@@ -22,6 +22,7 @@ use (
 	./eventius
 	./gameboard
 	./kids-club
+	./listus
 	./schoolus
 	./sneat-team
 	./sportius
