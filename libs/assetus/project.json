@@ -1,0 +1,31 @@
+{
+  "name": "assetus-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/assetus/src",
+  "projectType": "library",
+  "tags": ["family:assetus", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/assetus/ng-package.json",
+        "tsConfig": "libs/assetus/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/assetus/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    },
+    "test": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "watch": false,
+        "runnerConfig": "libs/assetus/vitest.config.ts"
+      }
+    }
+  }
+}
