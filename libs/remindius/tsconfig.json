@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "strict": true, "module": "preserve", "moduleResolution": "bundler", "declaration": false },
+  "compilerOptions": { "strict": true, "module": "preserve", "moduleResolution": "bundler", "declaration": false, "isolatedModules": true },
   "files": [],
   "include": [],
   "references": [{ "path": "./tsconfig.lib.json" }, { "path": "./tsconfig.spec.json" }]
