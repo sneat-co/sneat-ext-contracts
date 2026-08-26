@@ -1,0 +1,110 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
+    "production": [
+      "default",
+      "!{projectRoot}/eslint.config.mjs",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/src/test-setup.[jt]s",
+      "!{projectRoot}/test-setup.[jt]s"
+    ],
+    "sharedGlobals": []
+  },
+  "targetDefaults": {
+    "@nx/angular:package": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ]
+    },
+    "@nx/eslint:lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs"
+      ]
+    },
+    "@nx/vitest:test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ]
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "packageRoot": "dist/{projectRoot}"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/vite/plugin",
+      "options": {
+        "buildTargetName": "build",
+        "testTargetName": "test"
+      }
+    },
+    {
+      "plugin": "@nx/vitest",
+      "options": {
+        "testTargetName": "vite:test"
+      }
+    }
+  ],
+  "generators": {
+    "@nx/angular:library": {
+      "linter": "eslint",
+      "unitTestRunner": "vitest",
+      "buildable": true,
+      "publishable": true
+    }
+  },
+  "release": {
+    "// note-1": "INDEPENDENT mode per spec REQ per-contract-independent-versioning — supersedes sneat-libs' fixed-train release config on purpose: a frozen contract must be able to republish never.",
+    "// note-1b": "'!sneat-ext-contracts' excludes the workspace ROOT package.json — Nx auto-registers any named, private root package.json as a project ('nx show projects' proves it), and it must never be version-planned or published as if it were a contract.",
+    "projects": [
+      "*",
+      "!sneat-ext-contracts"
+    ],
+    "projectsRelationship": "independent",
+    "versionPlans": true,
+    "git": {
+      "commit": true,
+      "tag": true,
+      "push": true
+    },
+    "version": {
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk"
+    },
+    "changelog": {
+      "projectChangelogs": true
+    },
+    "releaseTag": {
+      "// note-2": "npm tags MUST stay visually distinct from Go module tags (<family>/v<version> — reserved for `go-module-tags.yml`, see README.md). {projectName} already resolves to '<family>-contract' for every npm project, so this pattern naturally produces '<family>-contract-v{version}' and never collides with a Go tag.",
+      "pattern": "{projectName}-v{version}"
+    }
+  },
+  "analytics": false
+}

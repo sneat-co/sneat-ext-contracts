@@ -1,0 +1,176 @@
+name: Publish
+
+# Two ways this fires:
+#   1. workflow_dispatch — manual run, `dry_run` defaults TRUE. Flip it to
+#      false only to force an out-of-band release; the normal path is #2.
+#   2. release-on-main — automatic, triggered by CI succeeding on main.
+#      Mirrors sneat-libs' release.yml shape (workflow_run on CI success ->
+#      `nx release --yes`).
+#
+# Nx release runs in INDEPENDENT mode (nx.json) driven by version plans: only
+# the projects named in consumed version plans get a new version + npm
+# publish — a frozen contract with no version plan republishes never (REQ
+# per-contract-independent-versioning, spec/features/ext-contracts-monorepo/
+# README.md on sneat-co/sneat-libs).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Dry run: resolve version plans and print what WOULD be released;
+          publish nothing, push nothing.
+        type: boolean
+        required: false
+        default: true
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  dry-run-dispatch:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Nx release
+        run: |
+          # Nx release's group hard-errors ("matches no projects") when zero
+          # release-eligible projects exist — true at Phase 0 (no family
+          # migrated yet). Skip gracefully rather than red-X every run.
+          if ! compgen -G "libs/*/package.json" > /dev/null; then
+            echo "No contract libs under libs/ yet — nothing to release."
+            exit 0
+          fi
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "Dry run — resolving version plans, publishing nothing."
+            pnpm nx release --yes --dry-run
+          else
+            git config --global user.email "ci@sneat.co"
+            git config --global user.name "Sneat CI"
+            pnpm nx release --yes
+            git push --follow-tags
+          fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-on-main:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      released-modules: ${{ steps.go-families.outputs.json }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure git identity for release commits
+        run: |
+          git config --global user.email "ci@sneat.co"
+          git config --global user.name "Sneat CI"
+
+      - name: Check for a release-eligible project
+        id: has-projects
+        run: |
+          # Nx release's group hard-errors ("matches no projects") when zero
+          # release-eligible projects exist — true at Phase 0 (no family
+          # migrated yet). Skip the whole release gracefully rather than
+          # red-X every CI-success-on-main until the first family lands.
+          if compgen -G "libs/*/package.json" > /dev/null; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            echo "No contract libs under libs/ yet — nothing to release."
+          fi
+
+      - name: Nx release (version plans -> version -> changelog -> npm publish)
+        if: steps.has-projects.outputs.any == 'true'
+        run: pnpm nx release --yes
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push release commits and tags
+        if: steps.has-projects.outputs.any == 'true'
+        run: |
+          git pull --rebase origin main
+          git push --follow-tags origin main
+
+      # Family version is LOCKSTEP between npm and Go (spec Decisions). This
+      # step is where a real implementation would diff the tags just pushed
+      # against contracts.json / `*/go.mod` to produce the {dir, version}
+      # pairs for families that both released an npm version above AND have a
+      # Go module directory. Left as an empty array until the arming below.
+      - name: Resolve {dir, version} pairs for families with a Go module
+        id: go-families
+        run: echo 'json=[]' >> "$GITHUB_OUTPUT"
+
+  # DISARMED — sneat-co/cicd does not have go-module-tags.yml on `main` yet
+  # (it is being authored in a parallel Phase-0 lane; confirmed absent as of
+  # 2026-08-26). A job whose `uses:` targets a reusable workflow file that
+  # does not exist fails GitHub's workflow-file parse UNCONDITIONALLY, even
+  # under `if: false` — verified empirically against this repo (workflow_
+  # dispatch returns HTTP 422 "failed to parse workflow: error parsing called
+  # workflow ... workflow was not found" before any `if:` is evaluated). So
+  # the real call is kept here as a comment, ready to uncomment verbatim, and
+  # `go-module-tags-placeholder` below is an ordinary (non-reusable-call) job
+  # that is always safe to ship disarmed.
+  #
+  # TODO(seed-family lane): once sneat-co/cicd/.github/workflows/
+  # go-module-tags.yml lands on cicd main, delete
+  # `go-module-tags-placeholder` and uncomment this job:
+  #
+  # go-module-tags:
+  #   needs: release-on-main
+  #   if: needs.release-on-main.outputs.released-modules != '[]'
+  #   uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
+  #   with:
+  #     modules: ${{ needs.release-on-main.outputs.released-modules }}
+  #     # ref: optional — defaults to the workflow's own `main` resolution.
+  #   secrets: inherit
+  # No `if:` here on purpose — actionlint flags a literal `if: false` as a
+  # dead constant condition, and (per the note above) `if:` cannot save a job
+  # whose `uses:` target is missing anyway. This job runs after every
+  # release-on-main, always, but only ever echoes; it does nothing until the
+  # step body above is replaced with the real job.
+  go-module-tags-placeholder:
+    needs: release-on-main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disarmed
+        run: |
+          echo "go-module-tags.yml does not exist on sneat-co/cicd main yet — nothing to do."
+          echo "See the TODO above this job for the real call to arm."

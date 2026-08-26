@@ -1,0 +1,20 @@
+packages:
+  - libs/*
+
+# zone.js was eliminated fleet-wide 2026-08-25 (backstage lesson
+# L2026-08-25-2038) and this repo never carried it — contracts are pure
+# interfaces/DTOs/InjectionTokens, no components, no zone-based tests. The
+# override plus .pnpmfile.cjs pair keeps it that way even though @angular/core
+# (and, once tests exist, @analogjs/vitest-angular) still declare it as an
+# *optional* peer: pnpm's auto-install-peers installs unmet peers even when
+# peerDependenciesMeta marks them optional (pnpm/pnpm#11155), so the override
+# alone is not sufficient — see .pnpmfile.cjs for the reliable fix.
+overrides:
+  'zone.js': '-'
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - esbuild
+  - nx
+  - unrs-resolver

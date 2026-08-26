@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.nx/
+.angular/
+tools/tier-coherence/.tmp/
+*.tsbuildinfo
+specscore.local.yaml

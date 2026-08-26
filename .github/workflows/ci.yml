@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Deliberately top-level (not scoped per-job): this repo's release pipeline
+# (publish.yml) reuses tag/push permissions on the same principal set here,
+# and per Phase 0 scope (spec/features/ext-contracts-monorepo/README.md,
+# sneat-co/sneat-libs) CI and release share one guarded posture from day one.
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nx:
+    uses: sneat-co/cicd/.github/workflows/nx-ci.yml@main
+    with:
+      working-directory: .
+      targets: "lint test build"
+      # This repo starts strict — no bare ^0.0.x peer ranges may ever enter it,
+      # and zone.js (eliminated fleet-wide 2026-08-25, backstage lesson
+      # L2026-08-25-2038) must never become resolvable (see .pnpmfile.cjs and
+      # the `zone.js` override in pnpm-workspace.yaml).
+      check-zonejs: true
+      peer-range-strict: true
+
+  tier-coherence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node
+        uses: sneat-co/cicd/actions/setup-pnpm-node@main
+        with:
+          working-directory: .
+
+      # REQ tier-coherence-check: the latest published version of every
+      # contract this repo owns (contracts.json) must install and type-check
+      # together. Trivial pass while contracts.json lists no family (Phase 0).
+      - name: Tier-coherence check
+        run: node tools/tier-coherence/check.mjs
+
+  discover-go:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.discover.outputs.dirs }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Auto-discovers every "<family>/go.mod" (Decisions: Go contract halves,
+      # option (b) — one go.mod per extension, github.com/sneat-co/
+      # sneat-ext-contracts/<family>). Empty at Phase 0: no family has a Go
+      # module yet, so this — and the matrix job below — skip gracefully.
+      - name: Discover Go modules
+        id: discover
+        run: |
+          dirs="$(find . -mindepth 2 -maxdepth 2 -name go.mod \
+            -not -path './node_modules/*' \
+            | sed -e 's|^\./||' -e 's|/go\.mod$||' \
+            | jq -R -s -c 'split("\n") | map(select(length > 0)) | sort')"
+          echo "Discovered Go module dirs: $dirs"
+          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
+
+  go:
+    needs: discover-go
+    if: needs.discover-go.outputs.dirs != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover-go.outputs.dirs) }}
+    uses: sneat-co/cicd/.github/workflows/go-ci.yml@main
+    with:
+      working-directory: ${{ matrix.dir }}
