@@ -129,48 +129,61 @@ jobs:
           git pull --rebase origin main
           git push --follow-tags origin main
 
-      # Family version is LOCKSTEP between npm and Go (spec Decisions). This
-      # step is where a real implementation would diff the tags just pushed
-      # against contracts.json / `*/go.mod` to produce the {dir, version}
-      # pairs for families that both released an npm version above AND have a
-      # Go module directory. Left as an empty array until the arming below.
+      # Family version is LOCKSTEP between npm and Go (spec Decisions): a
+      # family's <dir>/go.mod tracks the exact version its npm package just
+      # published. For every "<family>/go.mod" that exists on disk, check
+      # whether the release step above actually cut that family's npm
+      # version this run — evidenced by the npm release tag
+      # ("{projectName}-v{version}", i.e. "<family>-contract-v<version>",
+      # nx.json releaseTag.pattern) landing on HEAD. Only families that BOTH
+      # have a Go module AND released npm this run are forwarded — this is
+      # what keeps a frozen family's Go tag from ever firing on an unrelated
+      # release.
       - name: Resolve {dir, version} pairs for families with a Go module
         id: go-families
-        run: echo 'json=[]' >> "$GITHUB_OUTPUT"
-
-  # DISARMED — sneat-co/cicd does not have go-module-tags.yml on `main` yet
-  # (it is being authored in a parallel Phase-0 lane; confirmed absent as of
-  # 2026-08-26). A job whose `uses:` targets a reusable workflow file that
-  # does not exist fails GitHub's workflow-file parse UNCONDITIONALLY, even
-  # under `if: false` — verified empirically against this repo (workflow_
-  # dispatch returns HTTP 422 "failed to parse workflow: error parsing called
-  # workflow ... workflow was not found" before any `if:` is evaluated). So
-  # the real call is kept here as a comment, ready to uncomment verbatim, and
-  # `go-module-tags-placeholder` below is an ordinary (non-reusable-call) job
-  # that is always safe to ship disarmed.
-  #
-  # TODO(seed-family lane): once sneat-co/cicd/.github/workflows/
-  # go-module-tags.yml lands on cicd main, delete
-  # `go-module-tags-placeholder` and uncomment this job:
-  #
-  # go-module-tags:
-  #   needs: release-on-main
-  #   if: needs.release-on-main.outputs.released-modules != '[]'
-  #   uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
-  #   with:
-  #     modules: ${{ needs.release-on-main.outputs.released-modules }}
-  #     # ref: optional — defaults to the workflow's own `main` resolution.
-  #   secrets: inherit
-  # No `if:` here on purpose — actionlint flags a literal `if: false` as a
-  # dead constant condition, and (per the note above) `if:` cannot save a job
-  # whose `uses:` target is missing anyway. This job runs after every
-  # release-on-main, always, but only ever echoes; it does nothing until the
-  # step body above is replaced with the real job.
-  go-module-tags-placeholder:
-    needs: release-on-main
-    runs-on: ubuntu-latest
-    steps:
-      - name: Disarmed
         run: |
-          echo "go-module-tags.yml does not exist on sneat-co/cicd main yet — nothing to do."
-          echo "See the TODO above this job for the real call to arm."
+          pairs='[]'
+          for gomod in */go.mod; do
+            [ -e "$gomod" ] || continue
+            family="$(dirname "$gomod")"
+            pkg="libs/${family}/package.json"
+            if [ ! -f "$pkg" ]; then
+              echo "::warning::${gomod} has no matching libs/${family}/package.json — skipping Go tag resolution for ${family}."
+              continue
+            fi
+            version="$(node -p "require('./${pkg}').version")"
+            tag="${family}-contract-v${version}"
+            if git tag --points-at HEAD | grep -qx "$tag"; then
+              echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
+              pairs="$(echo "$pairs" | node -e "
+                const fs=require('fs');
+                const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                arr.push({dir: process.argv[1], version: process.argv[2]});
+                process.stdout.write(JSON.stringify(arr));
+              " "$family" "$version")"
+            fi
+          done
+          echo "Resolved Go-module {dir, version} pairs: $pairs"
+          echo "json=$pairs" >> "$GITHUB_OUTPUT"
+
+  # Armed 2026-08-26 (Phase 0 taxus seed lane): sneat-co/cicd/.github/
+  # workflows/go-module-tags.yml landed on cicd main (input contract:
+  # `modules` = JSON array of {"dir","version"}, optional `ref`). This job
+  # fires after every release-on-main but only ever acts when
+  # released-modules is non-empty — i.e. a family both released npm THIS run
+  # AND has a Go module directory. Taxus itself has no Go module (confirmed:
+  # no backend/, no go.mod, no .go file anywhere in sneat-co/ext-taxus's
+  # history, and sneat-co/taxus — its private runtime repo — is TypeScript/
+  # Angular only, no Go either), so this job stays a correct no-op for the
+  # taxus release; it activates for real the first time a migrated family
+  # actually ships a Go module.
+  go-module-tags:
+    needs: release-on-main
+    if: needs.release-on-main.outputs.released-modules != '[]'
+    permissions:
+      contents: write
+    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
+    with:
+      modules: ${{ needs.release-on-main.outputs.released-modules }}
+      # ref: optional — defaults to the workflow's own `main` resolution.
+    secrets: inherit
