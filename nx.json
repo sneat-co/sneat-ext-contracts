@@ -61,14 +61,13 @@
     {
       "plugin": "@nx/vite/plugin",
       "options": {
-        "buildTargetName": "build",
-        "testTargetName": "test"
+        "buildTargetName": "build"
       }
     },
     {
       "plugin": "@nx/vitest",
       "options": {
-        "testTargetName": "vite:test"
+        "testTargetName": "test"
       }
     }
   ],
