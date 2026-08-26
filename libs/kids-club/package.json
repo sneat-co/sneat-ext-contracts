@@ -1,0 +1,12 @@
+{
+  "name": "@sneat/extension-kidsclub-contract",
+  "version": "0.0.3",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "rxjs": "^7.0.0"
+  },
+  "sideEffects": false
+}
