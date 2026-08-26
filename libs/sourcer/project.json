@@ -1,0 +1,24 @@
+{
+  "name": "sourcer-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sourcer/src",
+  "projectType": "library",
+  "tags": ["family:sourcer", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/sourcer/ng-package.json",
+        "tsConfig": "libs/sourcer/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/sourcer/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
