@@ -1,0 +1,35 @@
+{
+  "name": "sneat-team-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/sneat-team/src",
+  "projectType": "library",
+  "tags": ["family:sneat-team", "layer:contract"],
+  "targets": {
+    "vite:test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "viTestConfig": "libs/sneat-team/vitest.config.mts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": { "update": false, "run": true, "coverage": true }
+      }
+    },
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/sneat-team/ng-package.json",
+        "tsConfig": "libs/sneat-team/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/sneat-team/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
