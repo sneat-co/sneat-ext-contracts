@@ -1,0 +1,16 @@
+{
+  "name": "@sneat/extension-sneatclub-contract",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=22.0.0 <23.0.0",
+    "rxjs": "^7.0.0",
+    "@sneat/core": "^0.26.4",
+    "@sneat/data": "^0.26.4",
+    "@sneat/dto": "^0.26.4",
+    "@sneat/space-models": "^0.26.4"
+  },
+  "sideEffects": false
+}
