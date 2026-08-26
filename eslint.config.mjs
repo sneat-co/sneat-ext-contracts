@@ -70,6 +70,8 @@ export default [
             { sourceTag: 'family:commitius', onlyDependOnLibsWithTags: ['family:commitius', 'family:template'] },
             { sourceTag: 'family:communitycentrum', onlyDependOnLibsWithTags: ['family:communitycentrum'] },
             { sourceTag: 'family:togethered', onlyDependOnLibsWithTags: ['family:togethered'] },
+            { sourceTag: 'family:circleus', onlyDependOnLibsWithTags: ['family:circleus'] },
+            { sourceTag: 'family:sneatclub', onlyDependOnLibsWithTags: ['family:sneatclub'] },
           ],
         },
       ],
