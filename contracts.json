@@ -1,4 +1,4 @@
 {
   "$comment": "Families whose @sneat/extension-<family>-contract package this repo owns and publishes. Seeded empty at Phase 0 (no family migrated yet — see spec/features/ext-contracts-monorepo/README.md, sneat-co/sneat-libs). The tier-coherence check (tools/tier-coherence/) reads this file to build its synthetic consumer; add a family here in the same change that adds its libs/<family>/ lib and publishes its first version from this repo.",
-  "families": ["taxus"]
+  "families": ["taxus", "gameboard", "bookius", "formius", "remindius", "renewon"]
 }

@@ -37,6 +37,11 @@ export default [
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
             { sourceTag: 'family:taxus', onlyDependOnLibsWithTags: ['family:taxus'] },
+            { sourceTag: 'family:gameboard', onlyDependOnLibsWithTags: ['family:gameboard'] },
+            { sourceTag: 'family:bookius', onlyDependOnLibsWithTags: ['family:bookius'] },
+            { sourceTag: 'family:formius', onlyDependOnLibsWithTags: ['family:formius'] },
+            { sourceTag: 'family:remindius', onlyDependOnLibsWithTags: ['family:remindius'] },
+            { sourceTag: 'family:renewon', onlyDependOnLibsWithTags: ['family:renewon'] },
           ],
         },
       ],

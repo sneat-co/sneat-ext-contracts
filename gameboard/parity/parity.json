@@ -1,0 +1,403 @@
+[
+  {
+    "name": "empty",
+    "events": [],
+    "expected": {
+      "status": "scheduled",
+      "period": 0,
+      "gameClockMs": 0,
+      "clockRunning": false,
+      "scores": {
+        "away": 0,
+        "home": 0
+      },
+      "teamFouls": {
+        "away": 0,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 0
+      },
+      "possession": "",
+      "onCourt": {
+        "away": [],
+        "home": []
+      },
+      "playerPoints": {},
+      "playerAssists": {}
+    }
+  },
+  {
+    "name": "basic-scores",
+    "events": [
+      {
+        "eventID": "a",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 1,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2
+      },
+      {
+        "eventID": "b",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 2,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "away",
+        "points": 3
+      },
+      {
+        "eventID": "c",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 3,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 1
+      }
+    ],
+    "expected": {
+      "status": "scheduled",
+      "period": 0,
+      "gameClockMs": 0,
+      "clockRunning": false,
+      "scores": {
+        "away": 3,
+        "home": 3
+      },
+      "teamFouls": {
+        "away": 0,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 0
+      },
+      "possession": "",
+      "onCourt": {
+        "away": [],
+        "home": []
+      },
+      "playerPoints": {},
+      "playerAssists": {}
+    }
+  },
+  {
+    "name": "idempotent-and-order",
+    "events": [
+      {
+        "eventID": "x",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 5,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2
+      },
+      {
+        "eventID": "x",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 5,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2
+      },
+      {
+        "eventID": "w",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 1,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "away",
+        "points": 3
+      }
+    ],
+    "expected": {
+      "status": "scheduled",
+      "period": 0,
+      "gameClockMs": 0,
+      "clockRunning": false,
+      "scores": {
+        "away": 3,
+        "home": 2
+      },
+      "teamFouls": {
+        "away": 0,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 0
+      },
+      "possession": "",
+      "onCourt": {
+        "away": [],
+        "home": []
+      },
+      "playerPoints": {},
+      "playerAssists": {}
+    }
+  },
+  {
+    "name": "correction-void",
+    "events": [
+      {
+        "eventID": "good",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 1,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2
+      },
+      {
+        "eventID": "oops",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 2,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 3
+      },
+      {
+        "eventID": "fix",
+        "type": "correction",
+        "source": "judge",
+        "wallClockMs": 3,
+        "period": 0,
+        "gameClockMs": 0,
+        "correctionOf": "oops"
+      }
+    ],
+    "expected": {
+      "status": "scheduled",
+      "period": 0,
+      "gameClockMs": 0,
+      "clockRunning": false,
+      "scores": {
+        "away": 0,
+        "home": 2
+      },
+      "teamFouls": {
+        "away": 0,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 0
+      },
+      "possession": "",
+      "onCourt": {
+        "away": [],
+        "home": []
+      },
+      "playerPoints": {},
+      "playerAssists": {}
+    }
+  },
+  {
+    "name": "correction-amend",
+    "events": [
+      {
+        "eventID": "oops",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 1,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 3
+      },
+      {
+        "eventID": "fix",
+        "type": "correction",
+        "source": "judge",
+        "wallClockMs": 2,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2,
+        "correctionOf": "oops"
+      }
+    ],
+    "expected": {
+      "status": "scheduled",
+      "period": 0,
+      "gameClockMs": 0,
+      "clockRunning": false,
+      "scores": {
+        "away": 0,
+        "home": 2
+      },
+      "teamFouls": {
+        "away": 0,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 0
+      },
+      "possession": "",
+      "onCourt": {
+        "away": [],
+        "home": []
+      },
+      "playerPoints": {},
+      "playerAssists": {}
+    }
+  },
+  {
+    "name": "full-vocabulary",
+    "events": [
+      {
+        "eventID": "e1",
+        "type": "status",
+        "source": "timekeeper",
+        "wallClockMs": 1,
+        "period": 0,
+        "gameClockMs": 0,
+        "status": "live"
+      },
+      {
+        "eventID": "e2",
+        "type": "period",
+        "source": "timekeeper",
+        "wallClockMs": 2,
+        "period": 1,
+        "gameClockMs": 0
+      },
+      {
+        "eventID": "e3",
+        "type": "clock",
+        "source": "timekeeper",
+        "wallClockMs": 3,
+        "period": 0,
+        "gameClockMs": 600000,
+        "clockAction": "start"
+      },
+      {
+        "eventID": "e4",
+        "type": "substitution",
+        "source": "scorekeeper",
+        "wallClockMs": 4,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "playerOn": "p1"
+      },
+      {
+        "eventID": "e5",
+        "type": "substitution",
+        "source": "scorekeeper",
+        "wallClockMs": 5,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "playerOn": "p2"
+      },
+      {
+        "eventID": "e6",
+        "type": "score",
+        "source": "scorekeeper",
+        "wallClockMs": 6,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "points": 2,
+        "scorerID": "p1",
+        "assistID": "p2"
+      },
+      {
+        "eventID": "e7",
+        "type": "team-foul",
+        "source": "scorekeeper",
+        "wallClockMs": 7,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "away"
+      },
+      {
+        "eventID": "e8",
+        "type": "timeout",
+        "source": "timekeeper",
+        "wallClockMs": 8,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home"
+      },
+      {
+        "eventID": "e9",
+        "type": "possession",
+        "source": "timekeeper",
+        "wallClockMs": 9,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "away"
+      },
+      {
+        "eventID": "e10",
+        "type": "substitution",
+        "source": "scorekeeper",
+        "wallClockMs": 10,
+        "period": 0,
+        "gameClockMs": 0,
+        "side": "home",
+        "playerOn": "p3",
+        "playerOff": "p1"
+      },
+      {
+        "eventID": "e11",
+        "type": "clock",
+        "source": "timekeeper",
+        "wallClockMs": 11,
+        "period": 0,
+        "gameClockMs": 540000,
+        "clockAction": "stop"
+      }
+    ],
+    "expected": {
+      "status": "live",
+      "period": 1,
+      "gameClockMs": 540000,
+      "clockRunning": false,
+      "scores": {
+        "away": 0,
+        "home": 2
+      },
+      "teamFouls": {
+        "away": 1,
+        "home": 0
+      },
+      "timeoutsUsed": {
+        "away": 0,
+        "home": 1
+      },
+      "possession": "away",
+      "onCourt": {
+        "away": [],
+        "home": [
+          "p2",
+          "p3"
+        ]
+      },
+      "playerPoints": {
+        "p1": 2
+      },
+      "playerAssists": {
+        "p2": 1
+      }
+    }
+  }
+]

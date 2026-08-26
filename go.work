@@ -1,4 +1,4 @@
-go 1.26
+go 1.25.0
 
 // Ritual: this workspace file enumerates every Go module family owns in this
 // repo. It starts empty because Phase 0 (this bootstrap) migrates no family —
@@ -16,4 +16,6 @@ go 1.26
 // — for why this is a multi-module (one go.mod per extension) layout rather
 // than a single root module.
 use (
+	./bookius
+	./gameboard
 )
