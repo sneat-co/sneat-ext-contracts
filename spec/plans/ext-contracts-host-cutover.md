@@ -79,21 +79,29 @@ are flagged explicitly rather than declared done when they aren't.
    it in `go.mod` as `// indirect`. That is expected, not a bug: it is
    exactly what the per-family tripwire table predicts, and the task's
    completion note should name which requirer is still pulling it in.
-3. They push. For `sneat-bots`, a local pre-push hook
-   (`scripts/pre-push-sneat-go-e2e.sh`, installed via `.wb/templates/`) clones
-   `sneat-go@origin/main` and runs its tests against the candidate build —
-   this is the mechanism that made today's contactus migration provably safe
-   without hand-tracing every call site.
+3. They push, and — for `sneat-bots` — open a PR. `sneat-bots` main's
+   branch protection has exactly one required status check, the
+   `sneat_go_integration` job ("Sneat-Go wiring integration"), with
+   `enforce_admins: true`: it resolves a `sneat-go` revision, checks it out,
+   and runs `scripts/test-sneat-go-e2e.sh` against the candidate build — the
+   same script a `wb`-managed local pre-push hook runs first, as a fast
+   local copy of the same check. This CI job is what made today's contactus
+   migration provably safe without hand-tracing every call site, and it
+   cannot be silently skipped by a differently-configured machine or agent
+   the way a purely local hook could.
    **Observable good result:** green run proves the family's new contract
    surface still satisfies both the local package's own tests and (for any
    family `sneat-go` also imports through `sneat-bots`) `sneat-go`'s
    consumption of it — *unless* the family is flagged "coordinate, don't
    assume independent" below, in which case a red run here is the expected,
    correct signal to stop and sequence, not a flake to retry past.
-   **Trap:** this hook is a *local* pre-push hook, not a GitHub Actions
-   check. It only fires on a machine that has it installed and does not pass
-   `--no-verify`. Treat a green push from an unknown machine as unproven; run
-   the script by hand as this task's explicit verification step if in doubt.
+   **The gate's one real gap, not the gate itself:** for an unavoidable
+   atomic cross-repo break (exactly what Tasks 7, 9, 10, 11 risk being), the
+   job supports a `**sneat-go-PR**: <url>` directive on its own line in the
+   `sneat-bots` PR body, which makes it test that linked `sneat-go` PR's
+   synthetic merge revision instead of `sneat-go@main` — but this is
+   documented only in a comment inside the workflow file itself, so a
+   blocked author would not find it unprompted. See Open Question 9.
 4. PR merges to the repo's `main`.
    **Observable good result — deliberately incomplete for `sneat-bots`:**
    merging to `sneat-bots` main delivers *nothing* downstream by itself.
@@ -111,20 +119,30 @@ are flagged explicitly rather than declared done when they aren't.
    via the `sneat-bots` pin (`listus`, `trackus`) either disappear from
    `go.mod` or shrink to "blocked on `<named product repo>`" — a documented,
    not silent, remainder.
-   **Trap, dated and confirmed today:** `sneat-bots@v0.30.7`'s `go.mod`
-   declares `go 1.27.0`; `sneat-go`'s currently declares `go 1.26.1` and
-   currently pins `sneat-bots@v0.30.6`, whose own `go.mod` is `go 1.26.1`
-   (confirmed by reading both tags directly). The moment `sneat-go` bumps
-   past `v0.30.6`, Go's module-graph max-`go`-directive rule drags
-   `sneat-go`'s effective build toolchain to 1.27 for the first time.
-   Per standing policy, a coverage floor is bound to the toolchain that
-   measured it (go1.26 → go1.27 has been observed to re-measure ~3.5pp lower
-   on identical source elsewhere in this fleet today). **A floor failing in
-   an untouched `sneat-go` package right after this bump is a measurement
-   artifact, not a regression — and lowering a floor is a founder decision,
-   never an implementer's.** Task 12 isolates the bump into its own
-   commit/PR specifically so this fallout is diagnosable in isolation from
-   any family-migration diff landing the same week.
+   **Trap, dated and confirmed today, but time-boxed to `v0.30.7` — check
+   again before executing Task 12:** `sneat-bots@v0.30.7`'s `go.mod` declares
+   `go 1.27.0`, forced by its own pins of `dal-go/dalgo@v0.68.0` and
+   `sneat-co/debtus/backend@v0.2.32`; `sneat-go`'s currently declares
+   `go 1.26.1` and currently pins `sneat-bots@v0.30.6`, whose own `go.mod` is
+   `go 1.26.1` (confirmed by reading both tags directly). If `sneat-go` bumps
+   past `v0.30.6` to a `sneat-bots` tag still pinning those two versions,
+   Go's module-graph max-`go`-directive rule drags `sneat-go`'s effective
+   build toolchain to 1.27 for the first time. **This is not a permanent
+   property of `sneat-bots` main** — a separate lane is already bumping both
+   pins to `dal-go/dalgo@v0.74.1` and `sneat-co/debtus/backend@v0.2.34`,
+   which each declare `go 1.26.0` (confirmed directly from those tags); once
+   that lands and a fresh tag is cut, `go 1.27.0` may no longer be forced.
+   Task 12 must re-check `sneat-bots`' `go.mod` `go` directive at the actual
+   tag it bumps to, not assume `v0.30.7`'s state still holds.
+   **If it does still force go1.27 at execution time:** per standing policy,
+   a coverage floor is bound to the toolchain that measured it (go1.26 →
+   go1.27 has been observed to re-measure ~3.5pp lower on identical source
+   elsewhere in this fleet today). **A floor failing in an untouched
+   `sneat-go` package right after this bump is a measurement artifact, not a
+   regression — and lowering a floor is a founder decision, never an
+   implementer's.** Task 12 isolates the bump into its own commit/PR
+   specifically so this fallout is diagnosable in isolation from any
+   family-migration diff landing the same week.
 6. **Terminal state for this Plan's authority:** every host-owned source file
    is migrated, and every remaining `go.mod` entry for an `ext-*` module is
    either gone or attached to a named external product-repo blocker (see
@@ -399,7 +417,11 @@ Depends on Task 2, not just the reverse-gate: `sneat-go` imports
 build depends on that package's post-migration public surface compiling,
 even though `sneat-go` does not currently construct a concrete
 `Services.Calendarius` value (lower runtime risk than `sneat-cli`'s, per
-Approach).
+Approach). If this and Task 2 cannot land as an additive
+expand/migrate/contract rollout and must break atomically, use the
+`**sneat-go-PR**: <url>` directive in the `sneat-bots` PR body (see Open
+Question 9) so `sneat-bots`' required CI check tests against this task's
+branch instead of `sneat-go@main`.
 
 ### Task 8: `sneat-go` — migrate `sportius` host code
 
@@ -429,7 +451,9 @@ passes against Task 3's branch.
 Explicitly excludes `pkg/modules/competios/eventreg/bookius_ports.go` and
 `bookius_registrar.go` — same competios-entanglement reasoning as Task 8.
 `sneat-go` imports `sneat-bots/extensions/bookius/vendorbot` directly, hence
-the dependency on Task 3 rather than treating this as independent.
+the dependency on Task 3 rather than treating this as independent. Same
+`**sneat-go-PR**` escape-hatch option as Task 7 if an atomic break is
+unavoidable.
 
 ### Task 10: `sneat-go` — migrate `eventius` host code
 
@@ -443,7 +467,8 @@ Task 4's branch.
 
 Explicitly excludes `pkg/modules/competios/eventreg/eventius_attendance_projector.go`.
 `sneat-go` imports `sneat-bots/extensions/eventius/bot/cmds4eventiusbot`
-directly, hence the dependency on Task 4.
+directly, hence the dependency on Task 4. Same `**sneat-go-PR**` escape-hatch
+option as Task 7 if an atomic break is unavoidable.
 
 ### Task 11: `sneat-go` — migrate `contactus` host code
 
@@ -459,18 +484,25 @@ their test files.
 `sneat-go`'s own local migration of its 5 source + 9 test files. Depends on
 Task 2 (not Task 2's contactus portion specifically, but the same
 `convosetup` file `sneat-go` imports) rather than being called independent
-just because `sneat-bots`' contactus half looks finished.
+just because `sneat-bots`' contactus half looks finished. Same
+`**sneat-go-PR**` escape-hatch option as Task 7 if an atomic break is
+unavoidable.
 
-### Task 12: `sneat-go` — bump the `sneat-bots` pin and isolate the go1.27 toolchain jump
+### Task 12: `sneat-go` — bump the `sneat-bots` pin, re-check the go-directive jump before assuming it fires
 
 **Id:** task-12
 **Verifies:** `go.mod` line 110 updated to Task 6's tag; `go mod tidy`
-clean; this lands as its **own commit/PR**, separate from Tasks 7–11, so any
-coverage-floor failures in packages untouched by this migration can be
-triaged as the expected go1.26→go1.27 re-measurement artifact (~3.5pp lower,
-observed elsewhere in this fleet today) rather than blamed on unrelated
-work. No floor is lowered as part of this task — that requires separate
-founder sign-off.
+clean; before merging, read Task 6's tag's own `go.mod` `go` directive
+directly (`go list -m -f '{{.GoVersion}}' github.com/sneat-co/sneat-bots@<tag>`)
+— **do not assume it is still `go 1.27.0`**, since a separate lane is
+bumping `sneat-bots`' `dal-go/dalgo` and `sneat-co/debtus/backend` pins to
+versions that each declare `go 1.26.0`, which would remove the forcing.
+This lands as its **own commit/PR**, separate from Tasks 7–11, so that *if*
+the jump still fires, any coverage-floor failures in packages untouched by
+this migration can be triaged as the expected go1.26→go1.27 re-measurement
+artifact (~3.5pp lower, observed elsewhere in this fleet on 2026-08-27)
+rather than blamed on unrelated work. No floor is lowered as part of this
+task in either case — that requires separate founder sign-off.
 **Depends-On:** 6
 **Status:** planning
 
@@ -503,7 +535,7 @@ same discipline applies: document, don't assume.
 
 ## Open Questions
 
-1. **contactus — fleet-wide transitive-forcing blocker.** `go mod graph`
+1. **contactus — fleet-wide transitive-forcing blocker; scope confirmed, ownership open.** `go mod graph`
    shows `ext-contactus/backend` still required (directly or transitively)
    by at least 15 other repos' pinned versions as consumed today: `assetus`,
    `calendarius`, `chessraiders`, `competios`, `contactus` (the product repo
@@ -513,68 +545,103 @@ same discipline applies: document, don't assume.
    independently confirmed today to force it. Neither `sneat-go`'s nor
    `sneat-bots`' `go.mod` can drop `ext-contactus/backend` to zero until
    every one of these repos migrates and releases — a campaign well beyond
-   two repos. Who owns coordinating that fleet-wide sweep, and is it
-   explicitly out of scope for this Plan (recommendation: yes, but the
-   founder should say so)?
-2. **calendarius — fleet-wide blocker, same shape.** Requirers today:
+   two repos. **Decided:** this fleet-wide sweep is out of scope for this
+   Plan; it belongs to a separate campaign. The requirer list above stays as
+   that campaign's inventory. **Still open:** who owns coordinating it — a
+   founder question, not mine to assign.
+2. **calendarius — fleet-wide blocker, same shape; scope confirmed, ownership open.** Requirers today:
    `calendarius` (itself), `communitycentrum`, `gameboard`, `gametable`,
-   `requoter`, `togethered`, plus the two host repos. Same question as #1.
-3. **gameboard — single external blocker, closes two host repos at once.**
-   The *sole* remaining requirer in both `sneat-go` and `sneat-bots` is
-   `sneat-co/gameboard`'s own `gameboard/eventtimeline` package (confirmed
-   via `go mod why`). Fixing it there and bumping the pin in both hosts
-   clears this family everywhere with zero host-repo source changes. Who
-   owns filing/running that fix in `sneat-co/gameboard`?
-4. **kids-club — single external blocker, `sneat-go`-only.** Sole requirer:
-   `sneat-co/kids-club`'s own `kidsclub` package. This family never appeared
-   in the original stale-hint inventory at all — it is a genuinely new
-   finding from today's audit. Same ownership question as #3, narrower
-   blast radius.
-5. **sneat-team — single external blocker, `sneat-go`-only.** Sole requirer:
-   `sneat-co/sneat-team`'s own `team` package. Same ownership question.
-6. **bookius / togethered.** Beyond the host-repo tasks above, `bookius` and
-   `togethered` (both product repos) still require `ext-bookius/backend`.
-   Who tracks their migration once Tasks 3 and 9 land?
-7. **eventius / sportius product repos — who owns tracking them?**
+   `requoter`, `togethered`, plus the two host repos. Same disposition as
+   #1: out of scope for this Plan, requirer list kept as inventory,
+   ownership of the campaign still a founder question.
+3. **gameboard — RESOLVED, tracked.** The *sole* remaining requirer in both
+   `sneat-go` and `sneat-bots` was `sneat-co/gameboard`'s own
+   `gameboard/backend/gameboard` package importing
+   `ext-gameboard/backend/eventtimeline` (confirmed via `go mod why` from
+   both host repos). Issue filed: [`sneat-co/gameboard#22`](https://github.com/sneat-co/gameboard/issues/22).
+4. **kids-club — RESOLVED, tracked.** Sole requirer:
+   `sneat-co/kids-club`'s own `kids-club/backend/kidsclub` package
+   importing `ext-kids-club/backend/dto4kidsclub`. This family never
+   appeared in the original stale-hint inventory at all — a genuinely new
+   finding from today's audit. Issue filed: [`sneat-co/kids-club#33`](https://github.com/sneat-co/kids-club/issues/33).
+5. **sneat-team — RESOLVED, tracked.** Sole requirer:
+   `sneat-co/sneat-team`'s own `sneat-team/backend/team` package importing
+   `ext-sneat-team/backend/team`. Issue filed: [`sneat-co/sneat-team#41`](https://github.com/sneat-co/sneat-team/issues/41).
+6. **bookius / togethered — RESOLVED, tracked.** Beyond the host-repo tasks
+   above (Tasks 3, 9), `go mod graph` shows `bookius/backend` and
+   `togethered/backend` as direct requirers of `ext-bookius/backend`
+   (`togethered/backend` additionally requires `ext-calendarius/backend`
+   and `ext-contactus/backend`). Issues filed:
+   [`sneat-co/bookius#50`](https://github.com/sneat-co/bookius/issues/50),
+   [`sneat-co/togethered#54`](https://github.com/sneat-co/togethered/issues/54).
+7. **eventius / sportius product repos — RESOLVED, tracked.**
    `sneat-co/eventius` and `sneat-co/sportius` still require their
    respective `ext-*` modules independently of the host-repo tasks above
-   (Tasks 4, 8, 10). Who owns filing/tracking their migration once those
-   land, mirroring Open Questions 3–6?
-8. **competios and chessraiders have no contract home at all.** Neither
-   `competios` nor `chessraiders` appears in
+   (Tasks 4, 8, 10). Issues filed:
+   [`sneat-co/eventius#78`](https://github.com/sneat-co/eventius/issues/78),
+   [`sneat-co/sportius#14`](https://github.com/sneat-co/sportius/issues/14).
+8. **competios and chessraiders have no contract home at all — partially
+   decided today.** Neither `competios` nor `chessraiders` appears in
    `sneat-ext-contracts/contracts.json`, `go.work`, or the `libs/`/top-level
    family directories — confirmed by direct inspection, not inference. Both
-   were archived today alongside the other 28. Before Tasks equivalent to
-   7–11 can even be written for these two families (17 + 8 files in
-   `sneat-go` respectively), someone must decide: (a) who authors
-   `sneat-ext-contracts/competios` and `.../chessraiders`, following the
-   same `contract4<family>` shape already used everywhere else, and (b) for
-   chessraiders specifically, whether that authoring and the subsequent
-   `sneat-go` migration should route through the existing chess-plans
-   coordination flow (plan walks only on the chess plans-branch worktree,
-   CLI-enforced) instead of this Plan. I am not choosing an answer to either
-   half.
-9. **The reverse-integration gate is a local hook, not a CI check.**
-   `sneat-bots/scripts/pre-push-sneat-go-e2e.sh` only runs on a machine that
-   has the `wb`-managed hook installed and does not pass `--no-verify`.
-   Should this campaign additionally wire an equivalent check into
-   `sneat-bots`' GitHub Actions CI so the cross-repo safety net can't be
-   silently skipped by a differently-configured machine or agent? This is a
-   policy decision beyond finishing the cutover — surfaced, not decided.
-10. **`sneat-cli` is a dependent of Task 2, not a parallel track — but it is
-    a third host repo this Plan has no authority over.** Once Task 2 lands,
-    `sneat-cli`'s `convo_trackus.go` composition should become a clean 2-file
-    + 1-dependency-bump swap against the migrated types. Should a
-    corresponding Plan task exist in `sneat-cli`'s own repo, and who owns
-    writing it?
-11. **contactus's terminal state in `sneat-bots` may already be
-    "acceptable."** `sneat-bots`' own source is fully migrated (PR #144);
-    the sole remaining `go.mod` line is `// indirect`, blocked entirely on
-    `sneat-co/calendarius` (via `gametable`). Is "indirect and externally
-    blocked, with the blocker named" an acceptable terminal state for this
-    Plan's contactus scope in `sneat-bots`, given Task 14 already documents
-    it — or does the founder want an issue opened against
-    `sneat-co/calendarius` as part of this effort?
+   were archived alongside the other 28.
+   **Decided (chessraiders):** the founder approved creating a
+   `chessraiders` family in `sneat-ext-contracts`. **Still open
+   (chessraiders):** whether authoring it and the subsequent `sneat-go`
+   migration (Tasks equivalent to 7–11, covering 8 files) route through the
+   existing chess-plans coordination flow (plan walks only on the chess
+   plans-branch worktree, CLI-enforced) instead of this Plan — the
+   founder's call, not mine.
+   **Decided (competios):** `ext-competios/grants` goes to the `competios`
+   repo proper, **not** `sneat-ext-contracts`. **Still open (competios):**
+   whether the remaining `sneat-go`-side competios surface (17 files, mostly
+   under `pkg/modules/competios/`, entangled with bookius/eventius/sportius/
+   chessraiders per the composition-threading finding above) still needs a
+   `sneat-ext-contracts/competios` family for its non-grants portion, or
+   whether that too resolves inside the `competios` repo itself. Genuinely
+   open — I'm not choosing.
+9. **The reverse-integration gate — corrected.** An earlier draft of this
+   Plan stated this gate was "a local hook, not a CI check" and asked
+   whether it should be wired into CI. **That was factually wrong, verified
+   directly against `sneat-bots/.github/workflows/ci.yml` and the live
+   branch-protection API:** the `sneat_go_integration` job ("Sneat-Go wiring
+   integration") is the **sole** entry in `sneat-bots` main's
+   `required_status_checks.contexts`, with **`enforce_admins: true`**. It
+   runs `scripts/test-sneat-go-e2e.sh` — the same script the local pre-push
+   hook drives — so the gate cannot be silently skipped by a
+   differently-configured machine or agent; CI is the enforced copy, the
+   local hook is only the fast pre-push copy.
+   **The real, narrower gap:** the job has a documented escape hatch for an
+   unavoidable atomic cross-repo break — a `**sneat-go-PR**:
+   <url>` directive on its own line in the `sneat-bots` PR body makes the
+   job test that linked `sneat-go` PR's synthetic merge revision instead of
+   `sneat-go@main`, and the link survives the merge (recovered from the
+   originating PR) so `sneat-bots` can release before `sneat-go` pins the
+   release. This is documented only in a comment inside
+   `sneat-bots/.github/workflows/ci.yml` (around the `sneat_go_integration`
+   job) and in `scripts/require-paired-pr-directive.sh` — a blocked author
+   would not find it without reading the workflow source. **Tasks 7, 9, 10,
+   and 11 are precisely the atomic cross-repo changes that may need this
+   directive** (each depends on a `sneat-bots` task landing a coupled
+   change) — this is now named explicitly rather than left for whoever
+   executes those tasks to rediscover. This finding is already recorded as
+   backstage lesson `gate-escape-hatch-must-surface-in-its-own-failure-message`;
+   no further action item here beyond the correction itself.
+10. **`sneat-cli` — RESOLVED, not a question.** `sneat-cli` is a downstream
+    consequence of Task 2, not a parallel track and not this Plan's to plan:
+    once Task 2 lands, `sneat-cli`'s `convo_trackus.go` composition becomes
+    a clean swap against the migrated types. It gets its own task in its
+    own repo; the coordinator owns dispatching it.
+11. **contactus's terminal state in `sneat-bots` — RESOLVED, tracked.**
+    `sneat-bots`' own source is fully migrated (PR #144); the sole remaining
+    `go.mod` line is `// indirect`, blocked entirely on `sneat-co/calendarius`
+    (via `gametable`). **Decided:** "indirect and externally blocked, with
+    the blocker named" is an acceptable terminal state for this Plan's
+    contactus scope in `sneat-bots` (Task 14 documents it). Issue filed so
+    the blocker is tracked, not only documented:
+    [`sneat-co/calendarius#51`](https://github.com/sneat-co/calendarius/issues/51)
+    (this issue also covers `calendarius`'s `v0.6.2` bundled-release
+    requirement for Task 2, see the composition-threading finding above).
 
 ---
 *This document follows the https://specscore.md/plan-specification*
