@@ -10,7 +10,7 @@ Canonical index of all plans in this repository. Each plan is a single Markdown 
 
 | Plan | Status | Source | Date | Owner |
 |---|---|---|---|---|
-| [ext-contracts-host-cutover](ext-contracts-host-cutover.md) | Draft | none | 2026-08-27 | alex |
+| [ext-contracts-host-cutover](ext-contracts-host-cutover.md) | Approved | none | 2026-08-27 | alex |
 
 ## Recently Closed
 

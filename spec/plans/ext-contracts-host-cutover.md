@@ -1,10 +1,10 @@
 ---
 format: https://specscore.md/plan-specification
-status: Draft
+status: Approved
 ---
 # Plan: Ext-Contracts Host Cutover
 
-**Status:** Draft
+**Status:** Approved
 **Source:** none
 **Date:** 2026-08-27
 **Owner:** alex
