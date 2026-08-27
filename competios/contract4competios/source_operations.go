@@ -269,12 +269,11 @@ func DigestCandidateTransferredFiles(files []CandidateSourceFile) (ArtifactDiges
 	}
 	var count [8]byte
 	binary.BigEndian.PutUint64(count[:], uint64(len(files)))
-	// Capacity is a performance hint only; append still grows the slice
-	// correctly if len(files) undershoots it. Avoid len(files)*3 as an
-	// allocation-size computation on caller-controlled input — CodeQL
-	// flags the multiply as an overflow-able allocation size even though
-	// files is bounded well below that in practice.
-	parts := make([][]byte, 0, 1+len(files))
+	// No capacity hint: CodeQL flags any make() capacity derived from
+	// caller-controlled len(files) as a potentially overflowing allocation
+	// size, even a plain addition. append grows the slice correctly on its
+	// own; this is purely a (now foregone) performance hint.
+	var parts [][]byte
 	parts = append(parts, count[:])
 	seen := map[string]bool{}
 	for _, file := range files {
