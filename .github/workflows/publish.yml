@@ -118,20 +118,59 @@ jobs:
             [ -e "$gomod" ] || continue
             family="$(dirname "$gomod")"
             pkg="libs/${family}/package.json"
-            if [ ! -f "$pkg" ]; then
-              echo "::warning::${gomod} has no matching libs/${family}/package.json — skipping Go tag resolution for ${family}."
-              continue
-            fi
-            version="$(node -p "require('./${pkg}').version")"
-            tag="${family}-contract-v${version}"
-            if git tag --points-at HEAD | grep -qx "$tag"; then
-              echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
-              pairs="$(echo "$pairs" | node -e "
-                const fs=require('fs');
-                const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                arr.push({dir: process.argv[1], version: process.argv[2]});
-                process.stdout.write(JSON.stringify(arr));
-              " "$family" "$version")"
+            vfile="${family}/version.go"
+
+            if [ -f "$pkg" ]; then
+              # npm-sibling family: Go version is lockstep with npm (README
+              # "Lockstep family versioning"). Only queue when npm actually
+              # released this version THIS run, evidenced by its release tag
+              # landing at HEAD.
+              version="$(node -p "require('./${pkg}').version")"
+              tag="${family}-contract-v${version}"
+              if git tag --points-at HEAD | grep -qx "$tag"; then
+                echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
+                pairs="$(echo "$pairs" | node -e "
+                  const fs=require('fs');
+                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                  arr.push({dir: process.argv[1], version: process.argv[2]});
+                  process.stdout.write(JSON.stringify(arr));
+                " "$family" "$version")"
+              fi
+            elif [ -f "$vfile" ]; then
+              # Go-only family (no npm sibling by design — README "Go-only
+              # family versioning"): version comes from its own version.go,
+              # bumped in whatever PR changes that family's contract.
+              # Independent of npm/nx entirely. Queue whenever the declared
+              # version has no Go tag yet, on every run (not just the run
+              # that bumped it) so a tag that failed to land once still
+              # catches up on the next run instead of needing a manual
+              # go_module_tags rescue.
+              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
+              if [ -z "$version" ]; then
+                echo "::error::${vfile} exists but no 'const Version = \"x.y.z\"' line could be parsed out of it — ${family} cannot be versioned."
+                exit 1
+              fi
+              tag="${family}/v${version}"
+              if git tag -l "$tag" | grep -qx "$tag"; then
+                echo "Family '${family}' already tagged at ${version} (${tag}) — nothing to do."
+              else
+                echo "Family '${family}' is Go-only and untagged at ${version} — queuing Go tag."
+                pairs="$(echo "$pairs" | node -e "
+                  const fs=require('fs');
+                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                  arr.push({dir: process.argv[1], version: process.argv[2]});
+                  process.stdout.write(JSON.stringify(arr));
+                " "$family" "$version")"
+              fi
+            else
+              # Neither an npm sibling nor a version.go: this Go module has
+              # NO versioning source at all. This used to be a silent
+              # ::warning:: skip — the exact defect that let competios and
+              # chessraiders merge and go untagged behind a green Publish
+              # run (see README "Go-only family versioning"). Fail loudly
+              # instead: a merged, unversionable family must never be quiet.
+              echo "::error::${gomod} has neither libs/${family}/package.json nor ${vfile} — ${family} cannot be versioned by any known mechanism. Add one before merging (see README.md 'Go-only family versioning')."
+              exit 1
             fi
           done
           echo "Resolved Go-module {dir, version} pairs: $pairs"
@@ -190,16 +229,32 @@ jobs:
           git pull --rebase origin main
           git push --follow-tags origin main
 
-      # Family version is LOCKSTEP between npm and Go (spec Decisions): a
-      # family's <dir>/go.mod tracks the exact version its npm package just
-      # published. For every "<family>/go.mod" that exists on disk, check
-      # whether the release step above actually cut that family's npm
-      # version this run — evidenced by the npm release tag
-      # ("{projectName}-v{version}", i.e. "<family>-contract-v<version>",
-      # nx.json releaseTag.pattern) landing on HEAD. Only families that BOTH
-      # have a Go module AND released npm this run are forwarded — this is
-      # what keeps a frozen family's Go tag from ever firing on an unrelated
-      # release.
+      # A family's Go module is versioned one of two ways, resolved per
+      # family below (README "Lockstep family versioning" / "Go-only family
+      # versioning"; each is independent per the founder's per-contract-
+      # independent-versioning ruling — an npm-sibling family's Go tag rides
+      # its own npm release, a Go-only family's rides its own version.go,
+      # and neither is coupled to the other or to any repo-wide cadence):
+      #   - npm-sibling family: LOCKSTEP with npm. Queue only when the
+      #     release step above actually cut that family's npm version THIS
+      #     run — evidenced by the npm release tag
+      #     ("{projectName}-v{version}", i.e. "<family>-contract-v<version>",
+      #     nx.json releaseTag.pattern) landing on HEAD. This is what keeps
+      #     a frozen family's Go tag from ever firing on an unrelated
+      #     release.
+      #   - Go-only family (no libs/<family>/package.json by design — no
+      #     npm consumer exists, so manufacturing one just to source a
+      #     version number would be the exact coupling the ruling rejects):
+      #     version comes from that family's own <family>/version.go. Queue
+      #     whenever its declared version has no Go tag yet, regardless of
+      #     what changed this run, so a merge that bumps version.go always
+      #     gets tagged on the very next release-on-main run and a failed
+      #     tag attempt self-heals on the run after that.
+      #   - Neither source present for a "<family>/go.mod" on disk: hard
+      #     failure (`exit 1`), not a skip — see the inline `::error::`.
+      #     This replaces the old silent `::warning::`-and-continue, which
+      #     is exactly how competios and chessraiders merged and went
+      #     untagged behind a green Publish run.
       - name: Resolve {dir, version} pairs for families with a Go module
         id: go-families
         run: |
@@ -208,20 +263,41 @@ jobs:
             [ -e "$gomod" ] || continue
             family="$(dirname "$gomod")"
             pkg="libs/${family}/package.json"
-            if [ ! -f "$pkg" ]; then
-              echo "::warning::${gomod} has no matching libs/${family}/package.json — skipping Go tag resolution for ${family}."
-              continue
-            fi
-            version="$(node -p "require('./${pkg}').version")"
-            tag="${family}-contract-v${version}"
-            if git tag --points-at HEAD | grep -qx "$tag"; then
-              echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
-              pairs="$(echo "$pairs" | node -e "
-                const fs=require('fs');
-                const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                arr.push({dir: process.argv[1], version: process.argv[2]});
-                process.stdout.write(JSON.stringify(arr));
-              " "$family" "$version")"
+            vfile="${family}/version.go"
+
+            if [ -f "$pkg" ]; then
+              version="$(node -p "require('./${pkg}').version")"
+              tag="${family}-contract-v${version}"
+              if git tag --points-at HEAD | grep -qx "$tag"; then
+                echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
+                pairs="$(echo "$pairs" | node -e "
+                  const fs=require('fs');
+                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                  arr.push({dir: process.argv[1], version: process.argv[2]});
+                  process.stdout.write(JSON.stringify(arr));
+                " "$family" "$version")"
+              fi
+            elif [ -f "$vfile" ]; then
+              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
+              if [ -z "$version" ]; then
+                echo "::error::${vfile} exists but no 'const Version = \"x.y.z\"' line could be parsed out of it — ${family} cannot be versioned."
+                exit 1
+              fi
+              tag="${family}/v${version}"
+              if git tag -l "$tag" | grep -qx "$tag"; then
+                echo "Family '${family}' already tagged at ${version} (${tag}) — nothing to do."
+              else
+                echo "Family '${family}' is Go-only and untagged at ${version} — queuing Go tag."
+                pairs="$(echo "$pairs" | node -e "
+                  const fs=require('fs');
+                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
+                  arr.push({dir: process.argv[1], version: process.argv[2]});
+                  process.stdout.write(JSON.stringify(arr));
+                " "$family" "$version")"
+              fi
+            else
+              echo "::error::${gomod} has neither libs/${family}/package.json nor ${vfile} — ${family} cannot be versioned by any known mechanism. Add one before merging (see README.md 'Go-only family versioning')."
+              exit 1
             fi
           done
           echo "Resolved Go-module {dir, version} pairs: $pairs"
