@@ -18,6 +18,8 @@ go 1.26.0
 use (
 	./bookius
 	./calendarius
+	./chessraiders
+	./competios
 	./contactus
 	./eventius
 	./gameboard
