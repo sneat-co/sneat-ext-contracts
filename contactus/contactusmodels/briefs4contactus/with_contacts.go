@@ -106,6 +106,9 @@ func (v *WithMultiSpaceContacts[T]) SetContactBrief(spaceID coretypes.SpaceID, c
 		v.ContactIDs = append(v.ContactIDs, id)
 		updates = append(updates, update.ByFieldName("contactIDs", v.ContactIDs))
 	}
+	if v.Contacts == nil {
+		v.Contacts = make(map[string]T)
+	}
 	if currentBrief, ok := v.Contacts[id]; !ok || !currentBrief.Equal(contactBrief) {
 		v.Contacts[id] = contactBrief
 		updates = append(updates, update.ByFieldName(const4contactus.ContactsField+"."+id, contactBrief))
