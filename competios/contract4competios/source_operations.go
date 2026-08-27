@@ -269,7 +269,12 @@ func DigestCandidateTransferredFiles(files []CandidateSourceFile) (ArtifactDiges
 	}
 	var count [8]byte
 	binary.BigEndian.PutUint64(count[:], uint64(len(files)))
-	parts := make([][]byte, 0, 1+len(files)*3)
+	// Capacity is a performance hint only; append still grows the slice
+	// correctly if len(files) undershoots it. Avoid len(files)*3 as an
+	// allocation-size computation on caller-controlled input — CodeQL
+	// flags the multiply as an overflow-able allocation size even though
+	// files is bounded well below that in practice.
+	parts := make([][]byte, 0, 1+len(files))
 	parts = append(parts, count[:])
 	seen := map[string]bool{}
 	for _, file := range files {
