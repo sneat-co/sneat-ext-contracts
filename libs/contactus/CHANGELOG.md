@@ -1,3 +1,14 @@
+## 0.12.4 (2026-08-27)
+
+### 🩹 Fixes
+
+- fix(contactus-contract): guard SetContactBrief against a nil Contacts map (sneat-co/contactus#60) ([3da261f](https://github.com/sneat-co/sneat-ext-contracts/commit/3da261f))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+- Claude Opus 5
+
 ## 0.12.3 (2026-08-26)
 
 ### 🩹 Fixes
