@@ -38,13 +38,18 @@ module renamed from `github.com/sneat-co/ext-chessraiders/backend` to
 `github.com/sneat-co/sneat-ext-contracts/chessraiders`, package names
 unchanged).
 
-## No npm sibling (yet)
+## No npm sibling (by design) and independent versioning
 
-See `../competios/README.md`'s "No npm sibling" section — identical
-reasoning and identical release-pipeline gap apply here: no
+See `../competios/README.md`'s "No npm sibling (by design) and independent
+versioning" section — identical reasoning applies here: no
 `@sneat/extension-chessraiders-contract` npm package ever existed, none is
-added by this change, `contracts.json` does not list `chessraiders`, and
-`.github/workflows/publish.yml`'s Go-tag resolution will not fire for this
-module without either (a) a `libs/chessraiders/package.json` added later, or
-(b) using the workflow's existing manual `go_module_tags` escape hatch to tag
-it directly — see this task's report for the exact recommended dispatch.
+added by this change, `contracts.json` does not list `chessraiders`, and this
+module's version comes from its own `version.go` (see `../README.md` "Go-only
+family versioning"). Despite the composition-root coupling noted above, this
+family's version line is fully independent of `competios`'s — the founder's
+ruling ("each contract get versioned independently") applies per contract,
+not per composition graph.
+
+First release: `chessraiders/v0.1.0`, cut 2026-08-27 via the `go_module_tags`
+manual dispatch escape hatch (the release-pipeline fix that makes this
+automatic going forward had not yet landed when this family merged).

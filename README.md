@@ -15,6 +15,8 @@ Full rationale, requirements, and the phased migration plan:
 ```text
 libs/<family>/            @sneat/extension-<family>-contract (Nx project "<family>-contract")
 <family>/go.mod           github.com/sneat-co/sneat-ext-contracts/<family>, tagged <family>/v<version>
+<family>/version.go       Go-only families ONLY (no libs/<family>/): const Version = "x.y.z" is
+                          the version source (see "Go-only family versioning" below)
 go.work                   lists every "<family>/go.mod" that exists (empty at Phase 0)
 contracts.json            manifest of families this repo owns/publishes (empty at Phase 0)
 docs/boundaries.md        the module-boundary map + the contract ownership test
@@ -65,14 +67,59 @@ minutes after merge, with correct provenance. Nothing else on npm moves.
 
 ### Lockstep family versioning (npm + Go)
 
-A family's Go module (`<family>/go.mod`, once it exists) tracks the **same**
-version number as its npm package — one version plan, one bump, applied to
-both artifacts. This is deliberate (spec Decisions): it keeps "what version is
-`<family>` at" a single question instead of two independently-drifting
-answers, which is exactly the kind of desync this repo exists to stop. `nx
+A family's Go module (`<family>/go.mod`) tracks the **same** version number
+as its npm package — one version plan, one bump, applied to both artifacts.
+This applies **only when the family has an npm sibling** (`libs/<family>/`):
+it keeps "what version is `<family>` at" a single question instead of two
+independently-drifting answers for a family that ships both artifacts. `nx
 release` publishes the npm side; `publish.yml` then tags the Go module at the
-same version once the Go module exists for that family (see "Go module
-tagging" below — currently disarmed, pending a shared `cicd` workflow).
+same version (see "Go module tagging" below).
+
+### Go-only family versioning (no npm sibling)
+
+Some families are pure Go — `competios` and `chessraiders` today — with no
+Angular/TS consumer and therefore no `libs/<family>/`. Per the founder's
+ruling ("I'd prefer if each contract get versioned independently"),
+manufacturing an unused npm shell just to source a version number for one of
+these would itself be the coupling the ruling rejects — a Go-only family's
+version line is its own, and does not ride any npm sibling, any other
+family's cadence, or a repo-wide version.
+
+Its version instead comes from a plain `<family>/version.go` at the module
+root — the same `const Version = "x.y.z"` convention already used across the
+wider Sneat/dalgo Go ecosystem (e.g. `dal-go/dalgo/version.go`,
+`bots-go-framework/bots-api-telegram/version.go`), not a new one invented for
+this repo. The journey:
+
+1. Clone this repo. Edit the contract under `<family>/`.
+2. Bump `<family>/version.go`'s `Version` constant to the next version this
+   change should ship as, in the **same PR** — this is the Go-only
+   equivalent of adding an Nx version plan; there is no separate plan file
+   because there is no Nx project to plan against (Nx only ever discovers
+   `libs/*/package.json`; a Go-only family's directory is invisible to it).
+3. Open one PR. CI builds/tests/vets the module same as any other Go family
+   (`.github/workflows/ci.yml`'s `discover-go`/`go` jobs auto-discover every
+   `<family>/go.mod`).
+4. On merge to `main`, `publish.yml`'s `release-on-main` job reads
+   `<family>/version.go`, and if `<family>/v<Version>` isn't already tagged,
+   tags it — no npm release, no version plan, no manual dispatch needed. This
+   fires on every CI-success-on-main run, so it also self-heals: if a tag
+   attempt ever fails, the very next run tries again as long as the tag is
+   still missing.
+
+Good result: pushing a `version.go` bump is the entire release act for a
+Go-only family — a new Go tag appears minutes after merge, with nothing on
+npm ever touched.
+
+**Silence is impossible by design.** If a `<family>/go.mod` exists with
+neither a `libs/<family>/package.json` (npm-sibling path) nor a
+`<family>/version.go` (Go-only path), or `version.go` exists but its
+`Version` line can't be parsed, `publish.yml` fails the run (`::error::` +
+non-zero exit) instead of skipping — a merged, unversionable family must
+never pass silently behind a green Publish run. (That silent skip is exactly
+how `competios` and `chessraiders` merged and went untagged for a day before
+this section and the pipeline fix that backs it were added — recovered via
+the `go_module_tags` manual escape hatch documented below.)
 
 ### 0.x semantics — read this before picking a version-plan bump
 
@@ -135,15 +182,27 @@ Good result: npm latest for that family is published from this repo, the old
 repo is archived and cannot publish, and the org-wide audit finds no second
 armed publisher for that npm name.
 
-### Go module tagging — currently disarmed
+### Go module tagging
 
-`publish.yml` has a placeholder job for tagging a family's Go module at the
-same version its npm package just published (see the file for the exact,
-ready-to-uncomment call). It stays disarmed until `sneat-co/cicd` ships
+`publish.yml` tags a family's Go module via `sneat-co/cicd`'s reusable
 `.github/workflows/go-module-tags.yml` (input contract: `modules: JSON array
-of {dir, version}` + optional `ref`) — a Phase-0 dependency this repo does not
-control. Until then, a family's Go leg does not start: it migrates its npm
-side only, and its `ext-<family>` repo stays unarchived for the Go half.
+of {dir, version}` + optional `ref`), armed since 2026-08-26. Two independent
+resolution paths feed it {dir, version} pairs, one per family shape — see
+"Lockstep family versioning" and "Go-only family versioning" above:
+
+- npm-sibling family → version from `libs/<family>/package.json`, gated on
+  that family's npm release tag landing on `HEAD` this run.
+- Go-only family → version from `<family>/version.go`, gated on
+  `<family>/v<version>` not already existing as a tag.
+- Neither source present for an on-disk `<family>/go.mod` → the run fails
+  loudly rather than skipping (see "Go-only family versioning").
+
+A rare manual escape hatch also exists: `workflow_dispatch` with `dry_run:
+false` and an explicit `go_module_tags` JSON input forwards {dir, version}
+pairs straight to `go-module-tags.yml`, bypassing both resolution paths above
+— use it only when the normal resolution can no longer see what it needs
+(e.g. a family's release commit is no longer `HEAD` by the time you
+re-dispatch), never as the routine way to cut a release.
 
 ## Module boundaries
 
