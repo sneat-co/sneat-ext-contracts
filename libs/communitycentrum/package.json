@@ -5,8 +5,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@angular/core": "^21.0.0",
-    "vitest": "^4.0.9"
+    "@angular/core": ">=22.0.0 <23.0.0"
   },
   "sideEffects": false
 }

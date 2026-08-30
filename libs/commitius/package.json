@@ -5,7 +5,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@angular/core": "^21.0.0",
+    "@angular/core": ">=22.0.0 <23.0.0",
     "@sneat/extension-template-contract": "^0.1.0"
   },
   "devDependencies": {
