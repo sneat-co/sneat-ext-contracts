@@ -1,3 +1,13 @@
+## 0.4.2 (2026-08-31)
+
+### 🩹 Fixes
+
+- chore(contracts): release peers targeting Sneat Libraries 0.27.6 ([a5f58ec](https://github.com/sneat-co/sneat-ext-contracts/commit/a5f58ec))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.4.1 (2026-08-26)
 
 ### 🩹 Fixes
