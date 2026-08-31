@@ -6,7 +6,7 @@
   },
   "peerDependencies": {
     "@angular/core": "^21.0.0",
-    "@sneat/dto": "^0.22.0 || ^0.24.0",
+    "@sneat/dto": "0.27.6",
     "rxjs": "^7.0.0"
   },
   "sideEffects": false
