@@ -1,3 +1,13 @@
+## 0.0.5 (2026-08-31)
+
+### 🩹 Fixes
+
+- Automated dependency release wave. ([635d8a6](https://github.com/sneat-co/sneat-ext-contracts/commit/635d8a6))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.0.4 (2026-08-26)
 
 ### 🩹 Fixes
