@@ -1,3 +1,26 @@
+## 0.2.3 (2026-09-01)
+
+### 🩹 Fixes
+
+- feat(budgetus): share the per-member split rule ([b4469e5](https://github.com/sneat-co/sneat-ext-contracts/commit/b4469e5))
+
+  Adds splitMinorUnitsAcrossMembers() and memberShareOfLine() so the
+  projection and any UI showing one member's costs use ONE implementation
+  of the split. A per-member breakdown must always add up to the currency
+  total above it; two implementations were two chances to disagree.
+
+  Adds an OPTIONAL watchBudgetForSpace(space, window) so a caller that
+  already holds the full ISpaceContext can pass it through to the data
+  source instead of it being rebuilt as a bare { id }.
+
+  Also aligns the @angular/core peer with the fleet convention
+  (">=22.0.0 <23.0.0").
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5
+
 ## 0.2.2 (2026-09-01)
 
 ### 🩹 Fixes
