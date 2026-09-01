@@ -1,5 +1,6 @@
 import { IRecord } from '@sneat/data';
 import { IListDbo, IListInfo } from './dto/list';
+import { IBudgetLineItem, SHARED_BUDGET_MEMBER_ID } from './dto/budget';
 
 export function getListShortUrlId(communeId: string, shortId?: string, id?: string): string | undefined {
   if (shortId) {
@@ -92,5 +93,56 @@ export function maskSurpriseLineItems<T extends IMaskableLineItem>(
     item.isSurprise
       ? { ...item, title: '🎁 Hidden surprise', sourceRef: undefined }
       : item,
+  );
+}
+
+/**
+ * Splits a value in minor units across members so the parts sum EXACTLY back to
+ * it.
+ *
+ * A shared cost belongs to its participants equally; the odd minor units go to
+ * the first members in the given order, so the split is deterministic rather
+ * than arbitrary. A cost with no participants belongs wholly to
+ * {@link SHARED_BUDGET_MEMBER_ID}.
+ *
+ * This lives in the contract because it is an invariant of the rollup shape,
+ * not an implementation detail: a per-member breakdown must always add up to the
+ * currency total it sits under. Two implementations of this rule would be two
+ * chances for those numbers to disagree on screen.
+ */
+export function splitMinorUnitsAcrossMembers(
+  value: number,
+  memberIDs: readonly string[],
+): Map<string, number> {
+  const shares = new Map<string, number>();
+  if (memberIDs.length === 0) {
+    shares.set(SHARED_BUDGET_MEMBER_ID, value);
+    return shares;
+  }
+  const base = Math.trunc(value / memberIDs.length);
+  let remainder = value - base * memberIDs.length;
+  for (const memberID of memberIDs) {
+    const extra = remainder > 0 ? 1 : 0;
+    remainder -= extra;
+    shares.set(memberID, base + extra);
+  }
+  return shares;
+}
+
+/**
+ * One member's share of a single budget line, in minor units.
+ *
+ * Returns 0 for a line the member is not attributed to, and for a line that
+ * carries no summable amount.
+ */
+export function memberShareOfLine(
+  item: Pick<IBudgetLineItem, 'monthlyAmount' | 'memberIDs'>,
+  memberID: string,
+): number {
+  return (
+    splitMinorUnitsAcrossMembers(
+      item.monthlyAmount?.value ?? 0,
+      item.memberIDs ?? [],
+    ).get(memberID) ?? 0
   );
 }
