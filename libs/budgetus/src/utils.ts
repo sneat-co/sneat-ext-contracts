@@ -97,6 +97,21 @@ export function maskSurpriseLineItems<T extends IMaskableLineItem>(
 }
 
 /**
+ * Strips the `@spaceID` suffix from a contact id.
+ *
+ * Related items belonging to another space are keyed `contactID@spaceID`, so the
+ * same person can arrive in two forms. `IBudgetLineItem.memberIDs` and
+ * `IMemberBudgetTotals.memberID` are always the SHORT form; anything comparing
+ * against them — a route parameter, a related-map key — must be normalized
+ * through here first, or the same contact lands in two buckets with half the
+ * cost each.
+ */
+export function normalizeMemberID(memberID: string): string {
+  const at = memberID.indexOf('@');
+  return at > 0 ? memberID.slice(0, at) : memberID;
+}
+
+/**
  * Splits a value in minor units across members so the parts sum EXACTLY back to
  * it.
  *

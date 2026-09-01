@@ -1,4 +1,4 @@
-import { getListShortUrlId, happeningBudgetLineID, maskSurpriseLineItems, memberShareOfLine, monthISOOf, splitMinorUnitsAcrossMembers } from './utils';
+import { getListShortUrlId, happeningBudgetLineID, maskSurpriseLineItems, memberShareOfLine, normalizeMemberID, monthISOOf, splitMinorUnitsAcrossMembers } from './utils';
 import { IBudgetLineItem, SHARED_BUDGET_MEMBER_ID } from './dto/budget';
 
 describe('getListShortUrlId', () => {
@@ -171,5 +171,19 @@ describe('memberShareOfLine', () => {
 
   it('returns 0 for a line with no summable amount', () => {
     expect(memberShareOfLine({ memberIDs: ['alex'] }, 'alex')).toBe(0);
+  });
+});
+
+describe('normalizeMemberID', () => {
+  it('strips the @spaceID suffix of a long id', () => {
+    expect(normalizeMemberID('contact1@space1')).toBe('contact1');
+  });
+
+  it('leaves a short id alone', () => {
+    expect(normalizeMemberID('contact1')).toBe('contact1');
+  });
+
+  it('does not strip a leading @', () => {
+    expect(normalizeMemberID('@weird')).toBe('@weird');
   });
 });
