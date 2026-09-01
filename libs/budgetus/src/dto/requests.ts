@@ -1,5 +1,5 @@
 import { IListItemBrief, IListItemDbo } from './list-item';
-import { IListBrief } from './list';
+import { IListBrief, IListDbo } from './list';
 import { ListType } from './list-types';
 import {
   ISpaceContext,
@@ -7,7 +7,8 @@ import {
   ISpaceRequest,
 } from '@sneat/space-models';
 
-export interface IListContext extends ISpaceItemNavContext<IListBrief, any> {
+export interface IListContext
+  extends ISpaceItemNavContext<IListBrief, IListDbo> {
   type: ListType;
 }
 
@@ -63,7 +64,12 @@ export interface IListItemResult {
   message?: string;
   changed?: boolean;
   success: boolean;
-  listDto: any;
+  listDto: IListDbo;
+  // Legacy field. In 0.1.0 this was `ICommuneDbo`, a type that no longer exists
+  // in this contract, so there is nothing to restore it to. Every reference to
+  // it in budgetus is commented-out dead code; it should be deleted outright
+  // once we can confirm no other consumer reads it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   communeDto?: any;
   listItemDto?: IListItemDbo;
 }
