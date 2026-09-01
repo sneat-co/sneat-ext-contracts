@@ -1,20 +1,29 @@
 import { IListItemBrief, IListItemDbo } from './list-item';
 import { IListBrief } from './list';
 import { ListType } from './list-types';
-import { ISpaceContext, ISpaceItemNavContext } from '@sneat/space-models';
+import {
+  ISpaceContext,
+  ISpaceItemNavContext,
+  ISpaceRequest,
+} from '@sneat/space-models';
 
 export interface IListContext extends ISpaceItemNavContext<IListBrief, any> {
   type: ListType;
 }
 
-export interface ICreateListRequest {
+// Every list request addresses a list inside a space, so it must carry the
+// spaceID. `extends ISpaceRequest` was dropped from both of these between 0.1.0
+// and 0.1.2, which silently removed spaceID from the whole IListRequest family
+// (ICreateListItemsRequest, IListItemIDsRequest, IReorderListItemsRequest, ...)
+// even though the service still sends it and the backend still routes on it.
+export interface ICreateListRequest extends ISpaceRequest {
   id?: string;
   title: string;
   type: ListType;
   emoji?: string;
 }
 
-export interface IListRequest {
+export interface IListRequest extends ISpaceRequest {
   readonly listID: string;
 }
 
