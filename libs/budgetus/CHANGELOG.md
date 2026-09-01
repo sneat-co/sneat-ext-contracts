@@ -1,3 +1,22 @@
+## 0.2.2 (2026-09-01)
+
+### 🩹 Fixes
+
+- fix(budgetus): restore types erased to `any` ([edc9fda](https://github.com/sneat-co/sneat-ext-contracts/commit/edc9fda))
+
+  The 0.1.0 -> 0.1.2 migration replaced five published types with `any`:
+  IListContext's Dbo generic, IBudgetusSpaceDbo.listGroups, the space
+  parameters of IBudgetusService.deleteList/getListById, and
+  IListItemResult.listDto. Contract 0.1.0 contained no `any` at all.
+
+  Consumers lost type checking on list DBOs and could not compile against
+  anything newer than 0.1.0.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5
+
 ## 0.2.1 (2026-09-01)
 
 ### 🩹 Fixes
