@@ -5,6 +5,7 @@ import {
   IListBrief,
   IListKey,
   IBudgetRollup,
+  IBudgetWindow,
   IBudgetOverridePatch,
   ListType,
   IListItemBrief,
@@ -42,7 +43,13 @@ export interface IBudgetusService {
   setListItemsIsCompleted(request: ISetListItemsIsComplete): Observable<void>;
   deleteListItems(request: IDeleteListItemsRequest): Observable<void>;
   getListById(space: any, listType: ListType, listID: string): Observable<IListContext>;
-  watchBudget(spaceID: string): Observable<IBudgetRollup>;
+  /**
+   * Watches the space's budget rollup.
+   *
+   * `window` defaults to {@link DEFAULT_BUDGET_WINDOW_MONTHS} months starting at
+   * the current month. The window actually used is echoed back on the rollup.
+   */
+  watchBudget(spaceID: string, window?: IBudgetWindow): Observable<IBudgetRollup>;
   setOverride(spaceID: string, lineItemId: string, patch: IBudgetOverridePatch): Promise<void>;
 }
 

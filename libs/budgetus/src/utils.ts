@@ -48,18 +48,49 @@ export function monthISOOf(dateISO: string): string {
   return dateISO.slice(0, 7);
 }
 
-export function maskSurpriseLineItems(
-  items: any[],
+/**
+ * The canonical id of a budget line produced by an expense-flagged happening
+ * price: `happening:{happeningID}:{priceID}:{occurrenceMonthISO}`.
+ *
+ * `priceID` is backend-stable, so a happening with several flagged prices yields
+ * one stable line per price per month. Both producers and consumers build ids
+ * through this function — an id built by hand somewhere else is how the two
+ * halves of an override lookup silently stop matching.
+ */
+export function happeningBudgetLineID(
+  happeningID: string,
+  priceID: string,
+  occurrenceMonthISO: string,
+): string {
+  return `happening:${happeningID}:${priceID}:${occurrenceMonthISO}`;
+}
+
+/** The minimum shape {@link maskSurpriseLineItems} needs to mask an item. */
+export interface IMaskableLineItem {
+  title: string;
+  sourceRef?: string;
+  isSurprise?: boolean;
+}
+
+/**
+ * Hides the title and source of items flagged as a surprise, so a budget can be
+ * shown to someone the surprise is for.
+ *
+ * Returns new objects; the input array and its items are never mutated. The
+ * item type is preserved, so callers keep every field they passed in.
+ */
+export function maskSurpriseLineItems<T extends IMaskableLineItem>(
+  items: readonly T[],
   options?: {
     reveal?: boolean;
-  }
-): any[] {
+  },
+): T[] {
   if (options?.reveal) {
-    return items;
+    return [...items];
   }
   return items.map((item) =>
     item.isSurprise
       ? { ...item, title: '🎁 Hidden surprise', sourceRef: undefined }
-      : item
+      : item,
   );
 }
