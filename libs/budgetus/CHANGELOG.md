@@ -1,3 +1,19 @@
+## 0.2.1 (2026-09-01)
+
+### 🩹 Fixes
+
+- fix(budgetus): restore spaceID on list requests ([6150f74](https://github.com/sneat-co/sneat-ext-contracts/commit/6150f74))
+
+  IListRequest and ICreateListRequest lost `extends ISpaceRequest` between
+  0.1.0 and 0.1.2, dropping spaceID from the whole list-request family even
+  though the service still sends it and the backend still routes on it.
+  Consumers could not compile against anything newer than 0.1.0.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5
+
 ## 0.2.0 (2026-09-01)
 
 ### ⚠️  Breaking Changes
