@@ -1,3 +1,26 @@
+## 0.2.0 (2026-09-01)
+
+### ⚠️  Breaking Changes
+
+- feat(budgetus): budget rollup for real happening expenses ([f482e58](https://github.com/sneat-co/sneat-ext-contracts/commit/f482e58))
+
+  Breaking: `IBudgetRollup` is now segregated per currency (`byCurrency`)
+  instead of carrying a single `byMonth`/`annualTotal` pair that silently
+  assumed one currency. `IMoney.value` is documented as integer minor units.
+  `watchBudget` takes an optional rollup window, and `maskSurpriseLineItems`
+  is generic instead of `any[]`.
+
+  Adds the per-price line-identity fields (`happeningID`, `priceID`,
+  `occurrenceMonthISO`) and the per-member rollup types (`memberIDs`,
+  `IMemberBudgetTotals`) that a real, non-demo budget needs.
+
+  On the 0.x train `major` lands as 0.1.2 → 0.2.0.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5
+
 ## 0.1.2 (2026-08-31)
 
 ### 🩹 Fixes
