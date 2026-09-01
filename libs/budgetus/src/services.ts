@@ -1,5 +1,6 @@
 import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
+import { ISpaceContext } from '@sneat/space-models';
 import {
   IListDbo,
   IListBrief,
@@ -37,12 +38,16 @@ export type ReorderListItemsWorker = (listDto: IListDbo) => void;
 
 export interface IBudgetusService {
   createList(request: ICreateListRequest): Observable<IListContext>;
-  deleteList(space: any, listId: string): Observable<void>;
+  deleteList(space: ISpaceContext, listId: string): Observable<void>;
   reorderListItems(request: IReorderListItemsRequest): Observable<void>;
   createListItems(params: IListItemsCommandParams): Observable<IListItemResult>;
   setListItemsIsCompleted(request: ISetListItemsIsComplete): Observable<void>;
   deleteListItems(request: IDeleteListItemsRequest): Observable<void>;
-  getListById(space: any, listType: ListType, listID: string): Observable<IListContext>;
+  getListById(
+    space: ISpaceContext,
+    listType: ListType,
+    listID: string,
+  ): Observable<IListContext>;
   /**
    * Watches the space's budget rollup.
    *

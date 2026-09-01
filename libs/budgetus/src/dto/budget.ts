@@ -1,5 +1,7 @@
+import { IListGroup } from './list';
+
 export interface IBudgetusSpaceDbo {
-  listGroups?: any[];
+  listGroups?: IListGroup[];
 }
 
 /**
