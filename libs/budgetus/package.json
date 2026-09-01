@@ -5,7 +5,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@angular/core": "^22.0.0",
+    "@angular/core": ">=22.0.0 <23.0.0",
     "rxjs": "^7.0.0",
     "@sneat/core": "0.27.6",
     "@sneat/data": "0.27.6",

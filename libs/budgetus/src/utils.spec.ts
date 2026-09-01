@@ -1,5 +1,5 @@
-import { getListShortUrlId, happeningBudgetLineID, maskSurpriseLineItems, monthISOOf } from './utils';
-import { IBudgetLineItem } from './dto/budget';
+import { getListShortUrlId, happeningBudgetLineID, maskSurpriseLineItems, memberShareOfLine, monthISOOf, splitMinorUnitsAcrossMembers } from './utils';
+import { IBudgetLineItem, SHARED_BUDGET_MEMBER_ID } from './dto/budget';
 
 describe('getListShortUrlId', () => {
   it('combines spaceId and shortId when a shortId is given', () => {
@@ -111,5 +111,65 @@ describe('maskSurpriseLineItems typing', () => {
   it('returns a new array even when revealing, so callers cannot mutate the source', () => {
     const items: IBudgetLineItem[] = [];
     expect(maskSurpriseLineItems(items, { reveal: true })).not.toBe(items);
+  });
+});
+
+describe('splitMinorUnitsAcrossMembers', () => {
+  it('splits evenly when it divides', () => {
+    const shares = splitMinorUnitsAcrossMembers(6000, ['alex', 'sam']);
+    expect(shares.get('alex')).toBe(3000);
+    expect(shares.get('sam')).toBe(3000);
+  });
+
+  it('gives the odd minor units to the first members, deterministically', () => {
+    const shares = splitMinorUnitsAcrossMembers(1000, ['a', 'b', 'c']);
+    expect([...shares.values()]).toEqual([334, 333, 333]);
+  });
+
+  it('always sums back to the original value', () => {
+    for (const value of [0, 1, 7, 999, 100001]) {
+      for (const n of [1, 2, 3, 4, 7]) {
+        const members = Array.from({ length: n }, (_, i) => `m${i}`);
+        const total = [
+          ...splitMinorUnitsAcrossMembers(value, members).values(),
+        ].reduce((a, b) => a + b, 0);
+        expect(total).toBe(value);
+      }
+    }
+  });
+
+  it('puts a cost with no members in the shared bucket', () => {
+    const shares = splitMinorUnitsAcrossMembers(500, []);
+    expect(shares.get(SHARED_BUDGET_MEMBER_ID)).toBe(500);
+  });
+});
+
+describe('memberShareOfLine', () => {
+  it('returns the member share of a split line', () => {
+    expect(
+      memberShareOfLine(
+        {
+          monthlyAmount: { currency: 'EUR', value: 6001 },
+          memberIDs: ['alex', 'sam'],
+        },
+        'alex',
+      ),
+    ).toBe(3001);
+  });
+
+  it('returns 0 for a member the line is not attributed to', () => {
+    expect(
+      memberShareOfLine(
+        {
+          monthlyAmount: { currency: 'EUR', value: 6000 },
+          memberIDs: ['alex'],
+        },
+        'sam',
+      ),
+    ).toBe(0);
+  });
+
+  it('returns 0 for a line with no summable amount', () => {
+    expect(memberShareOfLine({ memberIDs: ['alex'] }, 'alex')).toBe(0);
   });
 });
