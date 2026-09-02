@@ -49,9 +49,19 @@ function majorFloor(version: string): string {
  * at all, which is exactly the "exact peer pin drifts from the consumer's
  * installed version" bug class that forces pnpm to install a second copy of
  * the package (Angular NG0201 duplicate-DI-token errors downstream).
+ *
+ * A 0.0.x version is the one case left exact on purpose: npm's caret on a
+ * 0.0.x version keeps the SAME match set as the bare version (^0.0.4 means
+ * 0.0.4, full stop), so adding one would be a no-op that trips the fleet's
+ * OTHER peer-range guard (sneat-co/cicd's check-peer-ranges, which rejects a
+ * bare ^0.0.x/~0.0.x range as its own trap). tools/peer-range-guard/
+ * check.mjs makes the same exception for the same reason.
  */
 function caretOf(version: string): string {
   const cleaned = version.replace(/^[\^~]/, '');
+  if (/^0\.0\.\d/.test(cleaned)) {
+    return cleaned;
+  }
   return `^${cleaned}`;
 }
 
