@@ -1,3 +1,18 @@
+## 0.0.6 (2026-09-02)
+
+### 🩹 Fixes
+
+- publish caret peer ranges for @sneat/* (no exact peer pins) ([5bf2069](https://github.com/sneat-co/sneat-ext-contracts/commit/5bf2069))
+
+### 🧱 Updated Dependencies
+
+- Updated assetus-contract to 0.2.3
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5.1
+
 ## 0.0.5 (2026-08-31)
 
 ### 🩹 Fixes
