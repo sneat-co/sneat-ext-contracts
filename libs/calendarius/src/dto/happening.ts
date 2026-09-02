@@ -8,10 +8,101 @@ export interface ISlotParticipant {
   // readonly title: string;
 }
 
+/**
+ * The role a contact holds ON a happening — the key stored in the related
+ * item's `rolesOfItem` map. It answers "what is this person to this lesson?",
+ * not "what may this person do in this Space".
+ *
+ * The vocabulary is CLOSED and calendarius-owned, mirroring the backend's
+ * `dbo4calendarius.HappeningParticipantWellKnownRoles` exactly. Five existing
+ * fleet vocabularies were considered first and each is a different AXIS:
+ * `SpaceMemberRole` is space-membership authorization (a person can teach one
+ * lesson and attend another in the same Space), `IRelationshipRoles`' kinship
+ * constants are contact↔contact with opposite roles, and eventius'
+ * `event-attendee`/`event-host` is a reciprocal edge that does not contain
+ * `participant` — the value calendarius has already written everywhere.
+ *
+ * The two that DO contain `teacher` were rejected for the same reason plus a
+ * layering one: `ContactRole` (contactus) classifies what a contact IS to a
+ * space — its `teacher` lives inside `ContactRoleKidRelated`, beside `plumber`,
+ * `ship` and `port_to_location`, none of which may name a lesson link; and
+ * `SchoolRole` (schoolus) is a person's role WITHIN a school, from a module
+ * that sits ABOVE calendarius and that calendarius must not depend on. The
+ * `teacher` VALUE is deliberately identical in all three, so a schoolus
+ * consumer maps `SchoolRoleTeacher` onto this role by identity.
+ */
+export type HappeningParticipantRole =
+  | 'participant'
+  | 'teacher'
+  | 'organizer'
+  | 'assistant';
+
+/**
+ * Every HappeningParticipantRole, in the backend's declared order. Use this to
+ * render a role picker rather than hand-listing the union, so a role added
+ * server-side shows up without a second edit.
+ */
+export const happeningParticipantRoles: readonly HappeningParticipantRole[] = [
+  'participant',
+  'teacher',
+  'organizer',
+  'assistant',
+];
+
+/**
+ * The role a caller gets when it does not ask for one. The backend resolves an
+ * absent role to exactly this, so a UI defaulting to it produces byte-identical
+ * requests to the ones every pre-existing client sends.
+ */
+export const defaultHappeningParticipantRole: HappeningParticipantRole =
+  'participant';
+
+export function isKnownHappeningParticipantRole(
+  role: string,
+): role is HappeningParticipantRole {
+  return (happeningParticipantRoles as readonly string[]).includes(role);
+}
+
+/**
+ * A contact's roles on one happening.
+ *
+ * ADOPTED rather than deleted: this type existed with zero references and an
+ * untyped `roles?: string[]`. Leaving it would have made a third shape once the
+ * role vocabulary landed, so it is now the typed projection consumers read —
+ * `Object.keys(relatedItem.rolesOfItem)` narrowed to the closed vocabulary.
+ * `roles` is a LIST because the underlying linkage model stores a map of role
+ * keys: a contact can legitimately be both the teacher and the organizer of a
+ * lesson.
+ */
 export interface IHappeningParticipant {
-  readonly roles?: string[];
+  readonly roles?: readonly HappeningParticipantRole[];
   // readonly type: 'member' | 'contact';
   // readonly title: string;
+}
+
+/**
+ * One contact named in an `add_participants` / `remove_participants` request,
+ * optionally saying WHICH role that contact holds on the happening.
+ *
+ * Mirrors the backend's `dto4calendarius.HappeningContactRef`, which embeds
+ * `ShortSpaceModuleItemRef` and adds `role` beside it — so `{id, spaceID}`
+ * remains a valid body and `role` is purely additive.
+ *
+ * Only the REF is published here, not the whole request: the request envelope
+ * (`spaceID` + `happeningID`) is already typed in the calendarius frontend
+ * against `ISpaceRequest`, and duplicating it would create a second shape of
+ * the same thing. The ref is the part the role rides on, and the part a
+ * non-Angular consumer cannot infer.
+ *
+ * `role` omitted means `participant` — see `defaultHappeningParticipantRole`.
+ * Sending a value outside the closed vocabulary is answered `400`; it is never
+ * stored.
+ */
+export interface IHappeningContactRef {
+  readonly id: string;
+  /** Omit for a contact in the happening's own space. */
+  readonly spaceID?: string;
+  readonly role?: HappeningParticipantRole;
 }
 
 /**
@@ -156,6 +247,16 @@ export interface IHappeningBase extends IWithRelatedOnly {
   readonly prices?: readonly IHappeningPrice[];
   // readonly participants?: Record<string, Readonly<IHappeningParticipant>>;
   /**
+   * Filter facets on the happening — `guitar`, `piano`, `beginner-group`.
+   *
+   * Mirrors the backend's `with.TagsField`, which HappeningDbo has always
+   * embedded; what was missing was every path TO it, this declaration included.
+   * The server stores them normalised (trimmed, lower-cased, de-duplicated) and
+   * enforces `happeningTagLimits`, so a client can render them verbatim.
+   * Absent rather than `[]` when a happening has no tags.
+   */
+  readonly tags?: readonly string[];
+  /**
    * Per-extension data embedded on the happening, keyed by extension id (e.g.
    * `eventus`). Lets a hosting module store its own fields on the happening
    * instead of a separate overlay document; calendarius stays agnostic to the
@@ -165,6 +266,55 @@ export interface IHappeningBase extends IWithRelatedOnly {
 }
 
 export type IHappeningBrief = IHappeningBase;
+
+/**
+ * The server-enforced tag rules, published so a form can refuse a bad tag
+ * before a round trip rather than after a 400. These MIRROR the backend
+ * (`dbo4calendarius.HappeningTagsMaxCount` / `HappeningTagMaxRunes`); the
+ * server remains the authority.
+ */
+export const happeningTagLimits = {
+  maxCount: 10,
+  /** RUNES, not bytes — a Cyrillic or CJK tag gets the same 32 characters. */
+  maxRunes: 32,
+} as const;
+
+/**
+ * Canonicalises tags exactly as the server does before storing them: trimmed,
+ * lower-cased, blanks dropped, duplicates collapsed, order of first appearance
+ * preserved. A UI that normalises before sending shows the user the value that
+ * will actually be stored.
+ */
+export function normalizeHappeningTags(
+  tags: readonly string[] | undefined,
+): string[] {
+  if (!tags?.length) return [];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const raw of tags) {
+    const tag = raw.trim().toLowerCase();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    normalized.push(tag);
+  }
+  return normalized;
+}
+
+/**
+ * Returns why `tag` is not an acceptable happening tag, or undefined when it
+ * is. Takes the ALREADY-NORMALIZED value, so it never complains about casing or
+ * padding a caller cannot see.
+ */
+export function happeningTagError(tag: string): string | undefined {
+  if (!tag) return 'a tag must not be empty';
+  // Spread, not .length: a surrogate pair is one character to a user.
+  if ([...tag].length > happeningTagLimits.maxRunes)
+    return `a tag must be at most ${happeningTagLimits.maxRunes} characters`;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/u.test(tag))
+    return 'a tag must not contain control characters';
+  return undefined;
+}
 
 export interface IWithDates {
   readonly dates?: string[];
