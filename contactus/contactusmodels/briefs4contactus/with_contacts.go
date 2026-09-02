@@ -79,10 +79,15 @@ type WithMultiSpaceContacts[
 	WithContactsBase[T]
 }
 
-// Validate returns error if not valid
+// Validate returns error if not valid.
+//
+// NB the contactIDs check below must RETURN its error. It used to `return nil`
+// on failure, silently discarding the verdict of a real format validator --
+// and since this mixin is embedded in contactus's ContactDbo, that meant
+// contactIDs were never actually validated on any contact record.
 func (v *WithMultiSpaceContacts[T]) Validate() error {
 	if err := v.WithMultiSpaceContactIDs.Validate(); err != nil {
-		return nil
+		return err
 	}
 	return dbmodels.ValidateWithIdsAndBriefs("contactIDs", const4contactus.ContactsField, v.ContactIDs, v.Contacts)
 }
