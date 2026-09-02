@@ -1,3 +1,18 @@
+## 0.12.7 (2026-09-02)
+
+### 🩹 Fixes
+
+- fix(contactus): WithMultiSpaceContacts.Validate must not swallow the contactIDs error ([282435c](https://github.com/sneat-co/sneat-ext-contracts/commit/282435c))
+
+  It returned nil on failure, discarding the verdict of a real format validator.
+  Since the mixin is embedded in contactus's ContactDbo, contactIDs were never
+  actually validated on any contact record.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+- Claude Fable 5
+
 ## 0.12.6 (2026-09-02)
 
 ### 🩹 Fixes
