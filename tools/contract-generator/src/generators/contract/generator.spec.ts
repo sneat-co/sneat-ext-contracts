@@ -100,7 +100,15 @@ describe('contract generator (real CLI, real workspace)', () => {
         const rxjsMajor = String(rootPkg.devDependencies['rxjs']).split('.')[0];
         expect(packageJson.peerDependencies['@angular/core']).toBe(`^${angularMajor}.0.0`);
         expect(packageJson.peerDependencies['rxjs']).toBe(`^${rxjsMajor}.0.0`);
-        expect(packageJson.peerDependencies['@sneat/core']).toBe(rootPkg.devDependencies['@sneat/core']);
+        // The generator must never copy a root devDependency's exact pin
+        // straight through as a peer — that's the bug class this test used
+        // to enshrine (a bare "0.27.6" peer forces pnpm to install a second
+        // copy whenever a consumer's installed version drifts, causing
+        // Angular NG0201 duplicate-DI-token errors). It must add a caret.
+        expect(packageJson.peerDependencies['@sneat/core']).toBe(
+          `^${String(rootPkg.devDependencies['@sneat/core']).replace(/^[\^~]/, '')}`,
+        );
+        expect(packageJson.peerDependencies['@sneat/core']).not.toBe(rootPkg.devDependencies['@sneat/core']);
 
         // --- <family>/go.mod scaffold ---
         expect(existsSync(path.join(GO_ROOT, 'go.mod'))).toBe(true);

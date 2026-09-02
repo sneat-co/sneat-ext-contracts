@@ -46,6 +46,18 @@ jobs:
       - name: Tier-coherence check
         run: node tools/tier-coherence/check.mjs
 
+      # REQ peer-range-no-exact-pins: no libs/<family>/package.json may
+      # declare a bare exact @sneat/* peer/dependency (ng-packagr copies
+      # these fields verbatim into the published dist package.json, so the
+      # source file IS the built artifact for this check). An exact pin
+      # forces pnpm to install a second copy whenever a consumer's installed
+      # version drifts — the root cause of the fleet's Angular NG0201
+      # duplicate-DI-token errors. tools/contract-generator/generator.ts's
+      # caretOf() keeps newly-scaffolded families out of this; this guard
+      # catches a hand-edit or future generator regression.
+      - name: Peer-range guard (no exact @sneat/* pins)
+        run: node tools/peer-range-guard/check.mjs
+
   discover-go:
     runs-on: ubuntu-latest
     outputs:

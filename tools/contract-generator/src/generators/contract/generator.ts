@@ -36,6 +36,25 @@ function majorFloor(version: string): string {
   return `^${major}.0.0`;
 }
 
+/**
+ * Turns a bare exact devDependency version ("0.27.6") into a caret range
+ * ("^0.27.6") — the fleet's convention for a 0.x @sneat/* peer (npm's caret
+ * semantics keep 0.x.y patch-compatible within the minor: ^0.27.6 accepts
+ * 0.27.6 through <0.28.0). `majorFloor` above is wrong for these: it floors
+ * to `^0.0.0` for any 0.x version, which is degenerate. Reading the live
+ * workspace root and only ADDING a caret (never floored further) is what
+ * keeps a new contract's @sneat/* peers non-exact without guessing a wider
+ * range than the version it was actually built against. Before this fix the
+ * generator copied `dev['@sneat/core']` etc. straight through with no caret
+ * at all, which is exactly the "exact peer pin drifts from the consumer's
+ * installed version" bug class that forces pnpm to install a second copy of
+ * the package (Angular NG0201 duplicate-DI-token errors downstream).
+ */
+function caretOf(version: string): string {
+  const cleaned = version.replace(/^[\^~]/, '');
+  return `^${cleaned}`;
+}
+
 function assertValidFamily(family: string | undefined): asserts family is string {
   if (!family || !FAMILY_PATTERN.test(family)) {
     throw new Error(
@@ -219,10 +238,10 @@ export default async function contractGenerator(
     npmName,
     angularPeer: majorFloor(dev['@angular/core'] ?? '0.0.0'),
     rxjsPeer: majorFloor(dev['rxjs'] ?? '0.0.0'),
-    sneatCorePeer: dev['@sneat/core'] ?? '^0.0.0',
-    sneatDataPeer: dev['@sneat/data'] ?? '^0.0.0',
-    sneatDtoPeer: dev['@sneat/dto'] ?? '^0.0.0',
-    sneatSpaceModelsPeer: dev['@sneat/space-models'] ?? '^0.0.0',
+    sneatCorePeer: caretOf(dev['@sneat/core'] ?? '0.0.0'),
+    sneatDataPeer: caretOf(dev['@sneat/data'] ?? '0.0.0'),
+    sneatDtoPeer: caretOf(dev['@sneat/dto'] ?? '0.0.0'),
+    sneatSpaceModelsPeer: caretOf(dev['@sneat/space-models'] ?? '0.0.0'),
     goVersion: options.go ? readGoVersion(tree) : '',
     // Go package identifiers can't contain hyphens (module paths can) — a
     // kebab-case family like "kids-club" gets Go package `kids_club`.

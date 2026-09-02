@@ -6,8 +6,8 @@
   },
   "peerDependencies": {
     "@angular/core": "^21.0.0",
-    "@sneat/dto": "0.27.6",
-    "@sneat/space-models": "0.27.6",
+    "@sneat/dto": "^0.27.6",
+    "@sneat/space-models": "^0.27.6",
     "rxjs": "^7.0.0",
     "vitest": "4.1.0"
   },
