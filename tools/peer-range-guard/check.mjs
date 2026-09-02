@@ -26,7 +26,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 const libsDir = path.join(repoRoot, 'libs');
 
-const isBareExact = (v) => typeof v === 'string' && /^\d/.test(v);
+// A 0.0.x version is deliberately excluded: npm's caret on 0.0.x permits
+// nothing but that exact patch (^0.0.4 means 0.0.4, full stop -- same match
+// set as the bare "0.0.4"), so adding a caret there is a no-op that also
+// trips the fleet's OTHER peer-range guard (sneat-co/cicd's
+// check-peer-ranges, which rejects bare ^0.0.x/~0.0.x as its own trap). For
+// a 0.0.x peer, staying exact is the fleet's established, correct form; only
+// non-0.0.x bare exact pins are this script's target.
+const isBareExact = (v) => typeof v === 'string' && /^\d/.test(v) && !/^0\.0\.\d/.test(v);
 
 function main() {
   if (!existsSync(libsDir)) {
