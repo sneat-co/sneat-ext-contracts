@@ -41,11 +41,21 @@ const (
 	SpaceMemberRoleCustomer SpaceMemberRole = "customer"
 )
 
-// SpaceMemberWellKnownRoles defines known roles
+// SpaceMemberWellKnownRoles defines known roles.
+//
+// Every SpaceMemberRole constant declared above must appear here — the list is
+// maintained by hand next to the constants, so adding one and forgetting the
+// other is the natural mistake. That is precisely how SpaceMemberRoleOwner
+// went missing: consumers treat absence from this list as "a role nobody has
+// reasoned about" and warn on it (see facade4invitus.grantsSpaceUserID), so
+// every owner-granting invite claim raised a permanent false alarm in the very
+// detector meant to catch unreviewed roles. TestEverySpaceMemberRoleConstIsWellKnown
+// enforces the pairing.
 var SpaceMemberWellKnownRoles = []SpaceMemberRole{
 	SpaceMemberRoleAdmin,
 	SpaceMemberRoleContributor,
 	SpaceMemberRoleCreator,
+	SpaceMemberRoleOwner,
 	SpaceMemberRoleMember,
 	SpaceMemberRoleExMember,
 	SpaceMemberRoleChild,
