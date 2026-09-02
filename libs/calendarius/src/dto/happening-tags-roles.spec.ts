@@ -155,6 +155,20 @@ describe('happeningTagError', () => {
     expect(happeningTagError('guitar\tpiano')).toBeDefined();
   });
 
+  it('rejects the C1 range too, because the server does', () => {
+    // The server validates with Go's unicode.IsControl, which covers
+    // U+0080\u2013U+009F. A client guard that stopped at U+007F let `gui<NEL>tar`
+    // through and turned it into a 400 nobody could have predicted from the
+    // published rules \u2014 which falsifies the only promise this mirror makes.
+    for (const codePoint of [0x0080, 0x0085, 0x009f]) {
+      const tag = `gui${String.fromCharCode(codePoint)}tar`;
+      expect(happeningTagError(tag)).toBeDefined();
+    }
+    // U+00A0 (NBSP) is the first NON-control code point above that range and
+    // must stay acceptable, so the widening does not over-reach.
+    expect(happeningTagError('gui\u00a0tar')).toBeUndefined();
+  });
+
   it('publishes the same limits the server enforces', () => {
     expect(happeningTagLimits.maxCount).toBe(10);
     expect(happeningTagLimits.maxRunes).toBe(32);

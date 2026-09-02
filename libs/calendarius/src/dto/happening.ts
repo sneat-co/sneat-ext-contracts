@@ -310,8 +310,13 @@ export function happeningTagError(tag: string): string | undefined {
   // Spread, not .length: a surrogate pair is one character to a user.
   if ([...tag].length > happeningTagLimits.maxRunes)
     return `a tag must be at most ${happeningTagLimits.maxRunes} characters`;
+  // C0 (U+0000\u2013U+001F), DEL (U+007F) and C1 (U+0080\u2013U+009F). The C1 range
+  // is not decoration: the server rejects with Go's unicode.IsControl, which
+  // covers it, so a narrower client guard lets `gui\u0085tar` pass here and 400 at
+  // the server \u2014 breaking the one promise this mirror makes, that it enforces
+  // exactly what the server enforces.
   // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f]/u.test(tag))
+  if (/[\u0000-\u001f\u007f-\u009f]/u.test(tag))
     return 'a tag must not contain control characters';
   return undefined;
 }
