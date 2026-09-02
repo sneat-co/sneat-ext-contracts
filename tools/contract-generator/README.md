@@ -78,8 +78,10 @@ family's tests with `pnpm nx run <family>-contract:vite:test`.
 **Peer floors are read live, not templated.** The generator reads the
 workspace root `package.json`'s `devDependencies` for `@angular/core` and
 `rxjs` and floors them at their current major (`^22.0.0`, `^7.0.0` today);
-`@sneat/core`/`data`/`dto`/`space-models` peer ranges are copied verbatim
-(already correct `^0.x` floors, never `^0.0.x`). This is what keeps every new
+`@sneat/core`/`data`/`dto`/`space-models` peer ranges are read from the same
+root `devDependencies` and given a caret (root pins these exactly, e.g.
+`0.27.6`, for its own build — the generator must never copy that exact pin
+straight through as a peer, only `^0.27.6`). This is what keeps every new
 contract's peer floors honest as the workspace's own majors move, and is how
 the generator satisfies `peer-range-strict` (ci.yml) by construction instead
 of by author discipline.

@@ -9,6 +9,7 @@
     "test": "nx run-many -t test --all",
     "lint": "nx run-many -t lint --all",
     "tier-coherence": "node tools/tier-coherence/check.mjs",
+    "peer-range-guard": "node tools/peer-range-guard/check.mjs",
     "test:contract-generator": "vitest run --config tools/contract-generator/vitest.config.mts"
   },
   "devDependencies": {

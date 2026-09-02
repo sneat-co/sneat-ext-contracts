@@ -5,7 +5,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@sneat/extension-assetus-contract": "0.2.2",
+    "@sneat/extension-assetus-contract": "^0.2.2",
     "vitest": "^4.0.9"
   },
   "sideEffects": false
