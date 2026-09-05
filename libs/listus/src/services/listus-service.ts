@@ -2,7 +2,11 @@ import { InjectionToken } from '@angular/core';
 import { ISpaceContext } from '@sneat/space-models';
 import { Observable } from 'rxjs';
 import { IListContext } from '../contexts';
-import { ListType } from '../dto';
+import {
+  IApplyListTemplateRequest,
+  IApplyListTemplateResult,
+  ListType,
+} from '../dto';
 import {
   AddMovieToWatchlistRequest,
   AddMovieToWatchlistResponse,
@@ -28,6 +32,9 @@ import {
 // inherited ModuleSpaceItemService surface, so it types the injected token as
 // an intersection with ModuleSpaceItemService<IListBrief, IListDbo>.
 export interface IListusService {
+  applyListTemplate(
+    request: IApplyListTemplateRequest,
+  ): Observable<IApplyListTemplateResult>;
   createList(request: ICreateListRequest): Observable<IListContext>;
   deleteList(space: ISpaceContext, listId: string): Observable<void>;
   reorderListItems(request: IReorderListItemsRequest): Observable<void>;
