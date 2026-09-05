@@ -99,7 +99,7 @@ jobs:
                 parent="$(git rev-parse "${RETRY}^")"
                 count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=${parent}" --jq '.workflow_runs | map(select(.head_sha == "'"$parent"'" and .conclusion == "success")) | length')"
                 [[ "$count" -gt 0 ]] || { echo '::error::retry release parent has no successful reviewed CI run'; exit 1; }
-                [[ -z "$(git diff --name-only "$RETRY" "$SOURCE" -- 'libs/*/package.json' 'libs/*/project.json' '*/go.mod')" ]] || { echo '::error::reviewed retry changed release package identity'; exit 1; }
+                [[ -z "$(git diff --name-only "$RETRY" "$SOURCE" -- package.json pnpm-lock.yaml pnpm-workspace.yaml nx.json 'libs/*/package.json' 'libs/*/project.json' '*/go.mod')" ]] || { echo '::error::reviewed retry changed release package or dependency identity'; exit 1; }
                 receipt_source="$parent"
               fi
               receipts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=release-receipt-${receipt_source}&per_page=1" --jq .total_count)"
@@ -188,8 +188,10 @@ jobs:
               family="$(basename "$(dirname "$pkg")")"; project="$(node -p "require('./libs/${family}/project.json').name")"; name="$(node -p "require('./${pkg}').name")"; version="$(node -p "require('./${pkg}').version")"; tag="${family}-contract-v${version}"
               if git tag --points-at HEAD | grep -qx "$tag"; then
                 [[ "$(git rev-parse "${tag}^{}")" == "$commit" ]] || exit 1
-                remote_tag="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
-                [[ "$remote_tag" == "$commit" ]] || { echo "::error::remote release tag ${tag} does not resolve to retry commit"; exit 1; }
+                if [[ -n "$RETRY" ]]; then
+                  remote_tag="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
+                  [[ "$remote_tag" == "$commit" ]] || { echo "::error::remote release tag ${tag} does not resolve to retry commit"; exit 1; }
+                fi
                 tags="$(node -e 'let a=JSON.parse(process.argv[1]);a.push(process.argv[2]);process.stdout.write(JSON.stringify(a))' "$tags" "$tag")"
                 packages="$(node -e 'let a=JSON.parse(process.argv[1]);a.push({name:process.argv[2],version:process.argv[3]});process.stdout.write(JSON.stringify(a))' "$packages" "$name" "$version")"
                 projects="${projects:+${projects},}${project}"
