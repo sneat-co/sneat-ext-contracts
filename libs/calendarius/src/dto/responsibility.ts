@@ -1,3 +1,5 @@
+import { IRelatedModules } from '@sneat/dto';
+
 export type ResponsibilityAssignmentMode = 'fixed' | 'rotating';
 
 export interface IResponsibilityAssignmentPolicy {
@@ -20,6 +22,13 @@ export interface ICreateScheduledResponsibilityRequest {
   readonly spaceID: string;
   readonly requestID: string;
   readonly spec: IScheduledResponsibilitySpec;
+  /** Extension-owned payload and related refs copied to the created happening. */
+  readonly happeningFields?: IResponsibilityHappeningFields;
+}
+
+export interface IResponsibilityHappeningFields {
+  readonly ext?: Readonly<Record<string, unknown>>;
+  readonly related?: IRelatedModules;
 }
 
 export interface IResponsibilityOccurrenceRef {

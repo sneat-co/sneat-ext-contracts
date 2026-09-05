@@ -1,9 +1,34 @@
 package calendariusmodels
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
+
+func TestResponsibilityHappeningFieldsValidation(t *testing.T) {
+	valid := ResponsibilityHappeningFields{
+		Ext:     map[string]json.RawMessage{"listus": json.RawMessage(`{"listTemplate":{"sourceListID":"do!regular"}}`)},
+		Related: json.RawMessage(`{"listus":{"lists":{"do!regular":{}}}}`),
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, fields := range map[string]ResponsibilityHappeningFields{
+		"malformed related": {Related: json.RawMessage(`{`)},
+		"null related":      {Related: json.RawMessage(`null`)},
+		"array related":     {Related: json.RawMessage(`[]`)},
+		"invalid ext json":  {Ext: map[string]json.RawMessage{"listus": json.RawMessage(`{`)}},
+		"null ext payload":  {Ext: map[string]json.RawMessage{"listus": json.RawMessage(`null`)}},
+		"invalid ext key":   {Ext: map[string]json.RawMessage{" listus": json.RawMessage(`{}`)}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := fields.Validate(); err == nil {
+				t.Fatal("invalid happening fields were accepted")
+			}
+		})
+	}
+}
 
 func TestScheduledResponsibilitySpecValidation(t *testing.T) {
 	spec := ScheduledResponsibilitySpec{Title: "Bins", TimeZone: "Europe/Dublin", FirstDate: "2026-09-07", Weekday: "mo", StartTime: "19:00", Assignment: ResponsibilityAssignmentPolicy{Mode: ResponsibilityAssignmentRotating, RosterContactIDs: []string{"alice", "bob"}}}
