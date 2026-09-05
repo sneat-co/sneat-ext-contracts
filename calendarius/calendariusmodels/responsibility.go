@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -95,15 +96,44 @@ func (v ScheduledResponsibilitySpec) Validate() error {
 var responsibilityWeekdays = map[string]time.Weekday{"mo": time.Monday, "tu": time.Tuesday, "we": time.Wednesday, "th": time.Thursday, "fr": time.Friday, "sa": time.Saturday, "su": time.Sunday}
 
 type CreateScheduledResponsibilityRequest struct {
-	RequestID string                      `json:"requestID"`
-	Spec      ScheduledResponsibilitySpec `json:"spec"`
+	RequestID       string                         `json:"requestID"`
+	Spec            ScheduledResponsibilitySpec    `json:"spec"`
+	HappeningFields *ResponsibilityHappeningFields `json:"happeningFields,omitempty"`
+}
+
+// ResponsibilityHappeningFields carries only generic extension composition.
+// Schedule and responsibility fields remain derived from Spec by Calendarius.
+type ResponsibilityHappeningFields struct {
+	Ext     map[string]json.RawMessage `json:"ext,omitempty"`
+	Related json.RawMessage            `json:"related,omitempty"`
 }
 
 func (v CreateScheduledResponsibilityRequest) Validate() error {
 	if err := ValidateResponsibilityRequestID(v.RequestID); err != nil {
 		return err
 	}
-	return v.Spec.Validate()
+	if err := v.Spec.Validate(); err != nil {
+		return err
+	}
+	if v.HappeningFields != nil {
+		return v.HappeningFields.Validate()
+	}
+	return nil
+}
+
+func (v ResponsibilityHappeningFields) Validate() error {
+	for id, payload := range v.Ext {
+		if strings.TrimSpace(id) != id || id == "" || !json.Valid(payload) {
+			return fmt.Errorf("happeningFields.ext contains an invalid extension payload")
+		}
+	}
+	if len(v.Related) > 0 {
+		var object map[string]json.RawMessage
+		if !json.Valid(v.Related) || json.Unmarshal(v.Related, &object) != nil || object == nil {
+			return fmt.Errorf("happeningFields.related must be a JSON object")
+		}
+	}
+	return nil
 }
 
 type ResponsibilityOccurrenceRef struct {

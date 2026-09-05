@@ -20,6 +20,13 @@ export interface ICreateScheduledResponsibilityRequest {
   readonly spaceID: string;
   readonly requestID: string;
   readonly spec: IScheduledResponsibilitySpec;
+  /** Extension-owned payload and related refs copied to the created happening. */
+  readonly happeningFields?: IResponsibilityHappeningFields;
+}
+
+export interface IResponsibilityHappeningFields {
+  readonly ext?: Readonly<Record<string, unknown>>;
+  readonly related?: IRelatedModules;
 }
 
 export interface IResponsibilityOccurrenceRef {
@@ -73,3 +80,4 @@ export interface IResponsibilityCompletionMutation {
   readonly completion: IResponsibilityCompletion;
   readonly disposition: ResponsibilityMutationDisposition;
 }
+import { IRelatedModules } from '@sneat/dto';
