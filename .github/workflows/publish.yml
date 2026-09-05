@@ -15,6 +15,10 @@ on:
         description: Deprecated; real runs reject this reviewed-source bypass.
         type: string
         default: ""
+      retry_release_ref:
+        description: Existing release commit to finish after a recorded partial publication.
+        type: string
+        default: ""
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -33,11 +37,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     outputs:
-      source: ${{ steps.source.outputs.sha }}
+      source: ${{ steps.state.outputs.release_source }}
       commit: ${{ steps.state.outputs.commit }}
       modules: ${{ steps.modules.outputs.json }}
       packages: ${{ steps.state.outputs.packages }}
       projects: ${{ steps.state.outputs.projects }}
+      publish_projects: ${{ steps.state.outputs.publish_projects }}
       tags: ${{ steps.state.outputs.tags }}
       prepared: ${{ steps.state.outputs.prepared }}
     steps:
@@ -73,6 +78,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           DRY_RUN: ${{ inputs.dry_run }}
           BYPASS: ${{ inputs.go_module_tags }}
+          RETRY: ${{ inputs.retry_release_ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -85,7 +91,18 @@ jobs:
             [[ "$count" -gt 0 ]] || { echo '::error::source has no successful reviewed CI run'; exit 1; }
             if [[ "$DRY_RUN" != true ]]; then
               [[ -z "$BYPASS" ]] || { echo '::error::go_module_tags cannot bypass reviewed-source publication'; exit 1; }
-              receipts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=release-receipt-${SOURCE}&per_page=1" --jq .total_count)"
+              receipt_source="$SOURCE"
+              if [[ -n "$RETRY" ]]; then
+                [[ "$RETRY" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::retry_release_ref must be a full lowercase SHA'; exit 1; }
+                git cat-file -e "${RETRY}^{commit}"
+                [[ "$(git rev-parse "${SOURCE}^")" == "$RETRY" ]] || { echo '::error::retry release must be the first parent of reviewed main'; exit 1; }
+                parent="$(git rev-parse "${RETRY}^")"
+                count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=${parent}" --jq '.workflow_runs | map(select(.head_sha == "'"$parent"'" and .conclusion == "success")) | length')"
+                [[ "$count" -gt 0 ]] || { echo '::error::retry release parent has no successful reviewed CI run'; exit 1; }
+                [[ -z "$(git diff --name-only "$RETRY" "$SOURCE" -- 'libs/*/package.json' 'libs/*/project.json' '*/go.mod')" ]] || { echo '::error::reviewed retry changed release package identity'; exit 1; }
+                receipt_source="$parent"
+              fi
+              receipts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=release-receipt-${receipt_source}&per_page=1" --jq .total_count)"
               [[ "$receipts" -eq 0 ]] || { echo '::error::source already has a release receipt'; exit 1; }
             fi
           fi
@@ -107,11 +124,17 @@ jobs:
           SOURCE: ${{ steps.source.outputs.sha }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           HAS_PLANS: ${{ steps.plans.outputs.has }}
+          RETRY: ${{ inputs.retry_release_ref }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          if [[ -n "$RETRY" ]]; then
+            [[ "$DRY_RUN" != true && "$HAS_PLANS" != true ]] || { echo '::error::release retry requires a real run with no version plans'; exit 1; }
+            git checkout --detach "$RETRY"
+            exit 0
+          fi
           if [[ "$HAS_PLANS" != true ]]; then
             go_release=false
             for vfile in */version.go; do
@@ -147,35 +170,49 @@ jobs:
           SOURCE: ${{ steps.source.outputs.sha }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           HAD_PLANS: ${{ steps.plans.outputs.has }}
+          RETRY: ${{ inputs.retry_release_ref }}
         run: |
           set -euo pipefail
-          commit="$(git rev-parse HEAD)"; tags='[]'; packages='[]'; projects=''; prepared=false
+          commit="$(git rev-parse HEAD)"; release_source="$SOURCE"; tags='[]'; packages='[]'; projects=''; publish_projects=''; prepared=false
+          if [[ -n "$RETRY" ]]; then
+            [[ "$commit" == "$RETRY" ]] || { echo '::error::retry checkout differs from requested release'; exit 1; }
+            release_source="$(git rev-parse HEAD^)"
+          fi
           if [[ "$DRY_RUN" != true && "$HAD_PLANS" == true && "$commit" == "$SOURCE" ]]; then
             echo '::error::version plans existed but Nx generated no release commit'
             exit 1
           fi
-          if [[ "$DRY_RUN" != true && "$commit" != "$SOURCE" ]]; then
-            [[ "$(git rev-parse HEAD^)" == "$SOURCE" ]] || { echo '::error::release parent differs from reviewed source'; exit 1; }
+          if [[ "$DRY_RUN" != true && ( "$commit" != "$SOURCE" || -n "$RETRY" ) ]]; then
+            [[ "$(git rev-parse HEAD^)" == "$release_source" ]] || { echo '::error::release parent differs from reviewed source'; exit 1; }
             while IFS= read -r pkg; do
               family="$(basename "$(dirname "$pkg")")"; project="$(node -p "require('./libs/${family}/project.json').name")"; name="$(node -p "require('./${pkg}').name")"; version="$(node -p "require('./${pkg}').version")"; tag="${family}-contract-v${version}"
               if git tag --points-at HEAD | grep -qx "$tag"; then
                 [[ "$(git rev-parse "${tag}^{}")" == "$commit" ]] || exit 1
+                remote_tag="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
+                [[ "$remote_tag" == "$commit" ]] || { echo "::error::remote release tag ${tag} does not resolve to retry commit"; exit 1; }
                 tags="$(node -e 'let a=JSON.parse(process.argv[1]);a.push(process.argv[2]);process.stdout.write(JSON.stringify(a))' "$tags" "$tag")"
                 packages="$(node -e 'let a=JSON.parse(process.argv[1]);a.push({name:process.argv[2],version:process.argv[3]});process.stdout.write(JSON.stringify(a))' "$packages" "$name" "$version")"
                 projects="${projects:+${projects},}${project}"
+                if [[ -n "$RETRY" ]] && ! npm view "${name}@${version}" dist.integrity >/dev/null 2>&1; then
+                  publish_projects="${publish_projects:+${publish_projects},}${project}"
+                fi
               fi
             done < <(find libs -mindepth 2 -maxdepth 2 -name package.json | sort)
             if [[ "$HAD_PLANS" == true ]]; then
               [[ "$tags" != '[]' ]] || { echo '::error::version plans produced no verified package tags'; exit 1; }
               ! compgen -G '.nx/version-plans/*.md' >/dev/null || { echo '::error::version plans remain after release generation'; exit 1; }
             fi
+            [[ -n "$RETRY" ]] || publish_projects="$projects"
             prepared=true
+            [[ -z "$RETRY" || -n "$publish_projects" ]] || echo 'All release packages already exist; retry will verify tags and receipt only.'
           fi
           {
             echo "commit=$commit"
+            echo "release_source=$release_source"
             echo "tags=$tags"
             echo "packages=$packages"
             echo "projects=$projects"
+            echo "publish_projects=$publish_projects"
             echo "prepared=$prepared"
           } >> "$GITHUB_OUTPUT"
       - name: Resolve Go family tags
@@ -198,7 +235,7 @@ jobs:
           done
           echo "json=$pairs" >> "$GITHUB_OUTPUT"
       - name: Refuse drift and push without rebasing
-        if: steps.state.outputs.prepared == 'true'
+        if: steps.state.outputs.prepared == 'true' && inputs.retry_release_ref == ''
         env:
           SOURCE: ${{ steps.source.outputs.sha }}
           TAGS: ${{ steps.state.outputs.tags }}
@@ -211,17 +248,20 @@ jobs:
           git push --atomic origin "${refs[@]}"
       - name: Publish npm packages from the verified release commit
         id: npm-publish
-        if: steps.state.outputs.prepared == 'true' && steps.state.outputs.packages != '[]'
+        if: steps.state.outputs.prepared == 'true' && steps.state.outputs.publish_projects != ''
         continue-on-error: true
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          PROJECTS: ${{ steps.state.outputs.projects }}
-        run: pnpm nx release publish --projects="$PROJECTS"
+          PROJECTS: ${{ steps.state.outputs.publish_projects }}
+        run: |
+          pnpm nx run-many -t build --projects="$PROJECTS"
+          pnpm nx release publish --projects="$PROJECTS"
       - name: Record publication attempt
         if: always() && steps.state.outputs.prepared == 'true'
         env:
           SOURCE: ${{ steps.source.outputs.sha }}
+          RELEASE_SOURCE: ${{ steps.state.outputs.release_source }}
           COMMIT: ${{ steps.state.outputs.commit }}
           TAGS: ${{ steps.state.outputs.tags }}
           PACKAGES: ${{ steps.state.outputs.packages }}
@@ -229,12 +269,13 @@ jobs:
         run: |
           set -euo pipefail
           node <<'NODE'
-          const {execFileSync}=require('node:child_process'), fs=require('node:fs');
+          const {execFileSync,spawnSync}=require('node:child_process'), fs=require('node:fs');
           const remote=(...refs)=>execFileSync('git',['ls-remote','origin',...refs],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
           const mainRow=remote('refs/heads/main')[0]||''; const remoteMain=mainRow.split(/\s+/)[0]||null;
           const tags=JSON.parse(process.env.TAGS).map(tag=>{const rows=remote(`refs/tags/${tag}`,`refs/tags/${tag}^{}`);const row=rows.find(x=>x.endsWith(`refs/tags/${tag}^{}`))||rows.find(x=>x.endsWith(`refs/tags/${tag}`));return {tag,peeledCommit:row?.split(/\s+/)[0]||null};});
           const packages=JSON.parse(process.env.PACKAGES).map(p=>{let integrity=null;try{integrity=execFileSync('npm',['view',`${p.name}@${p.version}`,'dist.integrity'],{encoding:'utf8'}).trim()||null}catch{}return {...p,integrity};});
-          fs.writeFileSync('release-attempt.json',JSON.stringify({reviewedSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.SOURCE,remoteMain,releaseCommitEstablished:remoteMain===process.env.COMMIT,tags,packages,npmPublishOutcome:process.env.PUBLISH_OUTCOME||'skipped'},null,2)+'\n');
+          const established=Boolean(remoteMain)&&spawnSync('git',['merge-base','--is-ancestor',process.env.COMMIT,remoteMain],{stdio:'ignore'}).status===0;
+          fs.writeFileSync('release-attempt.json',JSON.stringify({reviewedSource:process.env.RELEASE_SOURCE,workflowSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.RELEASE_SOURCE,remoteMain,releaseCommitEstablished:established,tags,packages,npmPublishOutcome:process.env.PUBLISH_OUTCOME||'skipped'},null,2)+'\n');
           NODE
       - uses: actions/upload-artifact@v6
         if: always() && steps.state.outputs.prepared == 'true'
