@@ -1,40 +1,19 @@
 name: Publish
 
-# Two ways this fires:
-#   1. workflow_dispatch — manual run, `dry_run` defaults TRUE. Flip it to
-#      false only to force an out-of-band release; the normal path is #2.
-#   2. release-on-main — automatic, triggered by CI succeeding on main.
-#      Mirrors sneat-libs' release.yml shape (workflow_run on CI success ->
-#      `nx release --yes`).
-#
-# Nx release runs in INDEPENDENT mode (nx.json) driven by version plans: only
-# the projects named in consumed version plans get a new version + npm
-# publish — a frozen contract with no version plan republishes never (REQ
-# per-contract-independent-versioning, spec/features/ext-contracts-monorepo/
-# README.md on sneat-co/sneat-libs).
-
 on:
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Full SHA of the reviewed merged main commit with successful CI.
+        type: string
+        required: true
       dry_run:
-        description: >-
-          Dry run: resolve version plans and print what WOULD be released;
-          publish nothing, push nothing.
+        description: Resolve only; publish and push nothing.
         type: boolean
-        required: false
         default: true
       go_module_tags:
-        description: >-
-          Rare catch-up escape hatch — leave empty for a normal run. JSON
-          array of {"dir","version"} pairs to forward to go-module-tags
-          DIRECTLY, bypassing the "does a release tag point at HEAD"
-          resolution. Needed only when a family's npm release commit is no
-          longer HEAD by the time you can re-dispatch (e.g. an unrelated
-          fix landed on top of it in between), so the normal resolution in
-          the "Resolve {dir, version} pairs" step can no longer see its
-          release tag at HEAD. Ignored when dry_run is true.
+        description: Deprecated; real runs reject this reviewed-source bypass.
         type: string
-        required: false
         default: ""
   workflow_run:
     workflows: [CI]
@@ -43,298 +22,274 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  dry-run-dispatch:
-    if: github.event_name == 'workflow_dispatch'
+  release:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     outputs:
-      released-modules: ${{ steps.go-families.outputs.json }}
+      source: ${{ steps.source.outputs.sha }}
+      commit: ${{ steps.state.outputs.commit }}
+      modules: ${{ steps.modules.outputs.json }}
+      packages: ${{ steps.state.outputs.packages }}
+      projects: ${{ steps.state.outputs.projects }}
+      tags: ${{ steps.state.outputs.tags }}
+      prepared: ${{ steps.state.outputs.prepared }}
     steps:
+      - name: Bind reviewed source
+        id: source
+        env:
+          EVENT: ${{ github.event_name }}
+          MANUAL_SHA: ${{ inputs.source_ref }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_ID: ${{ github.event.workflow_run.id }}
+          CI_REPO: ${{ github.event.workflow_run.repository.full_name }}
+          CI_HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          CI_EVENT: ${{ github.event.workflow_run.event }}
+          CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CI_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          sha="$MANUAL_SHA"
+          if [[ "$EVENT" == workflow_run ]]; then
+            sha="$CI_SHA"
+            [[ "$CI_ID" =~ ^[0-9]+$ && "$CI_REPO" == "$GITHUB_REPOSITORY" && "$CI_HEAD_REPO" == "$GITHUB_REPOSITORY" ]] || { echo '::error::CI run identity mismatch'; exit 1; }
+            [[ "$CI_EVENT" == push && "$CI_BRANCH" == main && "$CI_NAME" == CI ]] || { echo '::error::publication requires the successful CI push run on main'; exit 1; }
+          fi
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::source_ref must be a full lowercase SHA'; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
+          ref: ${{ steps.source.outputs.sha }}
+      - name: Verify source authority
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          BYPASS: ${{ inputs.go_module_tags }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE" ]] || exit 1
+          git cat-file -e "${SOURCE}^{commit}"
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$SOURCE" ]] || { echo '::error::origin/main moved; a newer CI run owns publication'; exit 1; }
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=${SOURCE}" --jq '.workflow_runs | map(select(.head_sha == "'"$SOURCE"'" and .conclusion == "success")) | length')"
+            [[ "$count" -gt 0 ]] || { echo '::error::source has no successful reviewed CI run'; exit 1; }
+            if [[ "$DRY_RUN" != true ]]; then
+              [[ -z "$BYPASS" ]] || { echo '::error::go_module_tags cannot bypass reviewed-source publication'; exit 1; }
+              receipts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=release-receipt-${SOURCE}&per_page=1" --jq .total_count)"
+              [[ "$receipts" -eq 0 ]] || { echo '::error::source already has a release receipt'; exit 1; }
+            fi
+          fi
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-
       - run: pnpm install --frozen-lockfile
-
-      - name: Nx release
+      - run: |
+          git config user.email ci@sneat.co
+          git config user.name 'Sneat CI'
+      - name: Detect reviewed version plans
+        id: plans
         run: |
-          # Nx release's group hard-errors ("matches no projects") when zero
-          # release-eligible projects exist — true at Phase 0 (no family
-          # migrated yet). Skip gracefully rather than red-X every run.
-          if ! compgen -G "libs/*/package.json" > /dev/null; then
-            echo "No contract libs under libs/ yet — nothing to release."
+          if compgen -G '.nx/version-plans/*.md' >/dev/null; then echo 'has=true' >> "$GITHUB_OUTPUT"; else echo 'has=false' >> "$GITHUB_OUTPUT"; fi
+      - name: Release from the reviewed tree
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          HAS_PLANS: ${{ steps.plans.outputs.has }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$HAS_PLANS" != true ]]; then
+            go_release=false
+            for vfile in */version.go; do
+              [[ -e "$vfile" ]] || continue
+              family="$(dirname "$vfile")"
+              [[ -f "${family}/go.mod" && ! -f "libs/${family}/package.json" ]] || continue
+              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
+              [[ -n "$version" ]] || { echo "::error::${vfile} has no parseable Version"; exit 1; }
+              git tag -l "${family}/v${version}" | grep -qx "${family}/v${version}" || go_release=true
+            done
+            if [[ "$go_release" == false ]]; then
+              echo 'No version plan or untagged Go-only version; no release artifacts.'
+            elif [[ "$DRY_RUN" == true ]]; then
+              echo 'Dry run: an untagged Go-only contract version would be released.'
+            else
+              git commit --allow-empty -m 'chore(release): tag Go contracts'
+            fi
             exit 0
           fi
-          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-            echo "Dry run — resolving version plans, publishing nothing."
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$SOURCE" ]] || { echo '::error::target drift before release'; exit 1; }
+          if [[ "$DRY_RUN" == true ]]; then
             pnpm nx release --yes --dry-run
           else
-            git config --global user.email "ci@sneat.co"
-            git config --global user.name "Sneat CI"
-            pnpm nx release --yes
-            git push --follow-tags
+            # Generate the reviewed commit, changelogs and tags without
+            # publishing. Publication starts only after the generated state and
+            # origin/main authority have both been verified below.
+            pnpm nx release --yes --skip-publish --git-push=false
           fi
+      - name: Verify generated release
+        id: state
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          HAD_PLANS: ${{ steps.plans.outputs.has }}
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse HEAD)"; tags='[]'; packages='[]'; projects=''; prepared=false
+          if [[ "$DRY_RUN" != true && "$HAD_PLANS" == true && "$commit" == "$SOURCE" ]]; then
+            echo '::error::version plans existed but Nx generated no release commit'
+            exit 1
+          fi
+          if [[ "$DRY_RUN" != true && "$commit" != "$SOURCE" ]]; then
+            [[ "$(git rev-parse HEAD^)" == "$SOURCE" ]] || { echo '::error::release parent differs from reviewed source'; exit 1; }
+            while IFS= read -r pkg; do
+              family="$(basename "$(dirname "$pkg")")"; project="$(node -p "require('./libs/${family}/project.json').name")"; name="$(node -p "require('./${pkg}').name")"; version="$(node -p "require('./${pkg}').version")"; tag="${family}-contract-v${version}"
+              if git tag --points-at HEAD | grep -qx "$tag"; then
+                [[ "$(git rev-parse "${tag}^{}")" == "$commit" ]] || exit 1
+                tags="$(node -e 'let a=JSON.parse(process.argv[1]);a.push(process.argv[2]);process.stdout.write(JSON.stringify(a))' "$tags" "$tag")"
+                packages="$(node -e 'let a=JSON.parse(process.argv[1]);a.push({name:process.argv[2],version:process.argv[3]});process.stdout.write(JSON.stringify(a))' "$packages" "$name" "$version")"
+                projects="${projects:+${projects},}${project}"
+              fi
+            done < <(find libs -mindepth 2 -maxdepth 2 -name package.json | sort)
+            if [[ "$HAD_PLANS" == true ]]; then
+              [[ "$tags" != '[]' ]] || { echo '::error::version plans produced no verified package tags'; exit 1; }
+              ! compgen -G '.nx/version-plans/*.md' >/dev/null || { echo '::error::version plans remain after release generation'; exit 1; }
+            fi
+            prepared=true
+          fi
+          {
+            echo "commit=$commit"
+            echo "tags=$tags"
+            echo "packages=$packages"
+            echo "projects=$projects"
+            echo "prepared=$prepared"
+          } >> "$GITHUB_OUTPUT"
+      - name: Resolve Go family tags
+        id: modules
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        run: |
+          set -euo pipefail
+          pairs='[]'
+          for gomod in */go.mod; do
+            [[ -e "$gomod" ]] || continue
+            family="$(dirname "$gomod")"; pkg="libs/${family}/package.json"; vfile="${family}/version.go"
+            if [[ -f "$pkg" ]]; then
+              version="$(node -p "require('./${pkg}').version")"; tag="${family}-contract-v${version}"
+              git tag --points-at HEAD | grep -qx "$tag" || continue
+            elif [[ -f "$vfile" ]]; then
+              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
+              [[ -n "$version" ]] || exit 1; tag="${family}/v${version}"; git tag -l "$tag" | grep -qx "$tag" && continue
+            else echo "::error::${gomod} has no version source"; exit 1; fi
+            pairs="$(node -e 'let a=JSON.parse(process.argv[1]);a.push({dir:process.argv[2],version:process.argv[3]});process.stdout.write(JSON.stringify(a))' "$pairs" "$family" "$version")"
+          done
+          echo "json=$pairs" >> "$GITHUB_OUTPUT"
+      - name: Refuse drift and push without rebasing
+        if: steps.state.outputs.prepared == 'true'
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+          TAGS: ${{ steps.state.outputs.tags }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$SOURCE" ]] || { echo '::error::target drift before push'; exit 1; }
+          refs=(HEAD:refs/heads/main)
+          while IFS= read -r tag; do refs+=("refs/tags/${tag}:refs/tags/${tag}"); done < <(node -e 'for(const tag of JSON.parse(process.argv[1])) console.log(tag)' "$TAGS")
+          git push --atomic origin "${refs[@]}"
+      - name: Publish npm packages from the verified release commit
+        id: npm-publish
+        if: steps.state.outputs.prepared == 'true' && steps.state.outputs.packages != '[]'
+        continue-on-error: true
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Manual dispatch bypasses the CI-success gate that `release-on-main`
-      # relies on, so it must resolve its own Go-tag forwarding too — this
-      # step is the fix for the exact gap the 2026-08-26 batch-3 manual
-      # dispatch hit: nx-release-publish had already published npm and
-      # pushed the release commit + npm tags, but because `release-on-main`
-      # and `go-module-tags` are both gated on `github.event_name ==
-      # 'workflow_run'`, no job ever forwarded {dir, version} pairs for the
-      # families that also carry a Go module, and the Go tags never fired.
-      # Identical resolution logic to `release-on-main`'s own step below —
-      # keep both in sync if the tag pattern or manifest path ever changes.
-      - name: Resolve {dir, version} pairs for families with a Go module
-        id: go-families
-        if: inputs.dry_run == false
+          PROJECTS: ${{ steps.state.outputs.projects }}
+        run: pnpm nx release publish --projects="$PROJECTS"
+      - name: Record publication attempt
+        if: always() && steps.state.outputs.prepared == 'true'
         env:
-          GO_MODULE_TAGS_INPUT: ${{ inputs.go_module_tags }}
+          SOURCE: ${{ steps.source.outputs.sha }}
+          COMMIT: ${{ steps.state.outputs.commit }}
+          TAGS: ${{ steps.state.outputs.tags }}
+          PACKAGES: ${{ steps.state.outputs.packages }}
+          PUBLISH_OUTCOME: ${{ steps.npm-publish.outcome }}
         run: |
-          if [[ -n "$GO_MODULE_TAGS_INPUT" ]]; then
-            echo "Using explicit go_module_tags input (bypassing tag-at-HEAD resolution): $GO_MODULE_TAGS_INPUT"
-            node -e "JSON.parse(process.argv[1])" "$GO_MODULE_TAGS_INPUT"
-            echo "json=$GO_MODULE_TAGS_INPUT" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          pairs='[]'
-          for gomod in */go.mod; do
-            [ -e "$gomod" ] || continue
-            family="$(dirname "$gomod")"
-            pkg="libs/${family}/package.json"
-            vfile="${family}/version.go"
+          set -euo pipefail
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process'), fs=require('node:fs');
+          const remote=(...refs)=>execFileSync('git',['ls-remote','origin',...refs],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          const mainRow=remote('refs/heads/main')[0]||''; const remoteMain=mainRow.split(/\s+/)[0]||null;
+          const tags=JSON.parse(process.env.TAGS).map(tag=>{const rows=remote(`refs/tags/${tag}`,`refs/tags/${tag}^{}`);const row=rows.find(x=>x.endsWith(`refs/tags/${tag}^{}`))||rows.find(x=>x.endsWith(`refs/tags/${tag}`));return {tag,peeledCommit:row?.split(/\s+/)[0]||null};});
+          const packages=JSON.parse(process.env.PACKAGES).map(p=>{let integrity=null;try{integrity=execFileSync('npm',['view',`${p.name}@${p.version}`,'dist.integrity'],{encoding:'utf8'}).trim()||null}catch{}return {...p,integrity};});
+          fs.writeFileSync('release-attempt.json',JSON.stringify({reviewedSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.SOURCE,remoteMain,releaseCommitEstablished:remoteMain===process.env.COMMIT,tags,packages,npmPublishOutcome:process.env.PUBLISH_OUTCOME||'skipped'},null,2)+'\n');
+          NODE
+      - uses: actions/upload-artifact@v6
+        if: always() && steps.state.outputs.prepared == 'true'
+        with:
+          name: release-attempt-${{ steps.source.outputs.sha }}-${{ github.run_id }}
+          path: release-attempt.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Fail after recording an npm publication failure
+        if: steps.npm-publish.outcome == 'failure'
+        run: exit 1
 
-            if [ -f "$pkg" ]; then
-              # npm-sibling family: Go version is lockstep with npm (README
-              # "Lockstep family versioning"). Only queue when npm actually
-              # released this version THIS run, evidenced by its release tag
-              # landing at HEAD.
-              version="$(node -p "require('./${pkg}').version")"
-              tag="${family}-contract-v${version}"
-              if git tag --points-at HEAD | grep -qx "$tag"; then
-                echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
-                pairs="$(echo "$pairs" | node -e "
-                  const fs=require('fs');
-                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                  arr.push({dir: process.argv[1], version: process.argv[2]});
-                  process.stdout.write(JSON.stringify(arr));
-                " "$family" "$version")"
-              fi
-            elif [ -f "$vfile" ]; then
-              # Go-only family (no npm sibling by design — README "Go-only
-              # family versioning"): version comes from its own version.go,
-              # bumped in whatever PR changes that family's contract.
-              # Independent of npm/nx entirely. Queue whenever the declared
-              # version has no Go tag yet, on every run (not just the run
-              # that bumped it) so a tag that failed to land once still
-              # catches up on the next run instead of needing a manual
-              # go_module_tags rescue.
-              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
-              if [ -z "$version" ]; then
-                echo "::error::${vfile} exists but no 'const Version = \"x.y.z\"' line could be parsed out of it — ${family} cannot be versioned."
-                exit 1
-              fi
-              tag="${family}/v${version}"
-              if git tag -l "$tag" | grep -qx "$tag"; then
-                echo "Family '${family}' already tagged at ${version} (${tag}) — nothing to do."
-              else
-                echo "Family '${family}' is Go-only and untagged at ${version} — queuing Go tag."
-                pairs="$(echo "$pairs" | node -e "
-                  const fs=require('fs');
-                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                  arr.push({dir: process.argv[1], version: process.argv[2]});
-                  process.stdout.write(JSON.stringify(arr));
-                " "$family" "$version")"
-              fi
-            else
-              # Neither an npm sibling nor a version.go: this Go module has
-              # NO versioning source at all. This used to be a silent
-              # ::warning:: skip — the exact defect that let competios and
-              # chessraiders merge and go untagged behind a green Publish
-              # run (see README "Go-only family versioning"). Fail loudly
-              # instead: a merged, unversionable family must never be quiet.
-              echo "::error::${gomod} has neither libs/${family}/package.json nor ${vfile} — ${family} cannot be versioned by any known mechanism. Add one before merging (see README.md 'Go-only family versioning')."
-              exit 1
-            fi
-          done
-          echo "Resolved Go-module {dir, version} pairs: $pairs"
-          echo "json=$pairs" >> "$GITHUB_OUTPUT"
+  go-module-tags:
+    needs: release
+    if: needs.release.outputs.modules != '[]' && needs.release.outputs.modules != ''
+    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@8957bdcacdf42c7e0ee693ecf470226cdd63ce87
+    with:
+      modules: ${{ needs.release.outputs.modules }}
+      ref: ${{ needs.release.outputs.commit }}
+    secrets: inherit
 
-  release-on-main:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+  release-receipt:
+    needs: [release, go-module-tags]
+    if: always() && needs.release.result == 'success' && needs.release.outputs.prepared == 'true' && (needs.go-module-tags.result == 'success' || needs.go-module-tags.result == 'skipped')
     runs-on: ubuntu-latest
-    outputs:
-      released-modules: ${{ steps.go-families.outputs.json }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: main
-
-      - uses: pnpm/action-setup@v4
-
+          ref: ${{ needs.release.outputs.commit }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Configure git identity for release commits
-        run: |
-          git config --global user.email "ci@sneat.co"
-          git config --global user.name "Sneat CI"
-
-      - name: Check for a release-eligible project
-        id: has-projects
-        run: |
-          # Nx release's group hard-errors ("matches no projects") when zero
-          # release-eligible projects exist — true at Phase 0 (no family
-          # migrated yet). Skip the whole release gracefully rather than
-          # red-X every CI-success-on-main until the first family lands.
-          if compgen -G "libs/*/package.json" > /dev/null; then
-            echo "any=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "any=false" >> "$GITHUB_OUTPUT"
-            echo "No contract libs under libs/ yet — nothing to release."
-          fi
-
-      - name: Nx release (version plans -> version -> changelog -> npm publish)
-        if: steps.has-projects.outputs.any == 'true'
-        run: pnpm nx release --yes
+      - name: Create verified release receipt
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push release commits and tags
-        if: steps.has-projects.outputs.any == 'true'
+          SOURCE: ${{ needs.release.outputs.source }}
+          COMMIT: ${{ needs.release.outputs.commit }}
+          TAGS: ${{ needs.release.outputs.tags }}
+          PACKAGES: ${{ needs.release.outputs.packages }}
+          MODULES: ${{ needs.release.outputs.modules }}
+          GO_TAG_WORKFLOW_COMMIT: 8957bdcacdf42c7e0ee693ecf470226cdd63ce87
         run: |
-          git pull --rebase origin main
-          git push --follow-tags origin main
-
-      # A family's Go module is versioned one of two ways, resolved per
-      # family below (README "Lockstep family versioning" / "Go-only family
-      # versioning"; each is independent per the founder's per-contract-
-      # independent-versioning ruling — an npm-sibling family's Go tag rides
-      # its own npm release, a Go-only family's rides its own version.go,
-      # and neither is coupled to the other or to any repo-wide cadence):
-      #   - npm-sibling family: LOCKSTEP with npm. Queue only when the
-      #     release step above actually cut that family's npm version THIS
-      #     run — evidenced by the npm release tag
-      #     ("{projectName}-v{version}", i.e. "<family>-contract-v<version>",
-      #     nx.json releaseTag.pattern) landing on HEAD. This is what keeps
-      #     a frozen family's Go tag from ever firing on an unrelated
-      #     release.
-      #   - Go-only family (no libs/<family>/package.json by design — no
-      #     npm consumer exists, so manufacturing one just to source a
-      #     version number would be the exact coupling the ruling rejects):
-      #     version comes from that family's own <family>/version.go. Queue
-      #     whenever its declared version has no Go tag yet, regardless of
-      #     what changed this run, so a merge that bumps version.go always
-      #     gets tagged on the very next release-on-main run and a failed
-      #     tag attempt self-heals on the run after that.
-      #   - Neither source present for a "<family>/go.mod" on disk: hard
-      #     failure (`exit 1`), not a skip — see the inline `::error::`.
-      #     This replaces the old silent `::warning::`-and-continue, which
-      #     is exactly how competios and chessraiders merged and went
-      #     untagged behind a green Publish run.
-      - name: Resolve {dir, version} pairs for families with a Go module
-        id: go-families
-        run: |
-          pairs='[]'
-          for gomod in */go.mod; do
-            [ -e "$gomod" ] || continue
-            family="$(dirname "$gomod")"
-            pkg="libs/${family}/package.json"
-            vfile="${family}/version.go"
-
-            if [ -f "$pkg" ]; then
-              version="$(node -p "require('./${pkg}').version")"
-              tag="${family}-contract-v${version}"
-              if git tag --points-at HEAD | grep -qx "$tag"; then
-                echo "Family '${family}' released ${version} this run (tag ${tag} @ HEAD) — queuing Go tag."
-                pairs="$(echo "$pairs" | node -e "
-                  const fs=require('fs');
-                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                  arr.push({dir: process.argv[1], version: process.argv[2]});
-                  process.stdout.write(JSON.stringify(arr));
-                " "$family" "$version")"
-              fi
-            elif [ -f "$vfile" ]; then
-              version="$(grep -oE 'const Version = "[^"]+"' "$vfile" | sed -E 's/.*"(.*)"/\1/')"
-              if [ -z "$version" ]; then
-                echo "::error::${vfile} exists but no 'const Version = \"x.y.z\"' line could be parsed out of it — ${family} cannot be versioned."
-                exit 1
-              fi
-              tag="${family}/v${version}"
-              if git tag -l "$tag" | grep -qx "$tag"; then
-                echo "Family '${family}' already tagged at ${version} (${tag}) — nothing to do."
-              else
-                echo "Family '${family}' is Go-only and untagged at ${version} — queuing Go tag."
-                pairs="$(echo "$pairs" | node -e "
-                  const fs=require('fs');
-                  const arr=JSON.parse(fs.readFileSync(0,'utf8'));
-                  arr.push({dir: process.argv[1], version: process.argv[2]});
-                  process.stdout.write(JSON.stringify(arr));
-                " "$family" "$version")"
-              fi
-            else
-              echo "::error::${gomod} has neither libs/${family}/package.json nor ${vfile} — ${family} cannot be versioned by any known mechanism. Add one before merging (see README.md 'Go-only family versioning')."
-              exit 1
-            fi
-          done
-          echo "Resolved Go-module {dir, version} pairs: $pairs"
-          echo "json=$pairs" >> "$GITHUB_OUTPUT"
-
-  # Manual-dispatch counterpart to `go-module-tags` below — same reusable
-  # workflow, fed by `dry-run-dispatch`'s own {dir, version} resolution
-  # instead of `release-on-main`'s, since the two jobs never both run for
-  # the same event (`workflow_dispatch` vs `workflow_run`).
-  go-module-tags-dispatch:
-    needs: dry-run-dispatch
-    if: github.event_name == 'workflow_dispatch' && needs.dry-run-dispatch.outputs.released-modules != '[]' && needs.dry-run-dispatch.outputs.released-modules != ''
-    permissions:
-      contents: write
-    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
-    with:
-      modules: ${{ needs.dry-run-dispatch.outputs.released-modules }}
-    secrets: inherit
-
-  # Armed 2026-08-26 (Phase 0 taxus seed lane): sneat-co/cicd/.github/
-  # workflows/go-module-tags.yml landed on cicd main (input contract:
-  # `modules` = JSON array of {"dir","version"}, optional `ref`). This job
-  # fires after every release-on-main but only ever acts when
-  # released-modules is non-empty — i.e. a family both released npm THIS run
-  # AND has a Go module directory. Taxus itself has no Go module (confirmed:
-  # no backend/, no go.mod, no .go file anywhere in sneat-co/ext-taxus's
-  # history, and sneat-co/taxus — its private runtime repo — is TypeScript/
-  # Angular only, no Go either), so this job stays a correct no-op for the
-  # taxus release; it activates for real the first time a migrated family
-  # actually ships a Go module.
-  go-module-tags:
-    needs: release-on-main
-    if: needs.release-on-main.outputs.released-modules != '[]'
-    permissions:
-      contents: write
-    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@main
-    with:
-      modules: ${{ needs.release-on-main.outputs.released-modules }}
-      # ref: optional — defaults to the workflow's own `main` resolution.
-    secrets: inherit
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$COMMIT" && "$(git rev-parse HEAD^)" == "$SOURCE" ]] || exit 1
+          node <<'NODE'
+          const {execFileSync}=require('node:child_process'), fs=require('node:fs');
+          const tags=JSON.parse(process.env.TAGS); for(const m of JSON.parse(process.env.MODULES||'[]')) tags.push(`${m.dir}/v${m.version}`);
+          const tagReceipts=tags.map(tag=>{const rows=execFileSync('git',['ls-remote','origin',`refs/tags/${tag}`,`refs/tags/${tag}^{}`],{encoding:'utf8'}).trim().split('\n');const row=rows.find(x=>x.endsWith(`refs/tags/${tag}^{}`))||rows.find(x=>x.endsWith(`refs/tags/${tag}`));if(!row||row.split(/\s+/)[0]!==process.env.COMMIT)throw Error(`bad tag ${tag}`);return {tag,peeledCommit:process.env.COMMIT};});
+          const packages=JSON.parse(process.env.PACKAGES).map(p=>{const integrity=execFileSync('npm',['view',`${p.name}@${p.version}`,'dist.integrity'],{encoding:'utf8'}).trim();if(!integrity)throw Error(`missing integrity ${p.name}`);return {...p,integrity};});
+          fs.writeFileSync('release-receipt.json',JSON.stringify({reviewedSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.SOURCE,goModuleTagsWorkflowCommit:process.env.GO_TAG_WORKFLOW_COMMIT,tags:tagReceipts,packages},null,2)+'\n');
+          NODE
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-receipt-${{ needs.release.outputs.source }}
+          path: release-receipt.json
+          if-no-files-found: error
+          retention-days: 90
