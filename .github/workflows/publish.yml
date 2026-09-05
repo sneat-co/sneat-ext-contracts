@@ -173,8 +173,9 @@ jobs:
           RETRY: ${{ inputs.retry_release_ref }}
         run: |
           set -euo pipefail
-          commit="$(git rev-parse HEAD)"; release_source="$SOURCE"; tags='[]'; packages='[]'; projects=''; publish_projects=''; prepared=false
+          commit="$(git rev-parse HEAD)"; release_source="$SOURCE"; tags='[]'; packages='[]'; projects=''; publish_projects=''; prepared=false; retrying=false
           if [[ -n "$RETRY" ]]; then
+            retrying=true
             [[ "$commit" == "$RETRY" ]] || { echo '::error::retry checkout differs from requested release'; exit 1; }
             release_source="$(git rev-parse HEAD^)"
           fi
@@ -216,6 +217,7 @@ jobs:
             echo "projects=$projects"
             echo "publish_projects=$publish_projects"
             echo "prepared=$prepared"
+            echo "retrying=$retrying"
           } >> "$GITHUB_OUTPUT"
       - name: Resolve Go family tags
         id: modules
@@ -237,7 +239,7 @@ jobs:
           done
           echo "json=$pairs" >> "$GITHUB_OUTPUT"
       - name: Refuse drift and push without rebasing
-        if: steps.state.outputs.prepared == 'true' && inputs.retry_release_ref == ''
+        if: steps.state.outputs.prepared == 'true' && steps.state.outputs.retrying != 'true'
         env:
           SOURCE: ${{ steps.source.outputs.sha }}
           TAGS: ${{ steps.state.outputs.tags }}
