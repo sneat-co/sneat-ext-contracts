@@ -105,6 +105,17 @@ func TestCanonicalInputDigestIsDeterministicAndSensitive(t *testing.T) {
 	}
 }
 
+func TestCanonicalInputDigestIsDomainSeparated(t *testing.T) {
+	if ReconcileSourceObligationsDigestEncoding != "sneat-ext-contracts/debtus:reconcile-source-obligations:encoding-v1" {
+		t.Fatalf("unexpected digest encoding domain %q", ReconcileSourceObligationsDigestEncoding)
+	}
+	r := validRequest(t)
+	const want = "b344beaa17430d2efb2be581494146fc6d680543e76fafb93a19ff0fe90b1235"
+	if r.InputDigest != want {
+		t.Fatalf("domain-separated digest = %s, want %s", r.InputDigest, want)
+	}
+}
+
 func TestCanonicalDigestHasFixedLowercaseSHA256Shape(t *testing.T) {
 	r := validRequest(t)
 	if len(r.InputDigest) != 64 {

@@ -6,4 +6,10 @@ implementation and financial records; callers such as Splitus own their source
 revisions and posting intents.
 
 Trusted authority reservations are deliberately absent from serialized request
-types. Server composition must bind and validate that evidence separately.
+types. Server composition must bind and validate that evidence separately, and
+the provider must match recorder/actor IDs to its authenticated server context;
+the serialized IDs grant no authority.
+
+The immutable reconciliation receipt is separate from mutable source status.
+Current status exposes Debtus-owned principal, outstanding, repayment and credit
+amounts without prescribing how a credit is refunded or settled.

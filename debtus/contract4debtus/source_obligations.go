@@ -13,7 +13,13 @@ import (
 	"strings"
 )
 
-const SourceNamespaceSplitus = "splitus"
+const (
+	SourceNamespaceSplitus = "splitus"
+
+	// ReconcileSourceObligationsDigestEncoding domain-separates fingerprints
+	// made by this contract and encoding from every other Debtus command.
+	ReconcileSourceObligationsDigestEncoding = "sneat-ext-contracts/debtus:reconcile-source-obligations:encoding-v1"
+)
 
 var (
 	ErrInvalidRequest = errors.New("invalid Debtus source obligation request")
@@ -49,8 +55,9 @@ type ObligationLine struct {
 
 // ReconcileSourceObligationsRequest replaces the desired obligation lines for
 // one source revision. RecorderUserID is audit identity, separate from both
-// financial parties. InputDigest is the lowercase SHA-256 returned by
-// CanonicalInputDigest.
+// financial parties. A trusted provider must match RecorderUserID to the
+// authenticated server context; this caller-supplied value grants no authority.
+// InputDigest is the lowercase SHA-256 returned by CanonicalInputDigest.
 type ReconcileSourceObligationsRequest struct {
 	Source                   SourceRef        `json:"source"`
 	RecorderUserID           string           `json:"recorderUserID"`
@@ -86,7 +93,7 @@ func (r ReconcileSourceObligationsRequest) Validate() error {
 	totals := make(map[string]int64)
 	for i, line := range r.DesiredLines {
 		if err := validateLine(r.Source.SpaceID, line); err != nil {
-			return fmt.Errorf("%w: desired line %d: %v", ErrInvalidRequest, i, err)
+			return fmt.Errorf("desired line %d: %w", i, err)
 		}
 		if _, ok := seen[line.LineID]; ok {
 			return fmt.Errorf("%w: duplicate lineID %q", ErrInvalidRequest, line.LineID)
@@ -113,20 +120,20 @@ func validateLine(sourceSpaceID string, line ObligationLine) error {
 	}
 	for name, party := range map[string]ContactRef{"debtor": line.Debtor, "creditor": line.Creditor} {
 		if party.SpaceID != sourceSpaceID {
-			return fmt.Errorf("%s spaceID %q differs from source spaceID", name, party.SpaceID)
+			return fmt.Errorf("%w: %s spaceID %q differs from source spaceID", ErrInvalidRequest, name, party.SpaceID)
 		}
 		if err := validateID(name+" contactID", party.ContactID); err != nil {
 			return err
 		}
 	}
 	if line.Debtor.ContactID == line.Creditor.ContactID {
-		return errors.New("debtor and creditor contactID must differ")
+		return fmt.Errorf("%w: debtor and creditor contactID must differ", ErrInvalidRequest)
 	}
 	if !isCurrencyCode(line.Currency) {
-		return fmt.Errorf("currency %q must be three uppercase ASCII letters", line.Currency)
+		return fmt.Errorf("%w: currency %q must be three uppercase ASCII letters", ErrInvalidRequest, line.Currency)
 	}
 	if line.AmountMinor <= 0 {
-		return errors.New("amountMinor must be positive")
+		return fmt.Errorf("%w: amountMinor must be positive", ErrInvalidRequest)
 	}
 	return nil
 }
@@ -184,6 +191,7 @@ func (r ReconcileSourceObligationsRequest) CanonicalInputDigest() (string, error
 		binary.BigEndian.PutUint64(data[:], value)
 		_, _ = h.Write(data[:])
 	}
+	writeString(ReconcileSourceObligationsDigestEncoding)
 	writeString(r.Source.Namespace)
 	writeString(r.Source.SpaceID)
 	writeString(r.Source.RecordID)
@@ -204,43 +212,83 @@ func (r ReconcileSourceObligationsRequest) CanonicalInputDigest() (string, error
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-type OperationStatus string
-
-const (
-	OperationStatusPending   OperationStatus = "pending"
-	OperationStatusApplied   OperationStatus = "applied"
-	OperationStatusAttention OperationStatus = "attention"
-)
-
 // ObligationResult maps a stable source line to Debtus-owned obligation IDs.
 type ObligationResult struct {
 	LineID        string   `json:"lineID"`
 	ObligationIDs []string `json:"obligationIDs"`
 }
 
-// SourceObligationsReceipt is a durable provider result, safe to return again
-// for the same operation key and digest.
+// SourceObligationsReceipt is the immutable durable provider receipt, safe to
+// return again for the same operation key and digest. Mutable posting and
+// financial state are returned by GetSourceObligationsStatus.
 type SourceObligationsReceipt struct {
-	ReceiptID       string             `json:"receiptID"`
-	Source          SourceRef          `json:"source"`
-	Revision        uint64             `json:"revision"`
-	OperationKey    string             `json:"operationKey"`
-	InputDigest     string             `json:"inputDigest"`
-	Status          OperationStatus    `json:"status"`
-	Obligations     []ObligationResult `json:"obligations,omitempty"`
-	AttentionReason string             `json:"attentionReason,omitempty"`
+	ReceiptID    string             `json:"receiptID"`
+	Source       SourceRef          `json:"source"`
+	Revision     uint64             `json:"revision"`
+	OperationKey string             `json:"operationKey"`
+	InputDigest  string             `json:"inputDigest"`
+	Obligations  []ObligationResult `json:"obligations,omitempty"`
 }
 
-// GetSourceObligationsRequest identifies an authorized status read. Actor
-// authorization is provider-owned and must be checked at runtime.
-type GetSourceObligationsRequest struct {
+// GetSourceObligationsStatusRequest identifies an authorized status read. A
+// trusted provider must match ActorUserID to the authenticated server context
+// and authorize that actor; this caller-supplied value grants no authority.
+type GetSourceObligationsStatusRequest struct {
 	Source      SourceRef `json:"source"`
 	ActorUserID string    `json:"actorUserID"`
+}
+
+// PostingStatus describes whether Debtus has applied the accepted source
+// revision. It is distinct from each obligation's financial settlement state.
+type PostingStatus string
+
+const (
+	PostingStatusPending   PostingStatus = "pending"
+	PostingStatusApplied   PostingStatus = "applied"
+	PostingStatusAttention PostingStatus = "attention"
+)
+
+// SettlementStatus is Debtus's current authoritative financial state for one
+// source line.
+type SettlementStatus string
+
+const (
+	SettlementStatusUnsettled   SettlementStatus = "unsettled"
+	SettlementStatusPartSettled SettlementStatus = "part_settled"
+	SettlementStatusSettled     SettlementStatus = "settled"
+)
+
+// SourceObligationStatus reports exact current Debtus amounts for one source
+// line. PrincipalMinor is the accepted obligation principal, OutstandingMinor
+// is unpaid liability, RepaidMinor is repayment retained in Debtus history,
+// and CreditMinor is any current credit Debtus recognizes for the line. The
+// presence of credit does not prescribe a refund or settlement path.
+type SourceObligationStatus struct {
+	LineID           string           `json:"lineID"`
+	ObligationIDs    []string         `json:"obligationIDs"`
+	Debtor           ContactRef       `json:"debtor"`
+	Creditor         ContactRef       `json:"creditor"`
+	Currency         string           `json:"currency"`
+	PrincipalMinor   int64            `json:"principalMinor"`
+	OutstandingMinor int64            `json:"outstandingMinor"`
+	RepaidMinor      int64            `json:"repaidMinor"`
+	CreditMinor      int64            `json:"creditMinor"`
+	Status           SettlementStatus `json:"status"`
+}
+
+// SourceObligationsStatus is mutable authoritative state read from Debtus. It
+// is separate from the immutable reconciliation receipt because repayments,
+// adjustments, and settlement can change after the source revision is posted.
+type SourceObligationsStatus struct {
+	LatestReceipt   SourceObligationsReceipt `json:"latestReceipt"`
+	PostingStatus   PostingStatus            `json:"postingStatus"`
+	AttentionReason string                   `json:"attentionReason,omitempty"`
+	Obligations     []SourceObligationStatus `json:"obligations,omitempty"`
 }
 
 // SourceObligations provides the public Debtus reconciliation/read boundary.
 // Runtime composition binds trusted authority evidence outside these DTOs.
 type SourceObligations interface {
 	ReconcileSourceObligations(context.Context, ReconcileSourceObligationsRequest) (SourceObligationsReceipt, error)
-	GetSourceObligations(context.Context, GetSourceObligationsRequest) (SourceObligationsReceipt, error)
+	GetSourceObligationsStatus(context.Context, GetSourceObligationsStatusRequest) (SourceObligationsStatus, error)
 }
