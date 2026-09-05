@@ -1,3 +1,5 @@
+import { IRelatedModules } from '@sneat/dto';
+
 export type ResponsibilityAssignmentMode = 'fixed' | 'rotating';
 
 export interface IResponsibilityAssignmentPolicy {
@@ -80,4 +82,3 @@ export interface IResponsibilityCompletionMutation {
   readonly completion: IResponsibilityCompletion;
   readonly disposition: ResponsibilityMutationDisposition;
 }
-import { IRelatedModules } from '@sneat/dto';

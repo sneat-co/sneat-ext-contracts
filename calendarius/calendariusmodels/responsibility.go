@@ -123,7 +123,8 @@ func (v CreateScheduledResponsibilityRequest) Validate() error {
 
 func (v ResponsibilityHappeningFields) Validate() error {
 	for id, payload := range v.Ext {
-		if strings.TrimSpace(id) != id || id == "" || !json.Valid(payload) {
+		var object map[string]json.RawMessage
+		if strings.TrimSpace(id) != id || id == "" || !json.Valid(payload) || json.Unmarshal(payload, &object) != nil || object == nil {
 			return fmt.Errorf("happeningFields.ext contains an invalid extension payload")
 		}
 	}
