@@ -1,3 +1,16 @@
+## 0.27.5 (2026-09-05)
+
+### 🩹 Fixes
+
+- Add generic scheduled responsibility contracts for recurring Calendarius ([c0fe406](https://github.com/sneat-co/sneat-ext-contracts/commit/c0fe406))
+  happenings, ordered or fixed assignment, stable occurrence references, and
+  transactional completion history. The API is additive and enables verticals to
+  present chores or duties without adding another recurrence engine.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.27.4 (2026-09-02)
 
 ### 🩹 Fixes
