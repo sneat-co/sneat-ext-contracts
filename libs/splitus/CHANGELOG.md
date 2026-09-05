@@ -1,3 +1,15 @@
+## 0.2.2 (2026-09-05)
+
+### 🩹 Fixes
+
+- Add the stable Splitus bill browser and Go host contracts with exact decimal ([daf8ce3](https://github.com/sneat-co/sneat-ext-contracts/commit/daf8ce3))
+  amounts, explicit paid and owed allocations, recurring utility context, and
+  Debtus-derived posting and settlement projections.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.2.1 (2026-08-26)
 
 ### 🩹 Fixes
