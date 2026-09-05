@@ -95,11 +95,11 @@ jobs:
               if [[ -n "$RETRY" ]]; then
                 [[ "$RETRY" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::retry_release_ref must be a full lowercase SHA'; exit 1; }
                 git cat-file -e "${RETRY}^{commit}"
-                [[ "$(git rev-parse "${SOURCE}^")" == "$RETRY" ]] || { echo '::error::retry release must be the first parent of reviewed main'; exit 1; }
+                git merge-base --is-ancestor "$RETRY" "$SOURCE" || { echo '::error::retry release must be an ancestor of reviewed main'; exit 1; }
                 parent="$(git rev-parse "${RETRY}^")"
                 count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&head_sha=${parent}" --jq '.workflow_runs | map(select(.head_sha == "'"$parent"'" and .conclusion == "success")) | length')"
                 [[ "$count" -gt 0 ]] || { echo '::error::retry release parent has no successful reviewed CI run'; exit 1; }
-                [[ -z "$(git diff --name-only "$RETRY" "$SOURCE" -- package.json pnpm-lock.yaml pnpm-workspace.yaml nx.json 'libs/*/package.json' 'libs/*/project.json' '*/go.mod')" ]] || { echo '::error::reviewed retry changed release package or dependency identity'; exit 1; }
+                [[ -z "$(git diff --name-only "$RETRY" "$SOURCE" -- . ':(exclude).github/workflows/publish.yml')" ]] || { echo '::error::retry chain contains changes outside the approved publisher workflow'; exit 1; }
                 receipt_source="$parent"
               fi
               receipts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=release-receipt-${receipt_source}&per_page=1" --jq .total_count)"
@@ -196,8 +196,22 @@ jobs:
                 tags="$(node -e 'let a=JSON.parse(process.argv[1]);a.push(process.argv[2]);process.stdout.write(JSON.stringify(a))' "$tags" "$tag")"
                 packages="$(node -e 'let a=JSON.parse(process.argv[1]);a.push({name:process.argv[2],version:process.argv[3]});process.stdout.write(JSON.stringify(a))' "$packages" "$name" "$version")"
                 projects="${projects:+${projects},}${project}"
-                if [[ -n "$RETRY" ]] && ! npm view "${name}@${version}" dist.integrity >/dev/null 2>&1; then
-                  publish_projects="${publish_projects:+${publish_projects},}${project}"
+                if [[ -n "$RETRY" ]]; then
+                  integrity=''
+                  for attempt in 1 2 3 4 5 6; do
+                    error_file="$(mktemp)"
+                    if output="$(npm view "${name}@${version}" dist.integrity --json 2>"$error_file")"; then
+                      rm -f "$error_file"
+                      integrity="$(node -e 'const value=JSON.parse(process.argv[1]);if(typeof value!=="string"||!/^sha(256|384|512)-\S+$/.test(value))process.exit(1);process.stdout.write(value)' "$output")" || { echo "::error::npm returned invalid integrity for ${name}@${version}"; exit 1; }
+                      break
+                    fi
+                    error="$(cat "$error_file")"; rm -f "$error_file"
+                    grep -q 'E404' <<<"$error" || { echo "::error::npm lookup failed for ${name}@${version}: ${error}"; exit 1; }
+                    [[ "$attempt" == 6 ]] || sleep 5
+                  done
+                  if [[ -z "$integrity" ]]; then
+                    publish_projects="${publish_projects:+${publish_projects},}${project}"
+                  fi
                 fi
               fi
             done < <(find libs -mindepth 2 -maxdepth 2 -name package.json | sort)
@@ -274,10 +288,12 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           const {execFileSync,spawnSync}=require('node:child_process'), fs=require('node:fs');
+          const sleep=ms=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,ms);
+          const npmEvidence=(name,version)=>{for(let attempt=1;attempt<=6;attempt++){try{const value=JSON.parse(execFileSync('npm',['view',`${name}@${version}`,'dist.integrity','--json'],{encoding:'utf8'}));if(typeof value!=='string'||!/^sha(256|384|512)-\S+$/.test(value))return {integrity:null,integrityLookup:'invalid'};return {integrity:value,integrityLookup:'verified'}}catch(error){const output=`${error.stdout||''}\n${error.stderr||''}`;if(!output.includes('E404'))return {integrity:null,integrityLookup:'registry-error'};if(attempt<6)sleep(5000)}}return {integrity:null,integrityLookup:'not-found'}};
           const remote=(...refs)=>execFileSync('git',['ls-remote','origin',...refs],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
           const mainRow=remote('refs/heads/main')[0]||''; const remoteMain=mainRow.split(/\s+/)[0]||null;
           const tags=JSON.parse(process.env.TAGS).map(tag=>{const rows=remote(`refs/tags/${tag}`,`refs/tags/${tag}^{}`);const row=rows.find(x=>x.endsWith(`refs/tags/${tag}^{}`))||rows.find(x=>x.endsWith(`refs/tags/${tag}`));return {tag,peeledCommit:row?.split(/\s+/)[0]||null};});
-          const packages=JSON.parse(process.env.PACKAGES).map(p=>{let integrity=null;try{integrity=execFileSync('npm',['view',`${p.name}@${p.version}`,'dist.integrity'],{encoding:'utf8'}).trim()||null}catch{}return {...p,integrity};});
+          const packages=JSON.parse(process.env.PACKAGES).map(p=>({...p,...npmEvidence(p.name,p.version)}));
           const established=Boolean(remoteMain)&&spawnSync('git',['merge-base','--is-ancestor',process.env.COMMIT,remoteMain],{stdio:'ignore'}).status===0;
           fs.writeFileSync('release-attempt.json',JSON.stringify({reviewedSource:process.env.RELEASE_SOURCE,workflowSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.RELEASE_SOURCE,remoteMain,releaseCommitEstablished:established,tags,packages,npmPublishOutcome:process.env.PUBLISH_OUTCOME||'skipped'},null,2)+'\n');
           NODE
@@ -295,11 +311,12 @@ jobs:
   go-module-tags:
     needs: release
     if: needs.release.outputs.modules != '[]' && needs.release.outputs.modules != ''
-    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@8957bdcacdf42c7e0ee693ecf470226cdd63ce87
+    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@895303a5328e2804bf022755f8441620e460eca3
     with:
       modules: ${{ needs.release.outputs.modules }}
       ref: ${{ needs.release.outputs.commit }}
-    secrets: inherit
+    secrets:
+      git_token: ${{ secrets.SNEAT_CI_READWRITE_TOKEN }}
 
   release-receipt:
     needs: [release, go-module-tags]
@@ -321,15 +338,17 @@ jobs:
           TAGS: ${{ needs.release.outputs.tags }}
           PACKAGES: ${{ needs.release.outputs.packages }}
           MODULES: ${{ needs.release.outputs.modules }}
-          GO_TAG_WORKFLOW_COMMIT: 8957bdcacdf42c7e0ee693ecf470226cdd63ce87
+          GO_TAG_WORKFLOW_COMMIT: 895303a5328e2804bf022755f8441620e460eca3
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$COMMIT" && "$(git rev-parse HEAD^)" == "$SOURCE" ]] || exit 1
           node <<'NODE'
           const {execFileSync}=require('node:child_process'), fs=require('node:fs');
+          const sleep=ms=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,ms);
+          const npmIntegrity=(name,version)=>{for(let attempt=1;attempt<=6;attempt++){try{const value=JSON.parse(execFileSync('npm',['view',`${name}@${version}`,'dist.integrity','--json'],{encoding:'utf8'}));if(typeof value!=='string'||!/^sha(256|384|512)-\S+$/.test(value))throw Error(`invalid integrity ${name}@${version}`);return value}catch(error){const output=`${error.stdout||''}\n${error.stderr||''}`;if(!output.includes('E404'))throw error;if(attempt<6)sleep(5000)}}throw Error(`missing integrity ${name}@${version}`)};
           const tags=JSON.parse(process.env.TAGS); for(const m of JSON.parse(process.env.MODULES||'[]')) tags.push(`${m.dir}/v${m.version}`);
           const tagReceipts=tags.map(tag=>{const rows=execFileSync('git',['ls-remote','origin',`refs/tags/${tag}`,`refs/tags/${tag}^{}`],{encoding:'utf8'}).trim().split('\n');const row=rows.find(x=>x.endsWith(`refs/tags/${tag}^{}`))||rows.find(x=>x.endsWith(`refs/tags/${tag}`));if(!row||row.split(/\s+/)[0]!==process.env.COMMIT)throw Error(`bad tag ${tag}`);return {tag,peeledCommit:process.env.COMMIT};});
-          const packages=JSON.parse(process.env.PACKAGES).map(p=>{const integrity=execFileSync('npm',['view',`${p.name}@${p.version}`,'dist.integrity'],{encoding:'utf8'}).trim();if(!integrity)throw Error(`missing integrity ${p.name}`);return {...p,integrity};});
+          const packages=JSON.parse(process.env.PACKAGES).map(p=>({...p,integrity:npmIntegrity(p.name,p.version)}));
           fs.writeFileSync('release-receipt.json',JSON.stringify({reviewedSource:process.env.SOURCE,releaseWorkflowRunID:process.env.GITHUB_RUN_ID,releaseCommit:process.env.COMMIT,releaseCommitParent:process.env.SOURCE,goModuleTagsWorkflowCommit:process.env.GO_TAG_WORKFLOW_COMMIT,tags:tagReceipts,packages},null,2)+'\n');
           NODE
       - uses: actions/upload-artifact@v6
