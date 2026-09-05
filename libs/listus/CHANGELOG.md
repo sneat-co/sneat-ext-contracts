@@ -1,3 +1,14 @@
+## 0.0.9 (2026-09-05)
+
+### 🩹 Fixes
+
+- Add the idempotent same-Space list-template apply contract for ongoing To buy ([ebc163e](https://github.com/sneat-co/sneat-ext-contracts/commit/ebc163e))
+  and To Do lists.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.0.8 (2026-09-02)
 
 ### 🩹 Fixes

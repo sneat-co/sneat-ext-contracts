@@ -1,3 +1,14 @@
+## 0.27.6 (2026-09-05)
+
+### 🩹 Fixes
+
+- Allow scheduled responsibilities to atomically carry generic extension data ([ee539d3](https://github.com/sneat-co/sneat-ext-contracts/commit/ee539d3))
+  and validated same-Space related references on their Calendarius happening.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.27.5 (2026-09-05)
 
 ### 🩹 Fixes
