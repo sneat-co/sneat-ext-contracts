@@ -236,6 +236,48 @@ func TestCreateBillV1ResponseValidatesPostingAndDebtusProjection(t *testing.T) {
 	}
 }
 
+func TestCreateBillV1ResponseRejectsDebtusObligationsOutsideReceipt(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*CreateBillV1Response)
+	}{
+		{
+			name: "missing line",
+			mutate: func(response *CreateBillV1Response) {
+				response.Bill.Debtus.Obligations = nil
+			},
+		},
+		{
+			name: "extra line",
+			mutate: func(response *CreateBillV1Response) {
+				lineID := "cam-to-alex"
+				response.Bill.Debtus.Obligations = append(response.Bill.Debtus.Obligations, DebtusObligationV1{
+					LineID: lineID, ObligationIDs: []string{"debt-cam-alex"},
+					DebtorContactID: "cam-contact", CreditorContactID: "alex-contact", Currency: "EUR",
+					PrincipalAmount: exact("30.00"), OutstandingAmount: exact("30.00"), RepaidAmount: exact("0.00"), CreditAmount: exact("0.00"),
+					Status:           DebtusSettlementStatusUnsettled,
+					SettlementTarget: DebtusSettlementTargetV1{Route: SettlementRoute, SpaceID: response.Bill.SpaceID, SourceNamespace: DebtusSourceNamespace, SourceRecordID: response.Bill.BillID, LineID: &lineID},
+				})
+			},
+		},
+		{
+			name: "mismatched obligation ID",
+			mutate: func(response *CreateBillV1Response) {
+				response.Bill.Debtus.Obligations[0].ObligationIDs = []string{"debt-bea-alex-v2"}
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := appliedBillResponse()
+			test.mutate(&response)
+			if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
+				t.Fatalf("Validate() error = %v, want ErrInvalidRequest", err)
+			}
+		})
+	}
+}
+
 func TestCreateBillV1ResponseRejectsTimestampAndUnboundedAttention(t *testing.T) {
 	response := appliedBillResponse()
 	response.Bill.UpdatedAt = "not-a-time"

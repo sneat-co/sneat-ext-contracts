@@ -649,6 +649,38 @@ func (b BillV1) Validate() error {
 		if err := b.Debtus.Validate(b.SpaceID, b.BillID, b.Currency); err != nil {
 			return err
 		}
+		if b.Posting.Receipt == nil {
+			return invalid("Debtus status requires an applied posting receipt")
+		}
+		if err := validateDebtusMatchesReceipt(*b.Posting.Receipt, *b.Debtus); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateDebtusMatchesReceipt(receipt BillPostingReceiptV1, debtus DebtusStatusV1) error {
+	if len(receipt.ObligationLines) != len(debtus.Obligations) {
+		return invalid("Debtus obligations do not exactly match the applied posting receipt")
+	}
+	receiptLines := make(map[string]map[string]struct{}, len(receipt.ObligationLines))
+	for _, line := range receipt.ObligationLines {
+		ids := make(map[string]struct{}, len(line.ObligationIDs))
+		for _, id := range line.ObligationIDs {
+			ids[id] = struct{}{}
+		}
+		receiptLines[line.LineID] = ids
+	}
+	for _, obligation := range debtus.Obligations {
+		receiptIDs, exists := receiptLines[obligation.LineID]
+		if !exists || len(receiptIDs) != len(obligation.ObligationIDs) {
+			return invalid("Debtus obligations do not exactly match the applied posting receipt")
+		}
+		for _, id := range obligation.ObligationIDs {
+			if _, exists := receiptIDs[id]; !exists {
+				return invalid("Debtus obligations do not exactly match the applied posting receipt")
+			}
+		}
 	}
 	return nil
 }

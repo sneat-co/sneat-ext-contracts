@@ -91,6 +91,25 @@ function billResponse(): Record<string, unknown> {
             lineID: 'bea-to-alex',
           },
         },
+        {
+          lineID: 'cam-to-alex',
+          obligationIDs: ['debt-cam-alex'],
+          debtorContactID: 'cam-contact',
+          creditorContactID: 'alex-contact',
+          currency: 'EUR',
+          principalAmount: '30.00',
+          outstandingAmount: '30.00',
+          repaidAmount: '0.00',
+          creditAmount: '0.00',
+          status: 'unsettled',
+          settlementTarget: {
+            route: 'debtus.source-obligations',
+            spaceID: 'housemates-space',
+            sourceNamespace: 'splitus',
+            sourceRecordID: 'electricity-2026-08',
+            lineID: 'cam-to-alex',
+          },
+        },
       ],
       settlementTarget: {
         route: 'debtus.source-obligations',
@@ -294,6 +313,62 @@ describe('Splitus bill response contract version 1', () => {
       'does not match the accepted bill revision',
     );
   });
+
+  it.each([
+    [
+      'missing line',
+      (obligations: Record<string, unknown>[]) => {
+        obligations.pop();
+      },
+    ],
+    [
+      'extra line',
+      (obligations: Record<string, unknown>[]) => {
+        obligations.push({
+          lineID: 'drew-to-alex',
+          obligationIDs: ['debt-drew-alex'],
+          debtorContactID: 'drew-contact',
+          creditorContactID: 'alex-contact',
+          currency: 'EUR',
+          principalAmount: '30.00',
+          outstandingAmount: '30.00',
+          repaidAmount: '0.00',
+          creditAmount: '0.00',
+          status: 'unsettled',
+          settlementTarget: {
+            route: 'debtus.source-obligations',
+            spaceID: 'housemates-space',
+            sourceNamespace: 'splitus',
+            sourceRecordID: 'electricity-2026-08',
+            lineID: 'drew-to-alex',
+          },
+        });
+      },
+    ],
+    [
+      'mismatched obligation ID',
+      (obligations: Record<string, unknown>[]) => {
+        const first = obligations[0];
+        if (first === undefined) {
+          throw new Error('test response has no obligation');
+        }
+        first['obligationIDs'] = ['debt-bea-alex-v2'];
+      },
+    ],
+  ])(
+    'rejects Debtus status with a valid-looking %s absent from the receipt',
+    (_name, mutate) => {
+      const response = billResponse();
+      const bill = response['bill'] as Record<string, unknown>;
+      const debtus = bill['debtus'] as Record<string, unknown>;
+      const obligations = debtus['obligations'] as Record<string, unknown>[];
+      mutate(obligations);
+
+      expect(() => parseCreateSplitusBillV1Response(response)).toThrow(
+        'do not exactly match the applied posting receipt',
+      );
+    },
+  );
 
   it('rejects invalid timestamps and unbounded server attention messages', () => {
     const response = billResponse();

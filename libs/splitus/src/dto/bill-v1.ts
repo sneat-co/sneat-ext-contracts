@@ -440,6 +440,13 @@ export function parseSplitusBillV1(value: unknown): ISplitusBillV1 {
   if (debtusValue !== undefined && postingValue.status !== 'applied') {
     throw new TypeError('Debtus status requires applied posting');
   }
+  if (debtusValue !== undefined) {
+    const receipt = postingValue.receipt;
+    if (receipt === undefined) {
+      throw new TypeError('Debtus status requires an applied posting receipt');
+    }
+    validateDebtusMatchesReceipt(receipt, debtusValue);
+  }
   return {
     ...request,
     revision: revisionValue,
@@ -703,6 +710,35 @@ function debtusStatus(
       billID,
     ),
   };
+}
+
+function validateDebtusMatchesReceipt(
+  receipt: ISplitusBillPostingReceiptV1,
+  debtus: ISplitusDebtusStatusV1,
+): void {
+  if (receipt.obligationLines.length !== debtus.obligations.length) {
+    throw new TypeError(
+      'Debtus obligations do not exactly match the applied posting receipt',
+    );
+  }
+  const receiptLines = new Map(
+    receipt.obligationLines.map((line) => [
+      line.lineID,
+      new Set(line.obligationIDs),
+    ]),
+  );
+  for (const obligation of debtus.obligations) {
+    const receiptIDs = receiptLines.get(obligation.lineID);
+    if (
+      receiptIDs === undefined ||
+      receiptIDs.size !== obligation.obligationIDs.length ||
+      obligation.obligationIDs.some((id) => !receiptIDs.has(id))
+    ) {
+      throw new TypeError(
+        'Debtus obligations do not exactly match the applied posting receipt',
+      );
+    }
+  }
 }
 
 function settlementTarget(
