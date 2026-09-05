@@ -13,3 +13,8 @@ the serialized IDs grant no authority.
 The immutable reconciliation receipt is separate from mutable source status.
 Current status exposes Debtus-owned principal, outstanding, repayment and credit
 amounts without prescribing how a credit is refunded or settled.
+
+Reconciliation returns explicit pending, posting, applied or attention state;
+only applied state carries an immutable receipt. A separate paged activity query
+keeps repayments and adjustments visible and links them to stable root activity
+and source-line IDs without exposing Debtus storage records.

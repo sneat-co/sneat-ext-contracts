@@ -11,6 +11,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 )
 
 const (
@@ -230,6 +231,45 @@ type SourceObligationsReceipt struct {
 	Obligations  []ObligationResult `json:"obligations,omitempty"`
 }
 
+// ReconcileSourceObligationsResult reports current posting progress separately
+// from the immutable applied receipt. Pending and posting are explicitly not
+// proof that Debtus has applied any financial entry.
+type ReconcileSourceObligationsResult struct {
+	PostingStatus   PostingStatus             `json:"postingStatus"`
+	AppliedReceipt  *SourceObligationsReceipt `json:"appliedReceipt,omitempty"`
+	AttentionReason string                    `json:"attentionReason,omitempty"`
+}
+
+// Validate enforces the result envelope's proof boundary.
+func (r ReconcileSourceObligationsResult) Validate() error {
+	switch r.PostingStatus {
+	case PostingStatusPending, PostingStatusPosting:
+		if r.AppliedReceipt != nil {
+			return fmt.Errorf("%w: %s result cannot contain an applied receipt", ErrInvalidRequest, r.PostingStatus)
+		}
+		if r.AttentionReason != "" {
+			return fmt.Errorf("%w: %s result cannot contain an attention reason", ErrInvalidRequest, r.PostingStatus)
+		}
+	case PostingStatusApplied:
+		if r.AppliedReceipt == nil {
+			return fmt.Errorf("%w: applied result requires an immutable receipt", ErrInvalidRequest)
+		}
+		if r.AttentionReason != "" {
+			return fmt.Errorf("%w: applied result cannot contain an attention reason", ErrInvalidRequest)
+		}
+	case PostingStatusAttention:
+		if r.AppliedReceipt != nil {
+			return fmt.Errorf("%w: attention result cannot contain an applied receipt", ErrInvalidRequest)
+		}
+		if strings.TrimSpace(r.AttentionReason) == "" {
+			return fmt.Errorf("%w: attention result requires a reason", ErrInvalidRequest)
+		}
+	default:
+		return fmt.Errorf("%w: unknown posting status %q", ErrInvalidRequest, r.PostingStatus)
+	}
+	return nil
+}
+
 // GetSourceObligationsStatusRequest identifies an authorized status read. A
 // trusted provider must match ActorUserID to the authenticated server context
 // and authorize that actor; this caller-supplied value grants no authority.
@@ -244,6 +284,7 @@ type PostingStatus string
 
 const (
 	PostingStatusPending   PostingStatus = "pending"
+	PostingStatusPosting   PostingStatus = "posting"
 	PostingStatusApplied   PostingStatus = "applied"
 	PostingStatusAttention PostingStatus = "attention"
 )
@@ -276,6 +317,35 @@ type SourceObligationStatus struct {
 	Status           SettlementStatus `json:"status"`
 }
 
+// Validate checks output invariants that consumers may rely on. The contract
+// intentionally does not require principal minus repaid to equal outstanding:
+// adjustments and credits make that equation incomplete.
+func (s SourceObligationStatus) Validate() error {
+	if err := validateLine(s.Debtor.SpaceID, ObligationLine{
+		LineID: s.LineID, Debtor: s.Debtor, Creditor: s.Creditor,
+		Currency: s.Currency, AmountMinor: 1,
+	}); err != nil {
+		return err
+	}
+	if len(s.ObligationIDs) == 0 {
+		return fmt.Errorf("%w: financial status requires an obligation ID", ErrInvalidRequest)
+	}
+	for _, obligationID := range s.ObligationIDs {
+		if err := validateID("obligation ID", obligationID); err != nil {
+			return err
+		}
+	}
+	if s.PrincipalMinor < 0 || s.OutstandingMinor < 0 || s.RepaidMinor < 0 || s.CreditMinor < 0 {
+		return fmt.Errorf("%w: financial status amounts must be nonnegative minor units", ErrInvalidRequest)
+	}
+	switch s.Status {
+	case SettlementStatusUnsettled, SettlementStatusPartSettled, SettlementStatusSettled:
+		return nil
+	default:
+		return fmt.Errorf("%w: unknown settlement status %q", ErrInvalidRequest, s.Status)
+	}
+}
+
 // SourceObligationsStatus is mutable authoritative state read from Debtus. It
 // is separate from the immutable reconciliation receipt because repayments,
 // adjustments, and settlement can change after the source revision is posted.
@@ -286,9 +356,134 @@ type SourceObligationsStatus struct {
 	Obligations     []SourceObligationStatus `json:"obligations,omitempty"`
 }
 
+// SourceObligationActivityKind identifies a Debtus-authoritative historical
+// event without exposing its persistence representation. Correction and credit
+// kinds describe recorded facts; they do not prescribe approval or refund policy.
+type SourceObligationActivityKind string
+
+const (
+	SourceActivityObligation   SourceObligationActivityKind = "obligation"
+	SourceActivityRepayment    SourceObligationActivityKind = "repayment"
+	SourceActivityAdjustment   SourceObligationActivityKind = "adjustment"
+	SourceActivityCancellation SourceObligationActivityKind = "cancellation"
+	SourceActivityCredit       SourceObligationActivityKind = "credit"
+)
+
+// SourceObligationActivity is one immutable, auditable Debtus activity. The
+// stable RootActivityID links repayments, returns, and adjustments to their
+// original financial root; LineIDs link the explanation back to source lines.
+// AmountMinor is the exact nonnegative event magnitude in currency minor units.
+type SourceObligationActivity struct {
+	ActivityID         string                       `json:"activityID"`
+	RootActivityID     string                       `json:"rootActivityID"`
+	RelatedActivityIDs []string                     `json:"relatedActivityIDs,omitempty"`
+	LineIDs            []string                     `json:"lineIDs"`
+	Kind               SourceObligationActivityKind `json:"kind"`
+	From               ContactRef                   `json:"from"`
+	To                 ContactRef                   `json:"to"`
+	Currency           string                       `json:"currency"`
+	AmountMinor        int64                        `json:"amountMinor"`
+	ActorUserID        string                       `json:"actorUserID"`
+	OccurredAt         time.Time                    `json:"occurredAt"`
+}
+
+// Validate checks the stable, storage-neutral activity shape.
+func (a SourceObligationActivity) Validate() error {
+	for name, value := range map[string]string{
+		"activityID": a.ActivityID, "rootActivityID": a.RootActivityID, "actorUserID": a.ActorUserID,
+	} {
+		if err := validateID(name, value); err != nil {
+			return err
+		}
+	}
+	if len(a.LineIDs) == 0 {
+		return fmt.Errorf("%w: activity requires at least one source lineID", ErrInvalidRequest)
+	}
+	seen := make(map[string]struct{}, len(a.LineIDs))
+	for _, lineID := range a.LineIDs {
+		if err := validateID("activity lineID", lineID); err != nil {
+			return err
+		}
+		if _, ok := seen[lineID]; ok {
+			return fmt.Errorf("%w: duplicate activity lineID %q", ErrInvalidRequest, lineID)
+		}
+		seen[lineID] = struct{}{}
+	}
+	for name, party := range map[string]ContactRef{"from": a.From, "to": a.To} {
+		if err := validateID(name+" spaceID", party.SpaceID); err != nil {
+			return err
+		}
+		if err := validateID(name+" contactID", party.ContactID); err != nil {
+			return err
+		}
+		if party.SpaceID != a.From.SpaceID {
+			return fmt.Errorf("%w: activity parties must belong to the same source Space", ErrInvalidRequest)
+		}
+	}
+	if a.From.ContactID == a.To.ContactID {
+		return fmt.Errorf("%w: activity from and to contacts must differ", ErrInvalidRequest)
+	}
+	switch a.Kind {
+	case SourceActivityObligation, SourceActivityRepayment, SourceActivityAdjustment, SourceActivityCancellation, SourceActivityCredit:
+	default:
+		return fmt.Errorf("%w: unknown source activity kind %q", ErrInvalidRequest, a.Kind)
+	}
+	if !isCurrencyCode(a.Currency) {
+		return fmt.Errorf("%w: currency %q must be three uppercase ASCII letters", ErrInvalidRequest, a.Currency)
+	}
+	if a.AmountMinor <= 0 {
+		return fmt.Errorf("%w: activity amountMinor must be positive", ErrInvalidRequest)
+	}
+	if a.OccurredAt.IsZero() {
+		return fmt.Errorf("%w: activity occurredAt is required", ErrInvalidRequest)
+	}
+	return nil
+}
+
+// ListSourceObligationActivitiesRequest requests one bounded history page. A
+// trusted provider must match ActorUserID to authenticated server context and
+// authorize the source read. PageSize must be positive; providers may impose a
+// documented lower maximum. Cursor is opaque to callers.
+type ListSourceObligationActivitiesRequest struct {
+	Source      SourceRef `json:"source"`
+	ActorUserID string    `json:"actorUserID"`
+	PageSize    uint16    `json:"pageSize"`
+	Cursor      string    `json:"cursor,omitempty"`
+}
+
+// Validate checks that the caller requested a bounded page for one source.
+func (r ListSourceObligationActivitiesRequest) Validate() error {
+	if err := validateToken("source namespace", r.Source.Namespace); err != nil {
+		return err
+	}
+	if err := validateID("source spaceID", r.Source.SpaceID); err != nil {
+		return err
+	}
+	if err := validateID("source recordID", r.Source.RecordID); err != nil {
+		return err
+	}
+	if err := validateID("actor userID", r.ActorUserID); err != nil {
+		return err
+	}
+	if r.PageSize == 0 {
+		return fmt.Errorf("%w: activity pageSize must be positive", ErrInvalidRequest)
+	}
+	if len(r.Cursor) > 4096 {
+		return fmt.Errorf("%w: activity cursor is longer than 4096 bytes", ErrInvalidRequest)
+	}
+	return nil
+}
+
+// SourceObligationActivitiesPage is one bounded page of authoritative history.
+type SourceObligationActivitiesPage struct {
+	Activities []SourceObligationActivity `json:"activities"`
+	NextCursor string                     `json:"nextCursor,omitempty"`
+}
+
 // SourceObligations provides the public Debtus reconciliation/read boundary.
 // Runtime composition binds trusted authority evidence outside these DTOs.
 type SourceObligations interface {
-	ReconcileSourceObligations(context.Context, ReconcileSourceObligationsRequest) (SourceObligationsReceipt, error)
+	ReconcileSourceObligations(context.Context, ReconcileSourceObligationsRequest) (ReconcileSourceObligationsResult, error)
 	GetSourceObligationsStatus(context.Context, GetSourceObligationsStatusRequest) (SourceObligationsStatus, error)
+	ListSourceObligationActivities(context.Context, ListSourceObligationActivitiesRequest) (SourceObligationActivitiesPage, error)
 }

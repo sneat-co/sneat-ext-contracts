@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 )
 
 func validRequest(t *testing.T) ReconcileSourceObligationsRequest {
@@ -125,5 +126,77 @@ func TestCanonicalDigestHasFixedLowercaseSHA256Shape(t *testing.T) {
 		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
 			t.Fatalf("digest contains non-lowercase-hex character %q", c)
 		}
+	}
+}
+
+func TestReconcileResultSeparatesProgressFromAppliedProof(t *testing.T) {
+	receipt := &SourceObligationsReceipt{ReceiptID: "receipt-1"}
+	tests := []struct {
+		name    string
+		result  ReconcileSourceObligationsResult
+		wantErr bool
+	}{
+		{name: "pending", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusPending}},
+		{name: "posting", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusPosting}},
+		{name: "applied", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusApplied, AppliedReceipt: receipt}},
+		{name: "attention", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusAttention, AttentionReason: "provider intervention required"}},
+		{name: "pending is not proof", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusPending, AppliedReceipt: receipt}, wantErr: true},
+		{name: "applied requires proof", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusApplied}, wantErr: true},
+		{name: "attention requires reason", result: ReconcileSourceObligationsResult{PostingStatus: PostingStatusAttention}, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.result.Validate()
+			if test.wantErr != errors.Is(err, ErrInvalidRequest) {
+				t.Fatalf("Validate() error = %v, want ErrInvalidRequest=%v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestFinancialStatusAllowsAdjustmentsWithoutFalseArithmeticInvariant(t *testing.T) {
+	status := SourceObligationStatus{
+		LineID: "line-a", ObligationIDs: []string{"obligation-1"},
+		Debtor: ContactRef{SpaceID: "space-1", ContactID: "bob"}, Creditor: ContactRef{SpaceID: "space-1", ContactID: "alice"},
+		Currency: "EUR", PrincipalMinor: 4000,
+		OutstandingMinor: 0,
+		RepaidMinor:      6000,
+		CreditMinor:      2000,
+		Status:           SettlementStatusSettled,
+	}
+	if err := status.Validate(); err != nil {
+		t.Fatalf("Validate() rejected adjustment/credit state: %v", err)
+	}
+	status.CreditMinor = -1
+	if err := status.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidRequest", err)
+	}
+}
+
+func TestActivityContractRequiresBoundedLinkedAuditHistory(t *testing.T) {
+	activity := SourceObligationActivity{
+		ActivityID: "repayment-1", RootActivityID: "obligation-1", LineIDs: []string{"line-a"},
+		From: ContactRef{SpaceID: "space-1", ContactID: "bob"}, To: ContactRef{SpaceID: "space-1", ContactID: "alice"},
+		Kind: SourceActivityRepayment, Currency: "EUR", AmountMinor: 750,
+		ActorUserID: "debtor-1", OccurredAt: time.Unix(1, 0).UTC(),
+	}
+	if err := activity.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	activity.LineIDs = nil
+	if err := activity.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidRequest", err)
+	}
+
+	page := ListSourceObligationActivitiesRequest{
+		Source:      SourceRef{Namespace: SourceNamespaceSplitus, SpaceID: "space-1", RecordID: "expense-1"},
+		ActorUserID: "reader-1", PageSize: 50,
+	}
+	if err := page.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	page.PageSize = 0
+	if err := page.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidRequest", err)
 	}
 }
