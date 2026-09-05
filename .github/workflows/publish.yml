@@ -139,7 +139,7 @@ jobs:
             # Generate the reviewed commit, changelogs and tags without
             # publishing. Publication starts only after the generated state and
             # origin/main authority have both been verified below.
-            pnpm nx release --yes --skip-publish --git-push=false
+            pnpm nx release --skip-publish
           fi
       - name: Verify generated release
         id: state
