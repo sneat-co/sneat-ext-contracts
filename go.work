@@ -21,6 +21,7 @@ use (
 	./chessraiders
 	./competios
 	./contactus
+	./debtus
 	./eventius
 	./gameboard
 	./kids-club
