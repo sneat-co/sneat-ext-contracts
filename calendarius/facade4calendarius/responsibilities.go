@@ -15,7 +15,7 @@ var (
 )
 
 type ScheduledResponsibilitiesFacade interface {
-	CreateScheduledResponsibility(context.Context, string, string, calendariusmodels.CreateScheduledResponsibilityRequest) (calendariusmodels.ScheduledResponsibilityMutation, error)
-	ListResponsibilityOccurrences(context.Context, string, string, string, time.Time, time.Time) ([]calendariusmodels.ResponsibilityOccurrence, error)
-	CompleteResponsibilityOccurrence(context.Context, string, string, calendariusmodels.CompleteResponsibilityOccurrenceRequest) (calendariusmodels.ResponsibilityCompletionMutation, error)
+	CreateScheduledResponsibility(ctx context.Context, actorUserID, spaceID string, request calendariusmodels.CreateScheduledResponsibilityRequest) (calendariusmodels.ScheduledResponsibilityMutation, error)
+	ListResponsibilityOccurrences(ctx context.Context, actorUserID, spaceID, happeningID string, from, to time.Time) ([]calendariusmodels.ResponsibilityOccurrence, error)
+	CompleteResponsibilityOccurrence(ctx context.Context, actorUserID, spaceID string, request calendariusmodels.CompleteResponsibilityOccurrenceRequest) (calendariusmodels.ResponsibilityCompletionMutation, error)
 }

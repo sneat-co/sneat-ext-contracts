@@ -2,6 +2,7 @@ package calendariusmodels
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -68,7 +69,7 @@ func (v ScheduledResponsibilitySpec) Validate() error {
 	if len(v.Description) > EventHappeningDescriptionMaxBytes {
 		return fmt.Errorf("description exceeds %d bytes", EventHappeningDescriptionMaxBytes)
 	}
-	if v.TimeZone == "" {
+	if v.TimeZone == "" || v.TimeZone == "Local" {
 		return fmt.Errorf("timeZone must be an IANA timezone")
 	}
 	if _, err := time.LoadLocation(v.TimeZone); err != nil {
@@ -114,8 +115,15 @@ type ResponsibilityOccurrenceRef struct {
 }
 
 func (v ResponsibilityOccurrenceRef) Key() string {
-	sum := sha256.Sum256([]byte(v.HappeningID + "\x00" + v.SlotID + "\x00" + v.Date))
-	return hex.EncodeToString(sum[:])
+	h := sha256.New()
+	for _, part := range []string{v.HappeningID, v.SlotID, v.Date} {
+		var size [8]byte
+		binary.BigEndian.PutUint64(size[:], uint64(len(part)))
+		_, _ = h.Write(size[:])
+		_, _ = h.Write([]byte(part))
+	}
+	sum := h.Sum(nil)
+	return hex.EncodeToString(sum)
 }
 
 type ResponsibilityCompletion struct {
