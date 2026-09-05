@@ -29,5 +29,6 @@ use (
 	./schoolus
 	./sneat-team
 	./sportius
+	./splitus
 	./trackus
 )

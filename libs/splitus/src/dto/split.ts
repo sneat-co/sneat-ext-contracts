@@ -1,6 +1,7 @@
-/** Mirrors models4splitus.SplitMode (backend/splitus/models4splitus). */
+/** @deprecated Use the Splitus bill contract types exported from `bill-v1`. */
 export type SplitMode = 'equally' | 'exact-amount' | 'percentage';
 
+/** @deprecated Use `SplitusCurrencyCode` from the Splitus bill contract. */
 export type CurrencyCode = 'EUR' | 'USD';
 
 /**
@@ -8,6 +9,7 @@ export type CurrencyCode = 'EUR' | 'USD';
  * modes. An omitted/empty `contactID` denotes the payer's own share. Ignored
  * (and may be omitted) for `equally`, which the backend computes itself.
  */
+/** @deprecated Use explicit paid and owed allocations in `ICreateSplitusBillV1Request`. */
 export interface ISplitShare {
   readonly contactID?: string;
   /** Decimal string, e.g. "35.00" — required for `exact-amount`. */
@@ -16,6 +18,7 @@ export interface ISplitShare {
   readonly percent?: string;
 }
 
+/** @deprecated Use `ICreateSplitusBillV1Request`. */
 export interface ICreateSplitRequest {
   readonly spaceID: string;
   readonly title?: string;
@@ -33,12 +36,14 @@ export interface ICreateSplitRequest {
   readonly shares?: ISplitShare[];
 }
 
+/** @deprecated Use `ISplitusDebtusObligationV1`. */
 export interface ICreateSplitTransfer {
   readonly id: string;
   readonly contactID: string;
   readonly amount: number;
 }
 
+/** @deprecated Use `ICreateSplitusBillV1Response`. */
 export interface ICreateSplitResponse {
   readonly id: string;
   /**
@@ -52,8 +57,10 @@ export interface ICreateSplitResponse {
  * "settled" or "outstanding", derived server-side by reading the linked
  * Debtus transfers — never computed or cached on the client.
  */
+/** @deprecated Use `SplitusDebtusSettlementStatus`. */
 export type SplitShareStatus = 'settled' | 'outstanding';
 
+/** @deprecated Use `ISplitusBillAllocationV1`. */
 export interface ISplitParticipant {
   readonly contactID?: string;
   readonly userID?: string;
@@ -63,6 +70,7 @@ export interface ISplitParticipant {
   readonly status: SplitShareStatus;
 }
 
+/** @deprecated Use `ISplitusBillV1`. */
 export interface ISplit {
   readonly id: string;
   readonly title?: string;
@@ -72,6 +80,7 @@ export interface ISplit {
   readonly participants: ISplitParticipant[];
 }
 
+/** @deprecated Use `ISplitusBillListItemV1`. */
 export interface ISplitListItem {
   readonly id: string;
   readonly title?: string;
