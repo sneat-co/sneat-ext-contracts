@@ -58,5 +58,7 @@ export interface IFinancialAgreementChargePage {
   readonly hasMore: boolean;
   readonly nextCursor?: string;
   readonly snapshotConsistent: boolean;
+  /** Digest of the full bounded result, stable across every page. */
+  readonly snapshotDigest?: string;
   readonly incompleteReason?: string;
 }

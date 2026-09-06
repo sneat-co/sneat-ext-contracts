@@ -46,10 +46,13 @@ func TestFinancialAgreementChargeQueryAndPageBounds(t *testing.T) {
 			t.Fatalf("accepted %+v", query)
 		}
 	}
-	if err := (FinancialAgreementChargePage{Charges: []FinancialAgreementChargeFact{}, SnapshotConsistent: true}).Validate(); err != nil {
+	if err := (FinancialAgreementChargePage{Charges: []FinancialAgreementChargeFact{}, SnapshotConsistent: true, SnapshotDigest: "digest"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if err := (FinancialAgreementChargePage{Charges: []FinancialAgreementChargeFact{}, HasMore: true, NextCursor: "next", SnapshotConsistent: true, SnapshotDigest: "digest"}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 	if err := (FinancialAgreementChargePage{Charges: []FinancialAgreementChargeFact{}, HasMore: true, NextCursor: "next", SnapshotConsistent: true}).Validate(); err == nil {
-		t.Fatal("multi-page result claimed snapshot consistency")
+		t.Fatal("snapshot consistency accepted without digest")
 	}
 }

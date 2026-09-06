@@ -143,11 +143,12 @@ type FinancialAgreementChargePage struct {
 	HasMore            bool                           `json:"hasMore"`
 	NextCursor         string                         `json:"nextCursor,omitempty"`
 	SnapshotConsistent bool                           `json:"snapshotConsistent"`
+	SnapshotDigest     string                         `json:"snapshotDigest,omitempty"`
 	IncompleteReason   string                         `json:"incompleteReason,omitempty"`
 }
 
 func (p FinancialAgreementChargePage) Validate() error {
-	if p.Charges == nil || len(p.Charges) > MaxFinancialAgreementChargePageSize || p.HasMore != (p.NextCursor != "") || p.HasMore && p.SnapshotConsistent || !p.SnapshotConsistent && p.IncompleteReason == "" {
+	if p.Charges == nil || len(p.Charges) > MaxFinancialAgreementChargePageSize || p.HasMore != (p.NextCursor != "") || p.SnapshotConsistent != (p.SnapshotDigest != "") || !p.SnapshotConsistent && p.IncompleteReason == "" || p.SnapshotConsistent && p.IncompleteReason != "" {
 		return fmt.Errorf("financial agreement charge page metadata is invalid")
 	}
 	for i, charge := range p.Charges {
