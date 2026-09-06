@@ -102,6 +102,37 @@ export interface IFinancialAgreementQuery {
   readonly cursor?: string;
 }
 
+export interface IFinancialAgreementListRequest {
+  readonly ownerSpaceID: string;
+  readonly happeningID: string;
+  readonly pageSize: number;
+  readonly cursor?: string;
+}
+
+export interface IFinancialAgreementReadRequest {
+  readonly ownerSpaceID: string;
+  readonly agreementID: string;
+  readonly historyLimit: number;
+  readonly beforeRevision?: number;
+}
+
+export interface IFinancialAgreementRevisionView {
+  readonly revision: number;
+  readonly before?: IFinancialAgreementFact;
+  readonly after?: IFinancialAgreementFact;
+  readonly actorUserID: string;
+  readonly at: string;
+  readonly reason?: string;
+  readonly operationID: string;
+}
+
+export interface IFinancialAgreementReadResponse {
+  readonly agreement: IFinancialAgreementFact;
+  readonly revisions: readonly IFinancialAgreementRevisionView[];
+  readonly historyComplete: boolean;
+  readonly nextBeforeRevision?: number;
+}
+
 export interface IFinancialAgreementResult {
   readonly agreements: readonly IFinancialAgreementFact[];
   readonly hasMore: boolean;

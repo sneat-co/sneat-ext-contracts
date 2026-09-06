@@ -401,6 +401,26 @@ type FinancialAgreementQuery struct {
 	Cursor           string `json:"cursor,omitempty"`
 }
 
+type FinancialAgreementListRequest struct {
+	OwnerSpaceID string `json:"ownerSpaceID"`
+	HappeningID  string `json:"happeningID"`
+	PageSize     int    `json:"pageSize"`
+	Cursor       string `json:"cursor,omitempty"`
+}
+
+func (q FinancialAgreementListRequest) Validate() error {
+	if err := validateFinancialCommitmentID("ownerSpaceID", q.OwnerSpaceID); err != nil {
+		return err
+	}
+	if err := validateFinancialCommitmentID("happeningID", q.HappeningID); err != nil {
+		return err
+	}
+	if q.PageSize < 1 || q.PageSize > MaxFinancialAgreementPageSize {
+		return fmt.Errorf("agreement list page is invalid")
+	}
+	return validateAgreementCursor(q.Cursor)
+}
+
 func (q FinancialAgreementQuery) Validate() error {
 	if err := validateFinancialCommitmentID("reportingSpaceID", q.ReportingSpaceID); err != nil {
 		return err
