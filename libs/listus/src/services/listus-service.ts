@@ -17,6 +17,8 @@ import {
   IListItemResult,
   IListItemsCommandParams,
   IReorderListItemsRequest,
+  ISaveListItemDateTaskRequest,
+  ISaveListItemDateTaskResponse,
   ISetListItemsIsComplete,
   ResolveMovieRequest,
   ResolveMovieResponse,
@@ -63,6 +65,9 @@ export interface IListusService {
     request: AddMovieToWatchlistRequest,
   ): Observable<AddMovieToWatchlistResponse>;
   setListItemWatchWith(request: SetListItemWatchWithRequest): Observable<void>;
+  saveListItemDateTask(
+    request: ISaveListItemDateTaskRequest,
+  ): Observable<ISaveListItemDateTaskResponse>;
 }
 
 export const LISTUS_SERVICE = new InjectionToken<IListusService>(

@@ -30,6 +30,8 @@ export interface IListItemDateTaskLink {
   readonly happening: ISpaceModuleItemRef;
   readonly source: ISpaceModuleItemRef;
   readonly purpose: string;
+  /** Revision of the Calendar-owned task, used for optimistic correction. */
+  readonly revision: number;
 }
 
 export type SourceTodoCompletionDisposition = 'navigate' | 'requires_input';

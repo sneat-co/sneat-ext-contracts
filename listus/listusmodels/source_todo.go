@@ -75,20 +75,16 @@ func (v SourceTodoSpec) Validate() error {
 }
 
 type SourceTodoPlanView struct {
-	ListID               string            `json:"listID"`
-	ItemID               string            `json:"itemID"`
-	Item                 coretypes.ItemRef `json:"item"`
-	DueHappening         coretypes.ItemRef `json:"dueHappening"`
-	ExpectedListRevision int64             `json:"expectedListRevision"`
-	State                SourceTodoState   `json:"state"`
+	ListID       string            `json:"listID"`
+	ItemID       string            `json:"itemID"`
+	Item         coretypes.ItemRef `json:"item"`
+	DueHappening coretypes.ItemRef `json:"dueHappening"`
+	State        SourceTodoState   `json:"state"`
 }
 
 func (v SourceTodoPlanView) Validate() error {
 	if v.ListID == "" || v.ItemID == "" {
 		return fmt.Errorf("listID and itemID are required")
-	}
-	if v.ExpectedListRevision < 0 || v.ExpectedListRevision > SourceTodoMaxSafeInteger {
-		return fmt.Errorf("expectedListRevision is outside the safe integer range")
 	}
 	if err := v.Item.Validate(); err != nil {
 		return fmt.Errorf("item: %w", err)
