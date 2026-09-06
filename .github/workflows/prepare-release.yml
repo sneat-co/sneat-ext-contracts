@@ -1,0 +1,115 @@
+name: Prepare release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: contract-release-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bind reviewed source
+        id: source
+        env:
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_ID: ${{ github.event.workflow_run.id }}
+          CI_REPO: ${{ github.event.workflow_run.repository.full_name }}
+          CI_HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          CI_EVENT: ${{ github.event.workflow_run.event }}
+          CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CI_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          [[ "$CI_ID" =~ ^[0-9]+$ && "$CI_REPO" == "$GITHUB_REPOSITORY" && "$CI_HEAD_REPO" == "$GITHUB_REPOSITORY" ]] || { echo '::error::CI run identity mismatch'; exit 1; }
+          [[ "$CI_EVENT" == push && "$CI_BRANCH" == main && "$CI_NAME" == CI ]] || { echo '::error::release preparation requires the successful CI push run on main'; exit 1; }
+          [[ "$CI_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::CI source must be a full lowercase SHA'; exit 1; }
+          echo "sha=$CI_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+      - name: Verify source authority
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE" ]] || exit 1
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$SOURCE" ]] || { echo '::error::origin/main moved; a newer CI run owns release preparation'; exit 1; }
+      - name: Detect reviewed version plans
+        id: plans
+        run: |
+          if compgen -G '.nx/version-plans/*.md' >/dev/null; then echo 'has=true' >> "$GITHUB_OUTPUT"; else echo 'has=false' >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@v4
+        if: steps.plans.outputs.has == 'true'
+      - uses: actions/setup-node@v6
+        if: steps.plans.outputs.has == 'true'
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+        if: steps.plans.outputs.has == 'true'
+      - name: Generate the release candidate
+        if: steps.plans.outputs.has == 'true'
+        env:
+          SOURCE: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git config user.email ci@sneat.co
+          git config user.name 'Sneat CI'
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$SOURCE" ]] || { echo '::error::target drift before release generation'; exit 1; }
+          pnpm nx release --skip-publish
+          generated="$(git rev-parse HEAD)"
+          [[ "$(git rev-parse HEAD^)" == "$SOURCE" ]] || { echo '::error::generated release is not a direct child of reviewed source'; exit 1; }
+          SOURCE="$SOURCE" CANDIDATE="$generated" node tools/release-candidate/release-candidate.mjs prepare
+          git add .nx/release-candidate.json
+          git commit --amend --no-edit
+          candidate="$(git rev-parse HEAD)"
+          while IFS= read -r tag; do
+            git tag --force --annotate "$tag" --message "chore(release): ${tag}" "$candidate"
+          done < <(node -e 'for(const r of require("./.nx/release-candidate.json").releases) console.log(r.npmTag)')
+          SOURCE="$SOURCE" CANDIDATE="$candidate" node tools/release-candidate/release-candidate.mjs verify-generated
+          [[ -z "$(git status --porcelain)" ]] || { echo '::error::release candidate left an uncommitted working tree'; exit 1; }
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+      - name: Open the protected release pull request
+        if: steps.plans.outputs.has == 'true'
+        env:
+          # A normal GITHUB_TOKEN does not trigger the required pull-request CI.
+          GH_TOKEN: ${{ secrets.SNEAT_CI_READWRITE_TOKEN }}
+          SOURCE: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ -n "${GH_TOKEN:-}" ]] || { echo '::error::SNEAT_CI_READWRITE_TOKEN is required to open a release PR that triggers protected CI'; exit 1; }
+          gh auth setup-git
+          existing="$(gh pr list --base main --state open --json headRefName,headRefOid,isCrossRepository --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("release/contracts-")))]')"
+          count="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).length))' "$existing")"
+          if [[ "$count" == 1 ]]; then
+            head="$(node -e 'process.stdout.write(JSON.parse(process.argv[1])[0].headRefOid)' "$existing")"
+            git fetch --no-tags origin "$head"
+            git checkout --detach "$head"
+            SOURCE="$SOURCE" CANDIDATE="$head" node tools/release-candidate/release-candidate.mjs verify-generated
+            echo 'The exact reviewed source already has an open verified contract release PR.'
+            exit 0
+          fi
+          [[ "$count" == 0 ]] || { echo '::error::multiple contract release pull requests are open'; exit 1; }
+          label="$(node -e 'console.log(require("./.nx/release-candidate.json").releases.map(r=>r.project+"@"+r.version).join(", "))')"
+          branch="release/contracts-${GITHUB_RUN_ID}"
+          git switch --create "$branch"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore(release): prepare ${label}" \
+            --body "Generated from reviewed source ${SOURCE}. The committed release manifest binds the consumed version plans and exact npm/Go tag set. Merging publishes from the exact CI-checked main revision; this workflow never mutates protected main."

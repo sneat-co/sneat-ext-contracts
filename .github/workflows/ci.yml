@@ -91,12 +91,30 @@ jobs:
     with:
       working-directory: ${{ matrix.dir }}
 
+  release-candidate-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Pull-request GITHUB_SHA is a synthetic merge. Release validation
+          # must inspect the exact candidate commit that branch protection checks.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify protected release candidate policy
+        env:
+          CI_BASE: ${{ github.event.pull_request.base.sha }}
+          CI_CHECKED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --test tools/release-candidate/release-candidate.test.mjs
+          EVENT="$GITHUB_EVENT_NAME" BASE="$CI_BASE" CHECKED="$CI_CHECKED" node tools/release-candidate/release-candidate.mjs verify-ci
+
   required-checks:
     # Keep this name aligned with the exact GitHub App status required by
     # branch protection. This job only combines the results above.
     name: Required checks passed
     if: ${{ always() }}
-    needs: [nx, tier-coherence, discover-go, go]
+    needs: [nx, tier-coherence, discover-go, go, release-candidate-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -107,6 +125,7 @@ jobs:
           DISCOVER_GO_RESULT: ${{ needs.discover-go.result }}
           GO_DIRS: ${{ needs.discover-go.outputs.dirs }}
           GO_RESULT: ${{ needs.go.result }}
+          RELEASE_CANDIDATE_POLICY_RESULT: ${{ needs.release-candidate-policy.result }}
         run: |
           set -eu
 
@@ -120,6 +139,7 @@ jobs:
           require_success "Nx lint, test, and build" "$NX_RESULT"
           require_success "Tier coherence" "$TIER_COHERENCE_RESULT"
           require_success "Go module discovery" "$DISCOVER_GO_RESULT"
+          require_success "Release candidate policy" "$RELEASE_CANDIDATE_POLICY_RESULT"
 
           if [ "$GO_DIRS" = "[]" ]; then
             expected_go_result=skipped
