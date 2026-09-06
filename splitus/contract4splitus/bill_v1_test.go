@@ -66,6 +66,27 @@ func TestResolvedSourceEffectValidation(t *testing.T) {
 	}
 }
 
+func TestResolvedSourceEffectExactAgreementIdentityIsAllOrNone(t *testing.T) {
+	effect := ResolvedSourceEffectV1{
+		PriceID: "month1", PriceRevision: 2, ExpectedAmount: exact("120.00"),
+		OwnerSpaceID: "family1", AgreementID: "agreement1", EnrollmentID: "enrollment1", ChargeID: "charge1", OccurrenceID: "month:2026-09",
+		Direction: "expense", TemporalBasis: "contract_period_cost", EconomicPeriod: &BillingPeriodV1{StartDate: "2026-09-01", EndDate: "2026-09-30"}, InvoiceReconciliationEligible: true,
+		SourceAttributionCaptured: true, ContactAttributions: []SourceAttributionV1{{ID: "child1", Amount: exact("120.00")}}, AssetAttributions: []SourceAttributionV1{{ID: "home1", Amount: exact("120.00")}},
+	}
+	if err := effect.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	effect.ChargeID = ""
+	if effect.Validate() == nil {
+		t.Fatal("partial agreement source identity accepted")
+	}
+	effect.ChargeID = "charge1"
+	effect.TemporalBasis = "normalized_service_cost"
+	if effect.Validate() == nil {
+		t.Fatal("normalized comparison accepted as invoice reconciliation evidence")
+	}
+}
+
 func TestCreateBillV1AcceptsEUR90ForThreeHousemates(t *testing.T) {
 	request := electricityBill()
 	if err := request.Validate(); err != nil {

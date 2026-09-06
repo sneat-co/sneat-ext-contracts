@@ -705,6 +705,24 @@ type ResolvedSourceEffectV1 struct {
 	// acceptance. They explain the expectation and do not define bill payables.
 	AssetIDs     []string              `json:"assetIDs,omitempty"`
 	ContactLinks []SourceContactLinkV1 `json:"contactLinks,omitempty"`
+	// The following fields are an all-or-none immutable owner snapshot. Legacy
+	// bills omit them and remain readable, but cannot claim exact reconciliation.
+	OwnerSpaceID                  string                `json:"ownerSpaceID,omitempty"`
+	AgreementID                   string                `json:"agreementID,omitempty"`
+	EnrollmentID                  string                `json:"enrollmentID,omitempty"`
+	ChargeID                      string                `json:"chargeID,omitempty"`
+	OccurrenceID                  string                `json:"occurrenceID,omitempty"`
+	Direction                     string                `json:"direction,omitempty"`
+	TemporalBasis                 string                `json:"temporalBasis,omitempty"`
+	EconomicPeriod                *BillingPeriodV1      `json:"economicPeriod,omitempty"`
+	InvoiceReconciliationEligible bool                  `json:"invoiceReconciliationEligible,omitempty"`
+	ContactAttributions           []SourceAttributionV1 `json:"contactAttributions,omitempty"`
+	AssetAttributions             []SourceAttributionV1 `json:"assetAttributions,omitempty"`
+}
+
+type SourceAttributionV1 struct {
+	ID     string             `json:"id"`
+	Amount ExactDecimalString `json:"amount"`
 }
 
 type SourceContactLinkV1 struct {
@@ -767,6 +785,66 @@ func (e ResolvedSourceEffectV1) Validate() error {
 			}
 			seenRoles[role] = struct{}{}
 		}
+	}
+	identityFields := []string{e.OwnerSpaceID, e.AgreementID, e.EnrollmentID, e.ChargeID, e.OccurrenceID, e.Direction, e.TemporalBasis}
+	identityPresent := false
+	for _, value := range identityFields {
+		identityPresent = identityPresent || value != ""
+	}
+	identityPresent = identityPresent || e.EconomicPeriod != nil || e.InvoiceReconciliationEligible || len(e.ContactAttributions) != 0 || len(e.AssetAttributions) != 0
+	if identityPresent {
+		for name, value := range map[string]string{"ownerSpaceID": e.OwnerSpaceID, "agreementID": e.AgreementID, "enrollmentID": e.EnrollmentID, "chargeID": e.ChargeID, "occurrenceID": e.OccurrenceID} {
+			if err := validateStorageID(name, value); err != nil {
+				return err
+			}
+		}
+		if e.Direction != "expense" && e.Direction != "income" && e.Direction != "transfer" {
+			return invalid("resolved source direction is invalid")
+		}
+		if e.TemporalBasis != "occurrence_service_cost" && e.TemporalBasis != "contract_period_cost" && e.TemporalBasis != "normalized_service_cost" {
+			return invalid("resolved source temporalBasis is invalid")
+		}
+		if e.EconomicPeriod == nil {
+			return invalid("resolved source economicPeriod is required")
+		}
+		if err := e.EconomicPeriod.Validate(); err != nil {
+			return err
+		}
+		if e.InvoiceReconciliationEligible && e.TemporalBasis == "normalized_service_cost" {
+			return invalid("normalized source effect cannot reconcile an invoice")
+		}
+		if err := validateSourceAttributions("contactAttributions", e.ContactAttributions, minor); err != nil {
+			return err
+		}
+		if err := validateSourceAttributions("assetAttributions", e.AssetAttributions, minor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSourceAttributions(name string, values []SourceAttributionV1, expectedMinor int64) error {
+	if len(values) > 100 {
+		return invalid("%s exceeds maximum item count 100", name)
+	}
+	seen := make(map[string]struct{}, len(values))
+	var total int64
+	for i, value := range values {
+		if err := validateStorageID(name, value.ID); err != nil {
+			return invalid("%s[%d]: %v", name, i, err)
+		}
+		if _, exists := seen[value.ID]; exists {
+			return invalid("%s contains duplicate ID %q", name, value.ID)
+		}
+		seen[value.ID] = struct{}{}
+		minor, err := nonNegativeMinorUnits(name, value.Amount)
+		if err != nil || minor <= 0 || total > expectedMinor-minor {
+			return invalid("%s[%d] amount is invalid", name, i)
+		}
+		total += minor
+	}
+	if len(values) > 0 && total != expectedMinor {
+		return invalid("%s must total expectedAmount", name)
 	}
 	return nil
 }
