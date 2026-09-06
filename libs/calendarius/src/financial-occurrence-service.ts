@@ -32,10 +32,17 @@ export interface IFinancialOccurrenceCandidate {
   readonly expectedMinor?: number;
   /** Same-Space Assetus identities linked by the source Happening. */
   readonly assetIDs?: readonly string[];
+  /** Source attribution evidence; never a payment or debt allocation. */
+  readonly contactLinks?: readonly IFinancialOccurrenceContactLink[];
   readonly pricingAvailability: FinancialPricingAvailability;
   readonly pricingUnavailableReason?: string;
   /** `unknown` means cancellation is known but a fee waiver is not. */
   readonly cancellationFinancialEffect?: 'unknown';
+}
+
+export interface IFinancialOccurrenceContactLink {
+  readonly contactID: string;
+  readonly roles?: readonly string[];
 }
 
 export interface IFinancialOccurrenceQueryResponse {
@@ -128,6 +135,7 @@ function parseCandidate(value: unknown): IFinancialOccurrenceCandidate {
   if (assetIDs !== undefined && new Set(assetIDs).size !== assetIDs.length) {
     throw new TypeError('financial occurrence assetIDs must be unique');
   }
+  const contactLinks = optionalContactLinks(value);
   return {
     happeningID: requiredString(value, 'happeningID'),
     occurrenceID: requiredString(value, 'occurrenceID'),
@@ -141,10 +149,27 @@ function parseCandidate(value: unknown): IFinancialOccurrenceCandidate {
     currency,
     expectedMinor,
     assetIDs,
+    contactLinks,
     pricingAvailability: availability,
     pricingUnavailableReason: unavailableReason,
     cancellationFinancialEffect: effect,
   };
+}
+
+function optionalContactLinks(value: Record<string, unknown>): readonly IFinancialOccurrenceContactLink[] | undefined {
+  const links = value['contactLinks'];
+  if (links === undefined) return undefined;
+  if (!Array.isArray(links)) throw new TypeError('financial occurrence contactLinks must be an array');
+  const seen = new Set<string>();
+  return links.map((link) => {
+    if (!isRecord(link)) throw new TypeError('financial occurrence contactLink must be an object');
+    const contactID = requiredString(link, 'contactID');
+    if (seen.has(contactID)) throw new TypeError('financial occurrence contactLinks must be unique');
+    seen.add(contactID);
+    const roles = optionalStrings(link, 'roles');
+    if (roles !== undefined && new Set(roles).size !== roles.length) throw new TypeError('financial occurrence contact roles must be unique');
+    return {contactID, roles};
+  });
 }
 
 function requiredDate(value: Record<string, unknown>, key: string): string {

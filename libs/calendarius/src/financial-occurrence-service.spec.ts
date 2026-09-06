@@ -21,6 +21,7 @@ describe('financial occurrence contract', () => {
           currency: 'EUR',
           expectedMinor: 10000,
           assetIDs: ['home-1'],
+          contactLinks: [{ contactID: 'child-1', roles: ['participant'] }],
           priceRevision: 2,
           pricingAvailability: 'available',
           cancellationFinancialEffect: 'unknown',
@@ -45,6 +46,7 @@ describe('financial occurrence contract', () => {
       expectedMinor: 10000,
       cancellationFinancialEffect: 'unknown',
       assetIDs: ['home-1'],
+      contactLinks: [{ contactID: 'child-1', roles: ['participant'] }],
     });
   });
 

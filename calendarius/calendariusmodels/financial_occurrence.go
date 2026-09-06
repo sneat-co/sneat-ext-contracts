@@ -107,12 +107,20 @@ type FinancialOccurrenceCandidate struct {
 	ExpectedMinor   *int64 `json:"expectedMinor,omitempty"`
 	// AssetIDs are same-Space Assetus records linked by the source Happening.
 	// They preserve attribution context; they do not change the expected amount.
-	AssetIDs                 []string                     `json:"assetIDs,omitempty"`
-	PricingAvailability      FinancialPricingAvailability `json:"pricingAvailability"`
-	PricingUnavailableReason string                       `json:"pricingUnavailableReason,omitempty"`
+	AssetIDs []string `json:"assetIDs,omitempty"`
+	// ContactLinks preserve same-Space attribution evidence and happening roles.
+	// They do not state who paid, who owes money, or create a Debtus obligation.
+	ContactLinks             []FinancialOccurrenceContactLink `json:"contactLinks,omitempty"`
+	PricingAvailability      FinancialPricingAvailability     `json:"pricingAvailability"`
+	PricingUnavailableReason string                           `json:"pricingUnavailableReason,omitempty"`
 	// CancellationFinancialEffect=unknown means the source occurrence is known
 	// to be canceled while whether its charge was waived remains unresolved.
 	CancellationFinancialEffect CancellationFinancialEffect `json:"cancellationFinancialEffect,omitempty"`
+}
+
+type FinancialOccurrenceContactLink struct {
+	ContactID string   `json:"contactID"`
+	Roles     []string `json:"roles,omitempty"`
 }
 
 func ValidateFinancialOccurrenceID(value string) error {
