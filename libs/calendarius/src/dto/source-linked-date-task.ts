@@ -11,13 +11,10 @@ export interface ISourceLinkedDateTaskRef {
   readonly lineID: string;
 }
 
+import type { ISpaceModuleItemRef } from '@sneat/dto';
+
 export interface ISourceLinkedDateTaskRelatedRef {
-  readonly itemRef: {
-    readonly module: string;
-    readonly collection: string;
-    readonly itemID: string;
-    readonly subPath?: string;
-  };
+  readonly itemRef: ISpaceModuleItemRef;
   readonly role: string;
 }
 
