@@ -16,6 +16,8 @@ func TestFinancialCommitmentQueryBounds(t *testing.T) {
 		{SpaceID: "space1", FromMonthISO: "2026-09", Months: 13, PageSize: 1},
 		{SpaceID: "space1", FromMonthISO: "2026-09", Months: 1, PageSize: 65},
 		{SpaceID: "space1", FromMonthISO: "2026-09", Months: 1, PageSize: 1, Cursor: "bad\nvalue"},
+		{SpaceID: "unsafe/space", FromMonthISO: "2026-09", Months: 1, PageSize: 1},
+		{SpaceID: "space\x00", FromMonthISO: "2026-09", Months: 1, PageSize: 1},
 	} {
 		if invalid.Validate() == nil {
 			t.Fatalf("accepted invalid query: %+v", invalid)
@@ -73,6 +75,11 @@ func TestFinancialCommitmentFactRejectsInvalidDatesAndDuplicateReferences(t *tes
 		t.Fatal(err)
 	}
 	invalid := valid
+	invalid.HappeningID = "unsafe/happening"
+	if invalid.Validate() == nil {
+		t.Fatal("accepted an unsafe happening ID")
+	}
+	invalid = valid
 	invalid.ActiveFromISO = "2026-02-31"
 	if invalid.Validate() == nil {
 		t.Fatal("accepted a rolled-over active date")
@@ -126,5 +133,19 @@ func TestFinancialCommitmentPeriodsAreBoundedOwnerEconomicMonths(t *testing.T) {
 	price := FinancialCommitmentPriceFact{PriceID: "p1", Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{valid, valid}}
 	if price.Validate() == nil {
 		t.Fatal("accepted duplicate owner period identities")
+	}
+	price.Periods = []FinancialCommitmentPeriodFact{
+		{OccurrenceID: "month:2026-03", PeriodStartDate: "2026-03-01", PeriodEndDate: "2026-03-31"},
+		{OccurrenceID: "another:2026-03", PeriodStartDate: "2026-03-01", PeriodEndDate: "2026-03-31"},
+	}
+	if price.Validate() == nil {
+		t.Fatal("accepted two owner identities for the same economic month")
+	}
+	price.Periods = []FinancialCommitmentPeriodFact{
+		{OccurrenceID: "month:2026-04", PeriodStartDate: "2026-04-01", PeriodEndDate: "2026-04-30"},
+		{OccurrenceID: "month:2026-03", PeriodStartDate: "2026-03-01", PeriodEndDate: "2026-03-31"},
+	}
+	if price.Validate() == nil {
+		t.Fatal("accepted economic months out of canonical order")
 	}
 }

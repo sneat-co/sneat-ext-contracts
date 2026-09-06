@@ -26,7 +26,7 @@ type FinancialCommitmentQuery struct {
 }
 
 func (q FinancialCommitmentQuery) Validate() error {
-	if err := validateEventHappeningText("spaceID", q.SpaceID, EventHappeningIDMaxBytes, true); err != nil {
+	if err := validateFinancialCommitmentID("spaceID", q.SpaceID); err != nil {
 		return err
 	}
 	if !validMonthISO(q.FromMonthISO) {
@@ -104,10 +104,10 @@ type FinancialCommitmentFact struct {
 }
 
 func (f FinancialCommitmentFact) Validate() error {
-	if err := validateEventHappeningText("spaceID", f.SpaceID, EventHappeningIDMaxBytes, true); err != nil {
+	if err := validateFinancialCommitmentID("spaceID", f.SpaceID); err != nil {
 		return err
 	}
-	if err := validateEventHappeningText("happeningID", f.HappeningID, EventHappeningIDMaxBytes, true); err != nil {
+	if err := validateFinancialCommitmentID("happeningID", f.HappeningID); err != nil {
 		return err
 	}
 	if strings.TrimSpace(f.Title) == "" {
@@ -208,6 +208,7 @@ func (p FinancialCommitmentPriceFact) Validate() error {
 		return fmt.Errorf("periods exceeds maximum %d", MaxFinancialCommitmentPeriodsPerPrice)
 	}
 	seenPeriods := make(map[string]struct{}, len(p.Periods))
+	previousEnd := ""
 	for i, period := range p.Periods {
 		if err := period.Validate(); err != nil {
 			return fmt.Errorf("periods[%d]: %w", i, err)
@@ -216,6 +217,10 @@ func (p FinancialCommitmentPriceFact) Validate() error {
 			return fmt.Errorf("periods contains duplicate occurrenceID %q", period.OccurrenceID)
 		}
 		seenPeriods[period.OccurrenceID] = struct{}{}
+		if previousEnd != "" && period.PeriodStartDate <= previousEnd {
+			return fmt.Errorf("periods must be strictly ascending and non-overlapping")
+		}
+		previousEnd = period.PeriodEndDate
 	}
 	return nil
 }
@@ -315,6 +320,11 @@ func validateCommitmentContactLinks(field string, links []FinancialCommitmentCon
 func validateFinancialCommitmentID(field, value string) error {
 	if err := validateEventHappeningText(field, value, EventHappeningIDMaxBytes, true); err != nil {
 		return err
+	}
+	for _, r := range value {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("%s contains a control character", field)
+		}
 	}
 	if strings.Contains(value, "/") || value == "." || value == ".." || strings.HasPrefix(value, "__") && strings.HasSuffix(value, "__") {
 		return fmt.Errorf("%s is not a safe identifier", field)
