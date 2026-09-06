@@ -1,6 +1,7 @@
 import { IWithRelatedOnly, IWithSpaceIDs } from '@sneat/dto';
 import { ActivityType, RepeatPeriod, WeekdayCode2 } from './happening-types';
 import type { IScheduledResponsibilitySpec } from './responsibility';
+import type { ISourceLinkedDateTaskMetadata } from './source-linked-date-task';
 import { IWithStringID } from './todo_move_funcs';
 
 export interface ISlotParticipant {
@@ -239,6 +240,7 @@ export interface IHappeningBase extends IWithRelatedOnly {
   readonly type: HappeningType;
   readonly status: HappeningStatus;
   readonly responsibility?: IScheduledResponsibilitySpec;
+  readonly sourceLinkedDateTask?: ISourceLinkedDateTaskMetadata;
   readonly kind: HappeningKind;
   readonly activityType?: ActivityType; // TODO: Is it same as HappeningKind?
   readonly title: string;

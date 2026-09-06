@@ -1,5 +1,6 @@
 /** The first stable Debtus source-obligation repayment browser contract. */
 export const DEBTUS_SOURCE_REPAYMENT_CONTRACT_VERSION = 1 as const;
+export const DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION = 1 as const;
 
 export const MAX_DEBTUS_SOURCE_OBLIGATION_IDS = 256;
 
@@ -19,6 +20,31 @@ export interface IDebtusSourceRefV1 {
   readonly namespace: string;
   readonly spaceID: string;
   readonly recordID: string;
+}
+
+export interface ISetDebtusSourceObligationDueDateV1Request {
+  readonly contractVersion: typeof DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION;
+  readonly source: IDebtusSourceRefV1;
+  readonly lineID: string;
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly expectedRevision: number;
+  readonly operationKey: string;
+  readonly todoListID?: string;
+}
+
+export interface IDebtusSourceObligationDueDateV1 {
+  readonly contractVersion: typeof DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION;
+  readonly source: IDebtusSourceRefV1;
+  readonly lineID: string;
+  readonly revision: number;
+  readonly dueDate?: string;
+  readonly happeningID: string;
+  readonly state: 'active' | 'completed' | 'canceled';
+  readonly todoListID?: string;
+  readonly todoItemID?: string;
+  readonly updatedAt: DebtusUtcTimestampString;
+  readonly updatedBy: string;
 }
 
 export interface IDebtusSourceContactRefV1 {
@@ -65,6 +91,7 @@ export interface IDebtusSourceObligationV1 {
   readonly creditMinor: DebtusExactMinorAmountString;
   readonly status: DebtusSourceSettlementStatus;
   readonly repaymentCapability: IDebtusSourceRepaymentCapabilityV1;
+  readonly dueDateTask?: IDebtusSourceObligationDueDateV1;
 }
 
 export type DebtusSourceObligationActivityKind =

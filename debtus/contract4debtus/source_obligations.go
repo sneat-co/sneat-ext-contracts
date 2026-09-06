@@ -23,6 +23,7 @@ const (
 	SourceRepaymentContractVersion   = 1
 	MaxSourceObligationIDs           = 256
 	SourceRepaymentBrowserTimeLayout = "2006-01-02T15:04:05.000Z"
+	SourceDueDateContractVersion     = 1
 
 	// ReconcileSourceObligationsDigestEncoding domain-separates fingerprints
 	// made by this contract and encoding from every other Debtus command.
@@ -413,6 +414,7 @@ type SourceObligationStatus struct {
 	// before the source-scoped repayment contract. New mutation/read adapters
 	// must populate it whenever they expose the repayment action.
 	RepaymentCapability *SourceObligationRepaymentCapability `json:"repaymentCapability,omitempty"`
+	DueDate             *SourceObligationDueDateResult       `json:"dueDateTask,omitempty"`
 }
 
 // Validate checks output invariants that consumers may rely on. The contract
@@ -447,7 +449,17 @@ func (s SourceObligationStatus) Validate() error {
 		return fmt.Errorf("%w: unknown settlement status %q", ErrInvalidRequest, s.Status)
 	}
 	if s.RepaymentCapability != nil {
-		return s.RepaymentCapability.Validate()
+		if err := s.RepaymentCapability.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.DueDate != nil {
+		if err := s.DueDate.Validate(); err != nil {
+			return err
+		}
+		if s.DueDate.LineID != s.LineID {
+			return fmt.Errorf("%w: due-date task lineID differs from obligation", ErrInvalidRequest)
+		}
 	}
 	return nil
 }
@@ -735,6 +747,129 @@ func (r RecordSourceObligationRepaymentResult) ValidateFor(request RecordSourceO
 // composition supplies the trusted actor and reauthorizes every call.
 type SourceObligationRepayments interface {
 	RecordSourceObligationRepayment(context.Context, RecordSourceObligationRepaymentRequest) (RecordSourceObligationRepaymentResult, error)
+}
+
+type SetSourceObligationDueDateRequest struct {
+	ContractVersion  int       `json:"contractVersion"`
+	Source           SourceRef `json:"source"`
+	LineID           string    `json:"lineID"`
+	Title            string    `json:"title"`
+	DueDate          string    `json:"dueDate,omitempty"`
+	ExpectedRevision uint64    `json:"expectedRevision"`
+	OperationKey     string    `json:"operationKey"`
+	TodoListID       string    `json:"todoListID,omitempty"`
+	ActorUserID      string    `json:"-"`
+}
+
+func (r SetSourceObligationDueDateRequest) Validate() error {
+	if r.ContractVersion != SourceDueDateContractVersion {
+		return fmt.Errorf("%w: unsupported source due-date contract version", ErrInvalidRequest)
+	}
+	if err := validateToken("source namespace", r.Source.Namespace); err != nil {
+		return err
+	}
+	if err := validateID("source spaceID", r.Source.SpaceID); err != nil {
+		return err
+	}
+	if err := validateID("source recordID", r.Source.RecordID); err != nil {
+		return err
+	}
+	if err := validateID("lineID", r.LineID); err != nil {
+		return err
+	}
+	if err := validateID("operation key", r.OperationKey); err != nil {
+		return err
+	}
+	if r.Title == "" || r.Title != strings.TrimSpace(r.Title) || len(r.Title) > 100 {
+		return fmt.Errorf("%w: title must be trimmed and 1..100 bytes", ErrInvalidRequest)
+	}
+	if r.DueDate != "" {
+		parsed, err := time.Parse("2006-01-02", r.DueDate)
+		if err != nil || parsed.Format("2006-01-02") != r.DueDate {
+			return fmt.Errorf("%w: dueDate must be YYYY-MM-DD", ErrInvalidRequest)
+		}
+	}
+	if r.TodoListID != "" {
+		if err := validateID("todoListID", r.TodoListID); err != nil {
+			return err
+		}
+	}
+	if r.ExpectedRevision > 9_007_199_254_740_991 {
+		return fmt.Errorf("%w: expectedRevision exceeds browser safe integer", ErrInvalidRequest)
+	}
+	if r.ActorUserID == "" {
+		return fmt.Errorf("%w: authenticated actor is required", ErrInvalidRequest)
+	}
+	return nil
+}
+
+type SourceObligationDueDateState string
+
+const (
+	SourceObligationDueDateActive    SourceObligationDueDateState = "active"
+	SourceObligationDueDateCompleted SourceObligationDueDateState = "completed"
+	SourceObligationDueDateCanceled  SourceObligationDueDateState = "canceled"
+)
+
+type SourceObligationDueDateResult struct {
+	ContractVersion int                          `json:"contractVersion"`
+	Source          SourceRef                    `json:"source"`
+	LineID          string                       `json:"lineID"`
+	Revision        uint64                       `json:"revision"`
+	DueDate         string                       `json:"dueDate,omitempty"`
+	HappeningID     string                       `json:"happeningID"`
+	State           SourceObligationDueDateState `json:"state"`
+	TodoListID      string                       `json:"todoListID,omitempty"`
+	TodoItemID      string                       `json:"todoItemID,omitempty"`
+	UpdatedAt       time.Time                    `json:"updatedAt"`
+	UpdatedBy       string                       `json:"updatedBy"`
+}
+
+func (r SourceObligationDueDateResult) Validate() error {
+	if r.ContractVersion != SourceDueDateContractVersion || r.Revision == 0 || r.Revision > 9_007_199_254_740_991 {
+		return fmt.Errorf("%w: invalid due-date result version or revision", ErrInvalidRequest)
+	}
+	if err := validateToken("source namespace", r.Source.Namespace); err != nil {
+		return err
+	}
+	if err := validateID("source spaceID", r.Source.SpaceID); err != nil {
+		return err
+	}
+	if err := validateID("source recordID", r.Source.RecordID); err != nil {
+		return err
+	}
+	if err := validateID("lineID", r.LineID); err != nil {
+		return err
+	}
+	if err := validateID("happeningID", r.HappeningID); err != nil {
+		return err
+	}
+	if err := validateID("updatedBy", r.UpdatedBy); err != nil {
+		return err
+	}
+	if r.UpdatedAt.IsZero() {
+		return fmt.Errorf("%w: updatedAt is required", ErrInvalidRequest)
+	}
+	if r.DueDate != "" {
+		parsed, err := time.Parse("2006-01-02", r.DueDate)
+		if err != nil || parsed.Format("2006-01-02") != r.DueDate {
+			return fmt.Errorf("%w: dueDate must be YYYY-MM-DD", ErrInvalidRequest)
+		}
+	}
+	switch r.State {
+	case SourceObligationDueDateActive:
+		if r.DueDate == "" {
+			return fmt.Errorf("%w: active due-date task requires dueDate", ErrInvalidRequest)
+		}
+	case SourceObligationDueDateCompleted, SourceObligationDueDateCanceled:
+	default:
+		return fmt.Errorf("%w: unsupported due-date task state", ErrInvalidRequest)
+	}
+	return nil
+}
+
+type SourceObligationDueDates interface {
+	SetSourceObligationDueDate(context.Context, SetSourceObligationDueDateRequest) (SourceObligationDueDateResult, error)
 }
 
 // SourceObligations provides the public Debtus reconciliation/read boundary.
