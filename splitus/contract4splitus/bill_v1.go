@@ -698,6 +698,15 @@ type ResolvedSourceEffectV1 struct {
 	PriceID        string             `json:"priceID"`
 	PriceRevision  int64              `json:"priceRevision"`
 	ExpectedAmount ExactDecimalString `json:"expectedAmount"`
+	// AssetIDs and ContactLinks preserve the owner-normalized source context at
+	// acceptance. They explain the expectation and do not define bill payables.
+	AssetIDs     []string              `json:"assetIDs,omitempty"`
+	ContactLinks []SourceContactLinkV1 `json:"contactLinks,omitempty"`
+}
+
+type SourceContactLinkV1 struct {
+	ContactID string   `json:"contactID"`
+	Roles     []string `json:"roles,omitempty"`
 }
 
 func (e ResolvedSourceEffectV1) Validate() error {
@@ -716,6 +725,42 @@ func (e ResolvedSourceEffectV1) Validate() error {
 	}
 	if minor <= 0 {
 		return invalid("expectedAmount must be positive")
+	}
+	if len(e.AssetIDs) > 100 || len(e.ContactLinks) > 100 {
+		return invalid("source references exceed maximum item count 100")
+	}
+	seenAssets := make(map[string]struct{}, len(e.AssetIDs))
+	for i, assetID := range e.AssetIDs {
+		if err := validateStorageID("assetIDs", assetID); err != nil {
+			return invalid("assetIDs[%d]: %v", i, err)
+		}
+		if _, exists := seenAssets[assetID]; exists {
+			return invalid("assetIDs contains duplicate ID %q", assetID)
+		}
+		seenAssets[assetID] = struct{}{}
+	}
+	seenContacts := make(map[string]struct{}, len(e.ContactLinks))
+	for i, link := range e.ContactLinks {
+		if err := validateStorageID("contactID", link.ContactID); err != nil {
+			return invalid("contactLinks[%d]: %v", i, err)
+		}
+		if _, exists := seenContacts[link.ContactID]; exists {
+			return invalid("contactLinks contains duplicate contactID %q", link.ContactID)
+		}
+		seenContacts[link.ContactID] = struct{}{}
+		if len(link.Roles) > 32 {
+			return invalid("contactLinks[%d].roles exceeds maximum item count 32", i)
+		}
+		seenRoles := make(map[string]struct{}, len(link.Roles))
+		for j, role := range link.Roles {
+			if strings.TrimSpace(role) == "" || strings.TrimSpace(role) != role || !utf8.ValidString(role) || len(role) > 100 {
+				return invalid("contactLinks[%d].roles[%d] is invalid", i, j)
+			}
+			if _, exists := seenRoles[role]; exists {
+				return invalid("contactLinks[%d].roles contains duplicate role %q", i, role)
+			}
+			seenRoles[role] = struct{}{}
+		}
 	}
 	return nil
 }
