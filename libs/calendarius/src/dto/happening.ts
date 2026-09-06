@@ -333,6 +333,8 @@ export interface IWithSpaceDates extends IWithSpaceIDs, IWithDates {
 
 export interface IHappeningDbo extends IHappeningBrief, IWithSpaceDates {
   readonly description?: string;
+  /** Server-owned revision of the price catalog used by agreement CAS. */
+  readonly priceRevision?: number;
 }
 
 export function validateHappeningDto(dto: IHappeningDbo): void {
