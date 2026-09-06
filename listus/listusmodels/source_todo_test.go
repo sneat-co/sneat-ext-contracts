@@ -11,7 +11,7 @@ func TestSourceTodoSpecValidation(t *testing.T) {
 		SpaceID: "family1", ListID: "todo", Purpose: "debt-due", Title: "Pay electricity bill",
 		Source:       coretypes.NewFullItemRef("debtus", "sourceObligations", "family1", "bill1"),
 		DueHappening: coretypes.NewFullItemRef("calendarius", "happenings", "family1", "due1"),
-		State:        SourceTodoActive, CompletionActionID: "open-source", CompletionDisposition: SourceTodoNavigate,
+		State:        SourceTodoActive, DueTaskRevision: 1, CompletionActionID: "open-source", CompletionDisposition: SourceTodoNavigate,
 	}
 	if err := v.Validate(); err != nil {
 		t.Fatal(err)

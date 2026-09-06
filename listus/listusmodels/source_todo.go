@@ -36,6 +36,7 @@ type SourceTodoSpec struct {
 	Title                 string                          `json:"title"`
 	State                 SourceTodoState                 `json:"state"`
 	DueHappening          coretypes.ItemRef               `json:"dueHappening"`
+	DueTaskRevision       int64                           `json:"dueTaskRevision"`
 	CompletionActionID    string                          `json:"completionActionID"`
 	CompletionDisposition SourceTodoCompletionDisposition `json:"completionDisposition"`
 }
@@ -60,6 +61,9 @@ func (v SourceTodoSpec) Validate() error {
 	}
 	if err := v.DueHappening.Validate(); err != nil {
 		return fmt.Errorf("dueHappening: %w", err)
+	}
+	if v.DueTaskRevision < 1 || v.DueTaskRevision > SourceTodoMaxSafeInteger {
+		return fmt.Errorf("dueTaskRevision must be a positive safe integer")
 	}
 	switch v.State {
 	case SourceTodoActive, SourceTodoCompleted, SourceTodoCanceled:
