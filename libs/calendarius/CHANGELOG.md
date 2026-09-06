@@ -1,3 +1,13 @@
+## 0.27.7 (2026-09-06)
+
+### 🩹 Fixes
+
+- Publish Budgetus source completeness and recurring occurrence provenance together with the Calendarius ID-keyed day and adjusted-slot related-link contract. ([ea90e9c](https://github.com/sneat-co/sneat-ext-contracts/commit/ea90e9c))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.27.6 (2026-09-05)
 
 ### 🩹 Fixes
