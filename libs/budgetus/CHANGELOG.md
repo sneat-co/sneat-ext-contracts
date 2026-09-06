@@ -1,3 +1,10 @@
+## 0.2.6 (2026-09-06)
+
+### Features
+
+- Describe source completeness, occurrence provenance, exact member
+  allocations, and source-owned Assetus references in Budgetus rollups.
+
 ## 0.2.5 (2026-09-02)
 
 ### 🩹 Fixes

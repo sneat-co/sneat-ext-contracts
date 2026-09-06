@@ -522,7 +522,7 @@ export interface IHappeningTask {
   };
 }
 
-export interface IHappeningSlot extends IHappeningSlotTiming {
+export interface IHappeningSlot extends IHappeningSlotTiming, IWithRelatedOnly {
   readonly location?: SlotLocation;
   readonly groupIds?: string[]; // TODO: What is this?
 }
