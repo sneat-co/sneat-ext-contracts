@@ -18,15 +18,19 @@ func TestFinancialAgreementChargeRejectsNormalizedReconciliation(t *testing.T) {
 	if err := fact.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	fact.OwnerTimezone = ""
+	if fact.Validate() == nil {
+		t.Fatal("available charge with empty owner timezone accepted")
+	}
+	fact.OwnerTimezone = "UTC"
 	fact.Status, fact.AmountMinor, fact.Direction, fact.Diagnostics = FinancialChargeStatusUnavailable, nil, "", []string{"partial_billing_period_policy_unknown"}
 	if err := fact.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	fact.OwnerTimezone = ""
-	if fact.Validate() == nil {
-		t.Fatal("empty owner timezone accepted")
+	if err := fact.Validate(); err != nil {
+		t.Fatal(err)
 	}
-	fact.OwnerTimezone = "UTC"
 	fact.InvoiceReconciliationEligible = true
 	if fact.Validate() == nil {
 		t.Fatal("unavailable charge accepted as invoice reconciliation candidate")
