@@ -49,10 +49,11 @@ func (q FinancialCommitmentQuery) Validate() error {
 }
 
 type FinancialCommitmentPage struct {
-	Facts            []FinancialCommitmentFact `json:"facts"`
-	HasMore          bool                      `json:"hasMore"`
-	NextCursor       string                    `json:"nextCursor,omitempty"`
-	IncompleteReason string                    `json:"incompleteReason,omitempty"`
+	Facts              []FinancialCommitmentFact `json:"facts"`
+	HasMore            bool                      `json:"hasMore"`
+	NextCursor         string                    `json:"nextCursor,omitempty"`
+	SnapshotConsistent bool                      `json:"snapshotConsistent"`
+	IncompleteReason   string                    `json:"incompleteReason,omitempty"`
 }
 
 // Validate requires whole-fact pagination. A provider never splits one
@@ -68,8 +69,11 @@ func (p FinancialCommitmentPage) Validate() error {
 	if p.HasMore != (p.NextCursor != "") {
 		return fmt.Errorf("hasMore and nextCursor are inconsistent")
 	}
-	if p.IncompleteReason != "" && p.IncompleteReason != "query_limit" {
+	if p.IncompleteReason != "" && p.IncompleteReason != "query_limit" && p.IncompleteReason != "source_collection_mutable_between_pages" {
 		return fmt.Errorf("unsupported incompleteReason")
+	}
+	if p.SnapshotConsistent == (p.IncompleteReason != "") {
+		return fmt.Errorf("snapshotConsistent and incompleteReason are inconsistent")
 	}
 	if len(p.NextCursor) > MaxFinancialCommitmentCursorBytes || !utf8.ValidString(p.NextCursor) || strings.TrimSpace(p.NextCursor) != p.NextCursor || strings.ContainsAny(p.NextCursor, "\r\n") {
 		return fmt.Errorf("nextCursor is invalid")

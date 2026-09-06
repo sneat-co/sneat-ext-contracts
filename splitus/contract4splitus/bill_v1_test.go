@@ -47,14 +47,18 @@ func electricityBill() CreateBillV1Request {
 }
 
 func TestResolvedSourceEffectValidation(t *testing.T) {
-	effect := ResolvedSourceEffectV1{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00")}
+	effect := ResolvedSourceEffectV1{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), SourceAttributionCaptured: true, AssetIDs: []string{"house"}, ContactLinks: []SourceContactLinkV1{{ContactID: "alice", Roles: []string{"participant"}}}}
 	if err := effect.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	for _, invalid := range []ResolvedSourceEffectV1{
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), AssetIDs: []string{"house"}},
 		{PriceID: "", PriceRevision: 2, ExpectedAmount: exact("120.00")},
 		{PriceID: "monthly", PriceRevision: 0, ExpectedAmount: exact("120.00")},
 		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("0.00")},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), AssetIDs: []string{"house", "house"}},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), ContactLinks: []SourceContactLinkV1{{ContactID: "alice"}, {ContactID: "alice"}}},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), ContactLinks: []SourceContactLinkV1{{ContactID: "alice", Roles: []string{"participant", "participant"}}}},
 	} {
 		if invalid.Validate() == nil {
 			t.Fatalf("accepted invalid effect: %+v", invalid)
