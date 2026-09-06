@@ -1,5 +1,9 @@
 import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
+import type {
+  IFinancialAgreementChargePage,
+  IFinancialAgreementChargeQuery,
+} from './dto/financial-agreement-charge';
 
 export type FinancialPricingAvailability =
   | 'available'
@@ -56,6 +60,10 @@ export interface IFinancialOccurrenceService {
   listFinancialOccurrences(
     query: IFinancialOccurrenceQuery,
   ): Observable<IFinancialOccurrenceQueryResponse>;
+  /** Lists owner-issued selected-deal charges; clients never expand recurrence. */
+  listFinancialAgreementCharges(
+    query: IFinancialAgreementChargeQuery,
+  ): Observable<IFinancialAgreementChargePage>;
 }
 
 export const FINANCIAL_OCCURRENCE_SERVICE =
