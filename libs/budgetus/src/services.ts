@@ -71,6 +71,17 @@ export interface IBudgetusService {
     space: ISpaceContext,
     window?: IBudgetWindow,
   ): Observable<IBudgetRollup>;
+
+  /**
+   * Watches local courtesy-masking preferences for financial source effects.
+   *
+   * The record is keyed by a Budgetus override id. A `true` value asks the
+   * current device to mask that effect in ordinary presentation. These flags
+   * carry no financial amount, permission, or server-side business state.
+   */
+  watchLocalCourtesyFlags?(
+    spaceID: string,
+  ): Observable<Readonly<Record<string, boolean>>>;
   setOverride(spaceID: string, lineItemId: string, patch: IBudgetOverridePatch): Promise<void>;
 }
 
