@@ -614,16 +614,51 @@ func (o DebtusObligationV1) Validate(spaceID, billID string, billCurrency Curren
 
 type BillV1 struct {
 	CreateBillV1Request
-	Revision  string          `json:"revision"`
-	Posting   BillPostingV1   `json:"posting"`
-	Debtus    *DebtusStatusV1 `json:"debtus,omitempty"`
-	CreatedAt string          `json:"createdAt"`
-	UpdatedAt string          `json:"updatedAt"`
+	// ResolvedSourceEffects are immutable response-only acceptance provenance
+	// captured by Splitus. They are not copied schedules and cannot be supplied
+	// by CreateBillV1Request.
+	ResolvedSourceEffects []ResolvedSourceEffectV1 `json:"resolvedSourceEffects,omitempty"`
+	Revision              string                   `json:"revision"`
+	Posting               BillPostingV1            `json:"posting"`
+	Debtus                *DebtusStatusV1          `json:"debtus,omitempty"`
+	CreatedAt             string                   `json:"createdAt"`
+	UpdatedAt             string                   `json:"updatedAt"`
 }
 
 func (b BillV1) Validate() error {
 	if err := b.CreateBillV1Request.Validate(); err != nil {
 		return err
+	}
+	if len(b.ResolvedSourceEffects) > 100 {
+		return invalid("resolvedSourceEffects exceeds maximum item count 100")
+	}
+	seenSourcePrices := make(map[string]struct{}, len(b.ResolvedSourceEffects))
+	var resolvedExpectedMinor int64
+	for i, effect := range b.ResolvedSourceEffects {
+		if err := effect.Validate(); err != nil {
+			return invalid("resolvedSourceEffects[%d]: %v", i, err)
+		}
+		if _, exists := seenSourcePrices[effect.PriceID]; exists {
+			return invalid("resolvedSourceEffects contains duplicate priceID %q", effect.PriceID)
+		}
+		seenSourcePrices[effect.PriceID] = struct{}{}
+		minor, _ := nonNegativeMinorUnits("expectedAmount", effect.ExpectedAmount)
+		if minor > math.MaxInt64-resolvedExpectedMinor {
+			return invalid("resolvedSourceEffects expectedAmount sum overflows")
+		}
+		resolvedExpectedMinor += minor
+	}
+	if b.RecurringOccurrence == nil && len(b.ResolvedSourceEffects) > 0 {
+		return invalid("resolvedSourceEffects require recurringOccurrence")
+	}
+	if len(b.ResolvedSourceEffects) > 0 && b.RecurringOccurrence.ExpectedAmount == nil {
+		return invalid("resolvedSourceEffects require recurringOccurrence expectedAmount")
+	}
+	if b.RecurringOccurrence != nil && b.RecurringOccurrence.ExpectedAmount != nil && len(b.ResolvedSourceEffects) > 0 {
+		expectedMinor, _ := nonNegativeMinorUnits("expectedAmount", *b.RecurringOccurrence.ExpectedAmount)
+		if resolvedExpectedMinor != expectedMinor {
+			return invalid("resolvedSourceEffects must equal recurringOccurrence expectedAmount")
+		}
 	}
 	if err := validatePositiveIntegerString("revision", b.Revision); err != nil {
 		return err
@@ -655,6 +690,32 @@ func (b BillV1) Validate() error {
 		if err := validateDebtusMatchesReceipt(*b.Posting.Receipt, *b.Debtus); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+type ResolvedSourceEffectV1 struct {
+	PriceID        string             `json:"priceID"`
+	PriceRevision  int64              `json:"priceRevision"`
+	ExpectedAmount ExactDecimalString `json:"expectedAmount"`
+}
+
+func (e ResolvedSourceEffectV1) Validate() error {
+	if err := validateStorageID("priceID", e.PriceID); err != nil {
+		return err
+	}
+	if e.PriceRevision < 1 {
+		return invalid("priceRevision must be positive")
+	}
+	if e.PriceRevision > 9_007_199_254_740_991 {
+		return invalid("priceRevision must be a JavaScript-safe integer")
+	}
+	minor, err := nonNegativeMinorUnits("expectedAmount", e.ExpectedAmount)
+	if err != nil {
+		return err
+	}
+	if minor <= 0 {
+		return invalid("expectedAmount must be positive")
 	}
 	return nil
 }
