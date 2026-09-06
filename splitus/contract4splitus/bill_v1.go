@@ -698,6 +698,9 @@ type ResolvedSourceEffectV1 struct {
 	PriceID        string             `json:"priceID"`
 	PriceRevision  int64              `json:"priceRevision"`
 	ExpectedAmount ExactDecimalString `json:"expectedAmount"`
+	// SourceAttributionCaptured distinguishes an intentionally empty immutable
+	// owner snapshot from a legacy bill that predates attribution capture.
+	SourceAttributionCaptured bool `json:"sourceAttributionCaptured"`
 	// AssetIDs and ContactLinks preserve the owner-normalized source context at
 	// acceptance. They explain the expectation and do not define bill payables.
 	AssetIDs     []string              `json:"assetIDs,omitempty"`
@@ -728,6 +731,9 @@ func (e ResolvedSourceEffectV1) Validate() error {
 	}
 	if len(e.AssetIDs) > 100 || len(e.ContactLinks) > 100 {
 		return invalid("source references exceed maximum item count 100")
+	}
+	if !e.SourceAttributionCaptured && (len(e.AssetIDs) > 0 || len(e.ContactLinks) > 0) {
+		return invalid("source attribution references require sourceAttributionCaptured")
 	}
 	seenAssets := make(map[string]struct{}, len(e.AssetIDs))
 	for i, assetID := range e.AssetIDs {
