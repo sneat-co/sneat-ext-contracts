@@ -24,6 +24,12 @@ export interface IMoney {
   readonly value: number;
 }
 
+/** Signed integer minor units, used for deltas such as actual minus expected. */
+export interface IBudgetSignedMoney {
+  readonly currency: string;
+  readonly value: number;
+}
+
 export type BudgetLineSource = "asset-renewal" | "happening" | "gift";
 
 /**
@@ -192,9 +198,14 @@ export interface IBudgetRollup {
   excludedItems: IBudgetLineItem[];
   /** Completeness of each independently loaded owning source. */
   sourceStatuses?: readonly IBudgetSourceStatus[];
+  /** Recorded bill actuals, kept separate from projected totals. */
+  actualBills?: readonly IBudgetActualBill[];
 }
 
-export type BudgetSourceID = "assetus-renewals" | "calendarius-happenings";
+export type BudgetSourceID =
+  | "assetus-renewals"
+  | "calendarius-happenings"
+  | "splitus-bills";
 
 export type BudgetSourceState =
   "complete" | "partial" | "unavailable" | "unsupported";
@@ -206,6 +217,10 @@ export type BudgetSourceStatusReasonCode =
   | "cancellation-charge-unknown"
   | "occurrence-cap-reached"
   | "foreign-related-reference"
+  | "bill-list-cap-reached"
+  | "bill-details-read-failed"
+  | "bill-recording-date-used"
+  | "source-reference-unresolved"
   | "source-read-failed";
 
 export interface IBudgetSourceStatusReason {
@@ -226,6 +241,46 @@ export interface IBudgetSourceStatus {
     readonly limit: number;
     readonly observed?: number;
   };
+}
+
+export interface IBudgetActualBillParticipant {
+  readonly memberID: string;
+  readonly paid: IMoney;
+  readonly owed: IMoney;
+  /** Initial economic balance created by the bill, before repayments. */
+  readonly initialReceivable: IMoney;
+  readonly initialPayable: IMoney;
+  /** Current Debtus-backed balance; absent until that projection is authoritative. */
+  readonly outstandingReceivable?: IMoney;
+  readonly outstandingPayable?: IMoney;
+}
+
+export interface IBudgetActualBill {
+  readonly billID: string;
+  readonly title: string;
+  /** Whole-Space expense, counted once regardless of participant allocations. */
+  readonly actualAmount: IMoney;
+  readonly participants: readonly IBudgetActualBillParticipant[];
+  readonly recordedAt: string;
+  readonly dateBasis: "service-period" | "recorded-at";
+  readonly servicePeriod?: {
+    readonly startDate: string;
+    readonly endDate: string;
+  };
+  readonly settlementStatus?: "unsettled" | "part_settled" | "settled";
+  readonly recurringSource?: {
+    readonly happeningID: string;
+    readonly occurrenceID: string;
+    /** Expected amount captured when this bill was recorded. */
+    readonly capturedExpectedAmount?: IMoney;
+    /** Actual minus the captured expectation. */
+    readonly variance?: IBudgetSignedMoney;
+  };
+  /** Same-Space source-owned assets resolved through the linked happening. */
+  readonly relatedAssets?: readonly {
+    readonly assetID: string;
+    readonly spaceID?: string;
+  }[];
 }
 
 export interface IBudgetOverridePatch {
