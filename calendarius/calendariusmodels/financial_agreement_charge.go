@@ -55,6 +55,8 @@ type FinancialAgreementChargeFact struct {
 	AgreementID                   string                 `json:"agreementID"`
 	EnrollmentID                  string                 `json:"enrollmentID"`
 	HappeningID                   string                 `json:"happeningID"`
+	Title                         string                 `json:"title"`
+	Regular                       bool                   `json:"regular"`
 	AgreementRevision             int64                  `json:"agreementRevision"`
 	TermsRevision                 int64                  `json:"termsRevision"`
 	ChargeID                      string                 `json:"chargeID"`
@@ -81,7 +83,7 @@ func (f FinancialAgreementChargeFact) Validate() error {
 			return err
 		}
 	}
-	if f.AgreementRevision < 1 || f.TermsRevision < 1 || f.TermsRevision > f.AgreementRevision || f.ContactAttributions == nil || f.AssetAttributions == nil || f.Diagnostics == nil {
+	if f.AgreementRevision < 1 || f.TermsRevision < 1 || f.TermsRevision > f.AgreementRevision || f.Title == "" || len(f.Title) > 100 || f.ContactAttributions == nil || f.AssetAttributions == nil || f.Diagnostics == nil {
 		return fmt.Errorf("financial agreement charge metadata is invalid")
 	}
 	if err := f.AcceptedPrice.Validate(); err != nil {
@@ -89,6 +91,9 @@ func (f FinancialAgreementChargeFact) Validate() error {
 	}
 	if f.Currency != f.AcceptedPrice.Currency || !validISODate(f.EconomicPeriod.StartDate) || !validISODate(f.EconomicPeriod.EndDate) || f.EconomicPeriod.EndDate < f.EconomicPeriod.StartDate {
 		return fmt.Errorf("financial agreement charge currency or period is invalid")
+	}
+	if f.OwnerTimezone == "" {
+		return fmt.Errorf("financial agreement owner timezone is required")
 	}
 	if _, err := time.LoadLocation(f.OwnerTimezone); err != nil {
 		return fmt.Errorf("financial agreement owner timezone is invalid")
@@ -122,7 +127,7 @@ func (f FinancialAgreementChargeFact) Validate() error {
 		if err := validateAttributions(*f.AmountMinor, "assetAttributions", f.AssetAttributions); err != nil {
 			return err
 		}
-	} else if f.Status != FinancialChargeStatusUnavailable || f.AmountMinor != nil || f.Direction != "" || len(f.Diagnostics) == 0 {
+	} else if f.Status != FinancialChargeStatusUnavailable || f.AmountMinor != nil || f.Direction != "" || f.InvoiceReconciliationEligible || len(f.ContactAttributions) != 0 || len(f.AssetAttributions) != 0 || len(f.Diagnostics) == 0 {
 		return fmt.Errorf("unavailable financial agreement charge is invalid")
 	}
 	return nil

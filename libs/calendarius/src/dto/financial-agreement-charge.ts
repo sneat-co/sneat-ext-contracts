@@ -24,6 +24,10 @@ export interface IFinancialAgreementChargeFact {
   readonly agreementID: string;
   readonly enrollmentID: string;
   readonly happeningID: string;
+  /** Source-owned label safe to display in an authorized reporting Space. */
+  readonly title: string;
+  /** The accepted agreement repeats; this does not assert a payment due date. */
+  readonly regular: boolean;
   readonly agreementRevision: number;
   readonly termsRevision: number;
   readonly chargeID: string;

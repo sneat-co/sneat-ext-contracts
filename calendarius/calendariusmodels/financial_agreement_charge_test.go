@@ -4,7 +4,7 @@ import "testing"
 
 func TestFinancialAgreementChargeRejectsNormalizedReconciliation(t *testing.T) {
 	amount := int64(4000)
-	fact := FinancialAgreementChargeFact{OwnerSpaceID: "space1", ReportingSpaceID: "space1", AgreementID: "agreement1", EnrollmentID: "enrollment1", HappeningID: "happening1", AgreementRevision: 1, TermsRevision: 1, ChargeID: "charge1", Direction: FinancialChargeDirectionExpense, AmountMinor: &amount, Currency: "EUR", EconomicPeriod: FinancialChargePeriod{StartDate: "2026-09-01", EndDate: "2026-09-30"}, TemporalBasis: FinancialChargeBasisNormalized, BillingTiming: FinancialChargeBillingUnknown, OwnerTimezone: "UTC", InvoiceReconciliationEligible: true, AcceptedPrice: AcceptedPriceTerms{PriceID: "price1", PriceRevision: 0, AmountMinor: 4000, Currency: "EUR", Quantity: 1, Term: FinancialCommitmentTerm{Unit: "year", Length: 1}}, ContactAttributions: []FinancialAttribution{}, AssetAttributions: []FinancialAttribution{}, Status: FinancialChargeStatusAvailable, Diagnostics: []string{}}
+	fact := FinancialAgreementChargeFact{OwnerSpaceID: "space1", ReportingSpaceID: "space1", AgreementID: "agreement1", EnrollmentID: "enrollment1", HappeningID: "happening1", Title: "Music lessons", Regular: true, AgreementRevision: 1, TermsRevision: 1, ChargeID: "charge1", Direction: FinancialChargeDirectionExpense, AmountMinor: &amount, Currency: "EUR", EconomicPeriod: FinancialChargePeriod{StartDate: "2026-09-01", EndDate: "2026-09-30"}, TemporalBasis: FinancialChargeBasisNormalized, BillingTiming: FinancialChargeBillingUnknown, OwnerTimezone: "UTC", InvoiceReconciliationEligible: true, AcceptedPrice: AcceptedPriceTerms{PriceID: "price1", PriceRevision: 0, AmountMinor: 4000, Currency: "EUR", Quantity: 1, Term: FinancialCommitmentTerm{Unit: "year", Length: 1}}, ContactAttributions: []FinancialAttribution{}, AssetAttributions: []FinancialAttribution{}, Status: FinancialChargeStatusAvailable, Diagnostics: []string{}}
 	if fact.Validate() == nil {
 		t.Fatal("normalized comparison accepted as invoice reconciliation candidate")
 	}
@@ -20,6 +20,15 @@ func TestFinancialAgreementChargeRejectsNormalizedReconciliation(t *testing.T) {
 	fact.Status, fact.AmountMinor, fact.Direction, fact.Diagnostics = FinancialChargeStatusUnavailable, nil, "", []string{"partial_billing_period_policy_unknown"}
 	if err := fact.Validate(); err != nil {
 		t.Fatal(err)
+	}
+	fact.OwnerTimezone = ""
+	if fact.Validate() == nil {
+		t.Fatal("empty owner timezone accepted")
+	}
+	fact.OwnerTimezone = "UTC"
+	fact.InvoiceReconciliationEligible = true
+	if fact.Validate() == nil {
+		t.Fatal("unavailable charge accepted as invoice reconciliation candidate")
 	}
 }
 
