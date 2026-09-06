@@ -33,3 +33,12 @@ func TestMutateSourceLinkedDateTaskRequestValidation(t *testing.T) {
 		t.Fatal("accepted duplicate Linkage reference")
 	}
 }
+
+func TestSourceLinkedDateTaskHappeningItemRef(t *testing.T) {
+	v := validLinkedTaskRequest()
+	task := SourceLinkedDateTask{HappeningID: "due-task", Source: v.Source}
+	ref := task.HappeningItemRef()
+	if ref.ExtID != CalendariusExtensionID || ref.Collection != CalendariusHappeningsCollection || ref.ItemID != "due-task@family1" {
+		t.Fatalf("ref=%+v", ref)
+	}
+}

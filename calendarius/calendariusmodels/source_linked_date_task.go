@@ -11,6 +11,11 @@ import (
 
 const SourceLinkedDateTaskMaxSafeInteger int64 = 9_007_199_254_740_991
 
+const (
+	CalendariusExtensionID          coretypes.ExtID = "calendarius"
+	CalendariusHappeningsCollection                 = "happenings"
+)
+
 type SourceLinkedDateTaskState string
 
 const (
@@ -81,6 +86,18 @@ type SourceLinkedDateTask struct {
 	State             SourceLinkedDateTaskState             `json:"state"`
 	ActionID          string                                `json:"actionID,omitempty"`
 	ActionDisposition SourceLinkedDateTaskActionDisposition `json:"actionDisposition,omitempty"`
+}
+
+// HappeningItemRef identifies the native Calendar task for reciprocal Sneat
+// Linkage. The source owner can persist this reference without importing the
+// Calendarius backend implementation or duplicating its collection names.
+func (v SourceLinkedDateTask) HappeningItemRef() coretypes.ItemRef {
+	return coretypes.NewFullItemRef(
+		CalendariusExtensionID,
+		CalendariusHappeningsCollection,
+		coretypes.SpaceID(v.Source.OwnerSpaceID),
+		v.HappeningID,
+	)
 }
 
 func (v SourceLinkedDateTask) Validate() error {
