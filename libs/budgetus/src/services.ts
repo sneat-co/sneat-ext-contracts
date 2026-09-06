@@ -5,8 +5,6 @@ import {
   IListDbo,
   IListBrief,
   IListKey,
-  IBudgetRollup,
-  IBudgetWindow,
   IBudgetOverridePatch,
   ListType,
   IListItemBrief,
@@ -48,30 +46,6 @@ export interface IBudgetusService {
     listType: ListType,
     listID: string,
   ): Observable<IListContext>;
-  /**
-   * Watches the space's budget rollup.
-   *
-   * `window` defaults to {@link DEFAULT_BUDGET_WINDOW_MONTHS} months starting at
-   * the current month. The window actually used is echoed back on the rollup.
-   */
-  watchBudget(spaceID: string, window?: IBudgetWindow): Observable<IBudgetRollup>;
-
-  /**
-   * Watches the rollup for a space the caller already holds the full context of.
-   *
-   * A data source may need more than an id — calendarius's HappeningService
-   * takes an ISpaceContext — and a caller inside a space page already has the
-   * loaded brief/dbo. Going through `watchBudget(spaceID)` throws that away and
-   * rebuilds a bare `{ id }`.
-   *
-   * OPTIONAL so that adding it does not break existing implementations. Callers
-   * should use it when present and fall back to `watchBudget`.
-   */
-  watchBudgetForSpace?(
-    space: ISpaceContext,
-    window?: IBudgetWindow,
-  ): Observable<IBudgetRollup>;
-
   /**
    * Watches local courtesy-masking preferences for financial source effects.
    *
