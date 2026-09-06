@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "reviewedSource": "42f844ce1cbbbf68f781502786a6a91d6cdb56de",
+  "plans": [
+    {
+      "path": ".nx/version-plans/contactus-contact-title.md",
+      "sha256": "c4de6341116b3fd828dcaaeb2d88b5e1e0852b563cae0c0233ed99428d549b6a"
+    }
+  ],
+  "releases": [
+    {
+      "family": "contactus",
+      "project": "contactus-contract",
+      "package": "@sneat/extension-contactus-contract",
+      "manifestPath": "libs/contactus/package.json",
+      "changelogPath": "libs/contactus/CHANGELOG.md",
+      "version": "0.12.9",
+      "npmTag": "contactus-contract-v0.12.9",
+      "siblingGoTag": "contactus/v0.12.9"
+    }
+  ]
+}
