@@ -128,7 +128,7 @@ export interface IBudgetOccurrenceProvenance {
   readonly adjustedCount: number;
   /** The recorded Calendarius price multiplier; participant count is separate. */
   readonly priceQuantity: number;
-  /** Cancellations remain charged because Calendarius records no waiver policy. */
+  /** Canceled occurrences stay in the baseline estimate because Calendarius records no fee-waiver policy. */
   readonly estimateBasis: "pre-adjustment-schedule";
 }
 
