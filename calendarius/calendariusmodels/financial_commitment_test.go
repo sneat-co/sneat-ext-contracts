@@ -34,7 +34,7 @@ func TestFinancialCommitmentPageRequiresWholeFacts(t *testing.T) {
 		occurrences[i] = FinancialCommitmentOccurrenceFact{OccurrenceID: fmt.Sprintf("o%d", i), ScheduledDate: "2026-09-01", EffectiveDate: "2026-09-01"}
 	}
 	fact := FinancialCommitmentFact{SpaceID: "space1", HappeningID: "h1", Title: "Utility", Prices: []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{}}}, Occurrences: occurrences, OccurrencesIncompleteReason: "occurrence_limit"}
-	if err := (FinancialCommitmentPage{Facts: []FinancialCommitmentFact{fact}, SnapshotConsistent: true}).Validate(); err != nil {
+	if err := (FinancialCommitmentPage{Facts: []FinancialCommitmentFact{fact}}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 	fact.Occurrences = fact.Occurrences[:1]
@@ -48,23 +48,17 @@ func TestFinancialCommitmentPageRejectsDuplicateAndUnboundedFacts(t *testing.T) 
 		SpaceID: "space1", HappeningID: "h1", Title: "Utility",
 		Prices: []FinancialCommitmentPriceFact{}, Occurrences: []FinancialCommitmentOccurrenceFact{},
 	}
-	duplicates := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{fact, fact}, SnapshotConsistent: true}
+	duplicates := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{fact, fact}}
 	if duplicates.Validate() == nil {
 		t.Fatal("accepted duplicate source facts")
 	}
-	unbounded := FinancialCommitmentPage{Facts: make([]FinancialCommitmentFact, MaxFinancialCommitmentPageSize+1), SnapshotConsistent: true}
+	unbounded := FinancialCommitmentPage{Facts: make([]FinancialCommitmentFact, MaxFinancialCommitmentPageSize+1)}
 	if unbounded.Validate() == nil {
 		t.Fatal("accepted more facts than the page bound")
 	}
-	badCursor := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}, HasMore: true, NextCursor: " padded ", IncompleteReason: "source_collection_mutable_between_pages"}
+	badCursor := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}, HasMore: true, NextCursor: " padded "}
 	if badCursor.Validate() == nil {
 		t.Fatal("accepted a padded response cursor")
-	}
-	if (FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}}).Validate() == nil {
-		t.Fatal("accepted a false snapshot claim without an explicit reason")
-	}
-	if err := (FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}, HasMore: true, NextCursor: "opaque", IncompleteReason: "source_collection_mutable_between_pages"}).Validate(); err != nil {
-		t.Fatalf("rejected an explicitly incomplete mutable page: %v", err)
 	}
 }
 
