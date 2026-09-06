@@ -103,10 +103,14 @@ jobs:
     needs: [nx, tier-coherence, discover-go, go]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Verify every required CI leg
         env:
           NX_RESULT: ${{ needs.nx.result }}
           TIER_COHERENCE_RESULT: ${{ needs.tier-coherence.result }}
           DISCOVER_GO_RESULT: ${{ needs.discover-go.result }}
+          GO_DIRS: ${{ needs.discover-go.outputs.dirs }}
           GO_RESULT: ${{ needs.go.result }}
         run: node tools/required-checks/check.mjs
