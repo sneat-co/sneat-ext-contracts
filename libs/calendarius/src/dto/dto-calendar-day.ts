@@ -16,8 +16,9 @@ export interface IHappeningAdjustment {
 }
 
 export interface ICalendarDayBrief {
-  readonly spaceID: string;
-  readonly date: string;
+  /** Legacy clients may materialize these; the persisted DBO is keyed by date. */
+  readonly spaceID?: string;
+  readonly date?: string;
   readonly happeningIDs?: string[];
   readonly happeningAdjustments: Readonly<Record<string, IHappeningAdjustment>>;
 }

@@ -1,4 +1,4 @@
-import { IListGroup } from './list';
+import { IListGroup } from "./list";
 
 export interface IBudgetusSpaceDbo {
   listGroups?: IListGroup[];
@@ -24,7 +24,7 @@ export interface IMoney {
   readonly value: number;
 }
 
-export type BudgetLineSource = 'asset-renewal' | 'happening' | 'gift';
+export type BudgetLineSource = "asset-renewal" | "happening" | "gift";
 
 /**
  * Why a line is shown but NOT added to any total.
@@ -37,7 +37,7 @@ export type BudgetLineSource = 'asset-renewal' | 'happening' | 'gift';
  *   duration of each occurrence, so the amount is shown with its real term and
  *   left out of the totals.
  */
-export type BudgetLineExclusionReason = 'no-amount' | 'unsupported-term';
+export type BudgetLineExclusionReason = "no-amount" | "unsupported-term";
 
 /**
  * The member bucket for costs that belong to no particular participant.
@@ -45,7 +45,7 @@ export type BudgetLineExclusionReason = 'no-amount' | 'unsupported-term';
  * `*` cannot start a contact id in this fleet (it is the reserved
  * `AnyRelatedID` marker), so this can never collide with a real contact.
  */
-export const SHARED_BUDGET_MEMBER_ID = '*shared';
+export const SHARED_BUDGET_MEMBER_ID = "*shared";
 
 export interface IBudgetLineItem {
   id: string;
@@ -79,6 +79,12 @@ export interface IBudgetLineItem {
    */
   memberIDs?: string[];
 
+  /** Exact attribution when participants vary between occurrences. */
+  memberAllocations?: readonly {
+    readonly memberID: string;
+    readonly amount: IMoney;
+  }[];
+
   /**
    * True for a recurring commitment (a priced recurring happening) as opposed to
    * a one-off dated cost. Regular lines are what the "Regular monthly expenses"
@@ -103,6 +109,27 @@ export interface IBudgetLineItem {
    * cannot honestly be turned into a monthly figure.
    */
   termLabel?: string;
+
+  /** How occurrence-based cost was derived from its owning schedule. */
+  occurrenceProvenance?: IBudgetOccurrenceProvenance;
+  /** Source-owned assets linked to the happening; they do not affect payer math. */
+  relatedAssets?: readonly {
+    readonly assetID: string;
+    readonly spaceID?: string;
+  }[];
+}
+
+export interface IBudgetOccurrenceProvenance {
+  /** Scheduled occurrences included in this line's baseline estimate. */
+  readonly scheduledCount: number;
+  /** Scheduled occurrences carrying a date-specific cancellation marker. */
+  readonly canceledCount: number;
+  /** Scheduled occurrences whose slot was changed for this date. */
+  readonly adjustedCount: number;
+  /** The recorded Calendarius price multiplier; participant count is separate. */
+  readonly priceQuantity: number;
+  /** Cancellations remain charged because Calendarius records no waiver policy. */
+  readonly estimateBasis: "pre-adjustment-schedule";
 }
 
 export interface IBudgetMonthGroup {
@@ -163,6 +190,42 @@ export interface IBudgetRollup {
    * of `byCurrency` so a total can never accidentally include them.
    */
   excludedItems: IBudgetLineItem[];
+  /** Completeness of each independently loaded owning source. */
+  sourceStatuses?: readonly IBudgetSourceStatus[];
+}
+
+export type BudgetSourceID = "assetus-renewals" | "calendarius-happenings";
+
+export type BudgetSourceState =
+  "complete" | "partial" | "unavailable" | "unsupported";
+
+export type BudgetSourceStatusReasonCode =
+  | "calendar-adjustments-unavailable"
+  | "moved-in-occurrences-unknown"
+  | "unsupported-recurrence"
+  | "cancellation-charge-unknown"
+  | "occurrence-cap-reached"
+  | "foreign-related-reference"
+  | "source-read-failed";
+
+export interface IBudgetSourceStatusReason {
+  readonly code: BudgetSourceStatusReasonCode;
+  readonly message: string;
+}
+
+export interface IBudgetSourceStatus {
+  readonly sourceID: BudgetSourceID;
+  readonly state: BudgetSourceState;
+  readonly reasons?: readonly IBudgetSourceStatusReason[];
+  /** Inclusive source query bounds when the source is date-bounded. */
+  readonly queryWindow?: {
+    readonly fromDateISO: string;
+    readonly toDateISO: string;
+  };
+  readonly cap?: {
+    readonly limit: number;
+    readonly observed?: number;
+  };
 }
 
 export interface IBudgetOverridePatch {
