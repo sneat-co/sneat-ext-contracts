@@ -1,10 +1,3 @@
-## 0.27.7 (2026-09-06)
-
-### Fixes
-
-- Match calendar-day contracts to ID-keyed storage and expose related links on
-  adjusted happening slots.
-
 ## 0.27.6 (2026-09-05)
 
 ### 🩹 Fixes
