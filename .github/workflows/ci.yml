@@ -121,6 +121,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Require every CI dependency to reach its expected conclusion
         env:
           NX_RESULT: ${{ needs.nx.result }}
@@ -129,29 +132,4 @@ jobs:
           GO_DIRS: ${{ needs.discover-go.outputs.dirs }}
           GO_RESULT: ${{ needs.go.result }}
           RELEASE_CANDIDATE_POLICY_RESULT: ${{ needs.release-candidate-policy.result }}
-        run: |
-          set -eu
-
-          require_success() {
-            if [ "$2" != "success" ]; then
-              echo "Required check '$1' concluded: $2; expected success" >&2
-              exit 1
-            fi
-          }
-
-          require_success "Nx lint, test, and build" "$NX_RESULT"
-          require_success "Tier coherence" "$TIER_COHERENCE_RESULT"
-          require_success "Go module discovery" "$DISCOVER_GO_RESULT"
-          require_success "Release candidate policy" "$RELEASE_CANDIDATE_POLICY_RESULT"
-
-          if [ "$GO_DIRS" = "[]" ]; then
-            expected_go_result=skipped
-          else
-            expected_go_result=success
-          fi
-          if [ "$GO_RESULT" != "$expected_go_result" ]; then
-            echo "Required check 'Go module matrix' concluded: $GO_RESULT; expected $expected_go_result" >&2
-            exit 1
-          fi
-
-          echo "All required checks passed. This job only combines their results."
+        run: node tools/required-checks/check.mjs

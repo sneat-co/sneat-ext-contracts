@@ -1,7 +1,12 @@
+import { fileURLToPath } from 'node:url';
+
 export function failedRequiredLegs(results) {
-  const failed = ['NX_RESULT', 'TIER_COHERENCE_RESULT', 'DISCOVER_GO_RESULT'].filter(
-    (name) => results[name] !== 'success',
-  );
+  const failed = [
+    'NX_RESULT',
+    'TIER_COHERENCE_RESULT',
+    'DISCOVER_GO_RESULT',
+    'RELEASE_CANDIDATE_POLICY_RESULT',
+  ].filter((name) => results[name] !== 'success');
   let goDirs;
   try {
     goDirs = JSON.parse(results.GO_DIRS);
@@ -25,4 +30,3 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exitCode = 1;
   }
 }
-import { fileURLToPath } from 'node:url';

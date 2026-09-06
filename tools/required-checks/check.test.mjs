@@ -9,6 +9,7 @@ const successful = {
   NX_RESULT: 'success',
   TIER_COHERENCE_RESULT: 'success',
   DISCOVER_GO_RESULT: 'success',
+  RELEASE_CANDIDATE_POLICY_RESULT: 'success',
   GO_RESULT: 'success',
   GO_DIRS: '["calendarius"]',
 };
@@ -54,5 +55,9 @@ test('workflow checks out the repository and runs the tested entrypoint', () => 
   const aggregate = workflow.slice(workflow.indexOf('  required-checks:'));
   assert.match(aggregate, /uses: actions\/checkout@v6/);
   assert.match(aggregate, /GO_DIRS: \$\{\{ needs\.discover-go\.outputs\.dirs \}\}/);
+  assert.match(
+    aggregate,
+    /RELEASE_CANDIDATE_POLICY_RESULT: \$\{\{ needs\.release-candidate-policy\.result \}\}/,
+  );
   assert.match(aggregate, /run: node tools\/required-checks\/check\.mjs/);
 });
