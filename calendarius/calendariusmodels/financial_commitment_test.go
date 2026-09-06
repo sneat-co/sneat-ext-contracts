@@ -31,7 +31,7 @@ func TestFinancialCommitmentPageRequiresWholeFacts(t *testing.T) {
 	for i := range occurrences {
 		occurrences[i] = FinancialCommitmentOccurrenceFact{OccurrenceID: fmt.Sprintf("o%d", i), ScheduledDate: "2026-09-01", EffectiveDate: "2026-09-01"}
 	}
-	fact := FinancialCommitmentFact{SpaceID: "space1", HappeningID: "h1", Title: "Utility", Prices: []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}}}, Occurrences: occurrences, OccurrencesIncompleteReason: "occurrence_limit"}
+	fact := FinancialCommitmentFact{SpaceID: "space1", HappeningID: "h1", Title: "Utility", Prices: []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{}}}, Occurrences: occurrences, OccurrencesIncompleteReason: "occurrence_limit"}
 	if err := (FinancialCommitmentPage{Facts: []FinancialCommitmentFact{fact}}).Validate(); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestFinancialCommitmentFactRejectsInvalidDatesAndDuplicateReferences(t *tes
 		ActiveFromISO: "2026-02-28", ActiveToISO: "2026-09-30",
 		AssetIDs:     []string{"property1"},
 		ContactLinks: []FinancialCommitmentContactLink{{ContactID: "alice", Roles: []string{"participant"}}},
-		Prices:       []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}}},
+		Prices:       []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{{OccurrenceID: "month:2026-09", PeriodStartDate: "2026-09-01", PeriodEndDate: "2026-09-30"}}}},
 		Occurrences:  []FinancialCommitmentOccurrenceFact{{OccurrenceID: "o1", ScheduledDate: "2026-09-01", EffectiveDate: "2026-09-01"}},
 	}
 	if err := valid.Validate(); err != nil {
@@ -106,5 +106,25 @@ func TestFinancialCommitmentFactRejectsInvalidDatesAndDuplicateReferences(t *tes
 	invalid.Occurrences = nil
 	if invalid.Validate() == nil {
 		t.Fatal("accepted null occurrences")
+	}
+}
+
+func TestFinancialCommitmentPeriodsAreBoundedOwnerEconomicMonths(t *testing.T) {
+	valid := FinancialCommitmentPeriodFact{OccurrenceID: "month:2026-02", PeriodStartDate: "2026-02-01", PeriodEndDate: "2026-02-28"}
+	if err := valid.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []FinancialCommitmentPeriodFact{
+		{OccurrenceID: "month:2026-02", PeriodStartDate: "2026-02-02", PeriodEndDate: "2026-02-28"},
+		{OccurrenceID: "month:2026-02", PeriodStartDate: "2026-02-01", PeriodEndDate: "2026-03-01"},
+		{OccurrenceID: "unsafe/id", PeriodStartDate: "2026-02-01", PeriodEndDate: "2026-02-28"},
+	} {
+		if invalid.Validate() == nil {
+			t.Fatalf("accepted invalid period: %+v", invalid)
+		}
+	}
+	price := FinancialCommitmentPriceFact{PriceID: "p1", Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{valid, valid}}
+	if price.Validate() == nil {
+		t.Fatal("accepted duplicate owner period identities")
 	}
 }

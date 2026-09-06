@@ -12,6 +12,7 @@ const (
 	MaxFinancialCommitmentMonths             = 12
 	MaxFinancialCommitmentPageSize           = 64
 	MaxFinancialCommitmentOccurrencesPerFact = 4096
+	MaxFinancialCommitmentPeriodsPerPrice    = 12
 	MaxFinancialCommitmentCursorBytes        = 512
 	MaxJavaScriptSafeInteger                 = 9_007_199_254_740_991
 )
@@ -154,7 +155,7 @@ func (f FinancialCommitmentFact) Validate() error {
 	}
 	seenOccurrences := map[string]struct{}{}
 	for i, occurrence := range f.Occurrences {
-		if err := validateEventHappeningText("occurrenceID", occurrence.OccurrenceID, EventHappeningIDMaxBytes, true); err != nil {
+		if err := validateFinancialCommitmentID("occurrenceID", occurrence.OccurrenceID); err != nil {
 			return fmt.Errorf("occurrences[%d]: %w", i, err)
 		}
 		if !validISODate(occurrence.ScheduledDate) || !validISODate(occurrence.EffectiveDate) {
@@ -188,14 +189,55 @@ type FinancialCommitmentPriceFact struct {
 	Currency        string                  `json:"currency"`
 	ExpenseQuantity int64                   `json:"expenseQuantity"`
 	Term            FinancialCommitmentTerm `json:"term"`
+	// Periods identify owner-issued economic projection periods. They do not
+	// assert a cash, charge, invoice, or payment date.
+	Periods []FinancialCommitmentPeriodFact `json:"periods"`
 }
 
 func (p FinancialCommitmentPriceFact) Validate() error {
-	if err := validateEventHappeningText("priceID", p.PriceID, EventHappeningIDMaxBytes, true); err != nil {
+	if err := validateFinancialCommitmentID("priceID", p.PriceID); err != nil {
 		return err
 	}
 	if p.Currency == "" || p.AmountMinor < 0 || p.ExpenseQuantity <= 0 || p.Term.Unit == "" || p.Term.Length < 1 {
 		return fmt.Errorf("price fields are invalid")
+	}
+	if p.Periods == nil {
+		return fmt.Errorf("periods must be a non-nil array")
+	}
+	if len(p.Periods) > MaxFinancialCommitmentPeriodsPerPrice {
+		return fmt.Errorf("periods exceeds maximum %d", MaxFinancialCommitmentPeriodsPerPrice)
+	}
+	seenPeriods := make(map[string]struct{}, len(p.Periods))
+	for i, period := range p.Periods {
+		if err := period.Validate(); err != nil {
+			return fmt.Errorf("periods[%d]: %w", i, err)
+		}
+		if _, exists := seenPeriods[period.OccurrenceID]; exists {
+			return fmt.Errorf("periods contains duplicate occurrenceID %q", period.OccurrenceID)
+		}
+		seenPeriods[period.OccurrenceID] = struct{}{}
+	}
+	return nil
+}
+
+type FinancialCommitmentPeriodFact struct {
+	OccurrenceID    string `json:"occurrenceID"`
+	PeriodStartDate string `json:"periodStartDate"`
+	PeriodEndDate   string `json:"periodEndDate"`
+}
+
+func (p FinancialCommitmentPeriodFact) Validate() error {
+	if err := validateFinancialCommitmentID("occurrenceID", p.OccurrenceID); err != nil {
+		return err
+	}
+	if !validISODate(p.PeriodStartDate) || !validISODate(p.PeriodEndDate) {
+		return fmt.Errorf("period bounds must be real ISO dates")
+	}
+	start, _ := time.Parse("2006-01-02", p.PeriodStartDate)
+	end, _ := time.Parse("2006-01-02", p.PeriodEndDate)
+	lastDay := start.AddDate(0, 1, -1)
+	if start.Day() != 1 || end != lastDay {
+		return fmt.Errorf("period bounds must cover exactly one calendar month")
 	}
 	return nil
 }
@@ -235,7 +277,7 @@ func validOptionalISODate(value string) bool { return value == "" || validISODat
 func validateUniqueIDs(field string, values []string) error {
 	seen := make(map[string]struct{}, len(values))
 	for i, value := range values {
-		if err := validateEventHappeningText(fmt.Sprintf("%s[%d]", field, i), value, EventHappeningIDMaxBytes, true); err != nil {
+		if err := validateFinancialCommitmentID(fmt.Sprintf("%s[%d]", field, i), value); err != nil {
 			return err
 		}
 		if _, exists := seen[value]; exists {
@@ -249,7 +291,7 @@ func validateUniqueIDs(field string, values []string) error {
 func validateCommitmentContactLinks(field string, links []FinancialCommitmentContactLink) error {
 	seen := make(map[string]struct{}, len(links))
 	for i, link := range links {
-		if err := validateEventHappeningText(fmt.Sprintf("%s[%d].contactID", field, i), link.ContactID, EventHappeningIDMaxBytes, true); err != nil {
+		if err := validateFinancialCommitmentID(fmt.Sprintf("%s[%d].contactID", field, i), link.ContactID); err != nil {
 			return err
 		}
 		if _, exists := seen[link.ContactID]; exists {
@@ -266,6 +308,16 @@ func validateCommitmentContactLinks(field string, links []FinancialCommitmentCon
 			}
 			roles[role] = struct{}{}
 		}
+	}
+	return nil
+}
+
+func validateFinancialCommitmentID(field, value string) error {
+	if err := validateEventHappeningText(field, value, EventHappeningIDMaxBytes, true); err != nil {
+		return err
+	}
+	if strings.Contains(value, "/") || value == "." || value == ".." || strings.HasPrefix(value, "__") && strings.HasSuffix(value, "__") {
+		return fmt.Errorf("%s is not a safe identifier", field)
 	}
 	return nil
 }
