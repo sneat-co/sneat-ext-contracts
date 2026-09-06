@@ -221,6 +221,7 @@ export type BudgetSourceStatusReasonCode =
   | "bill-details-read-failed"
   | "bill-recording-date-used"
   | "source-reference-unresolved"
+  | "source-reference-ambiguous"
   | "source-read-failed";
 
 export interface IBudgetSourceStatusReason {
@@ -275,6 +276,14 @@ export interface IBudgetActualBill {
     readonly capturedExpectedAmount?: IMoney;
     /** Actual minus the captured expectation. */
     readonly variance?: IBudgetSignedMoney;
+  };
+  /** Exact owner-occurrence reconciliation; never inferred from dates or amounts. */
+  readonly projectionResolution?: {
+    readonly state: "matched" | "unmatched" | "ambiguous";
+    /** Projected lines whose expected contribution was considered. */
+    readonly affectedLineItemIDs?: readonly string[];
+    /** Expected contribution replaced by this actual when state is matched. */
+    readonly replacedExpectedAmount?: IMoney;
   };
   /** Same-Space source-owned assets resolved through the linked happening. */
   readonly relatedAssets?: readonly {
