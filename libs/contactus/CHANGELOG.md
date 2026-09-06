@@ -1,3 +1,14 @@
+## 0.12.9 (2026-09-06)
+
+### 🩹 Fixes
+
+- Publish the shared Contactus contact-label formatter with caller-configurable ([506a3e3](https://github.com/sneat-co/sneat-ext-contracts/commit/506a3e3))
+  title, structured-name, ID, and fallback precedence.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.12.8 (2026-09-02)
 
 ### 🩹 Fixes
