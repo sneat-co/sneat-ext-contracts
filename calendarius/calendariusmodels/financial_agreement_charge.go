@@ -50,31 +50,32 @@ type FinancialChargePeriod struct {
 }
 
 type FinancialAgreementChargeFact struct {
-	OwnerSpaceID                  string                 `json:"ownerSpaceID"`
-	ReportingSpaceID              string                 `json:"reportingSpaceID"`
-	AgreementID                   string                 `json:"agreementID"`
-	EnrollmentID                  string                 `json:"enrollmentID"`
-	HappeningID                   string                 `json:"happeningID"`
-	Title                         string                 `json:"title"`
-	Regular                       bool                   `json:"regular"`
-	AgreementRevision             int64                  `json:"agreementRevision"`
-	TermsRevision                 int64                  `json:"termsRevision"`
-	ChargeID                      string                 `json:"chargeID"`
-	OccurrenceID                  string                 `json:"occurrenceID,omitempty"`
-	Direction                     string                 `json:"direction,omitempty"`
-	AmountMinor                   *int64                 `json:"amountMinor,omitempty"`
-	Currency                      string                 `json:"currency"`
-	EconomicPeriod                FinancialChargePeriod  `json:"economicPeriod"`
-	TemporalBasis                 string                 `json:"temporalBasis"`
-	BillingTiming                 string                 `json:"billingTiming"`
-	DueDate                       string                 `json:"dueDate,omitempty"`
-	OwnerTimezone                 string                 `json:"ownerTimezone"`
-	InvoiceReconciliationEligible bool                   `json:"invoiceReconciliationEligible"`
-	AcceptedPrice                 AcceptedPriceTerms     `json:"acceptedPrice"`
-	ContactAttributions           []FinancialAttribution `json:"contactAttributions"`
-	AssetAttributions             []FinancialAttribution `json:"assetAttributions"`
-	Status                        string                 `json:"status"`
-	Diagnostics                   []string               `json:"diagnostics"`
+	OwnerSpaceID                  string                    `json:"ownerSpaceID"`
+	ReportingSpaceID              string                    `json:"reportingSpaceID"`
+	AgreementID                   string                    `json:"agreementID"`
+	EnrollmentID                  string                    `json:"enrollmentID"`
+	EnrollmentScope               *FinancialEnrollmentScope `json:"enrollmentScope,omitempty"`
+	HappeningID                   string                    `json:"happeningID"`
+	Title                         string                    `json:"title"`
+	Regular                       bool                      `json:"regular"`
+	AgreementRevision             int64                     `json:"agreementRevision"`
+	TermsRevision                 int64                     `json:"termsRevision"`
+	ChargeID                      string                    `json:"chargeID"`
+	OccurrenceID                  string                    `json:"occurrenceID,omitempty"`
+	Direction                     string                    `json:"direction,omitempty"`
+	AmountMinor                   *int64                    `json:"amountMinor,omitempty"`
+	Currency                      string                    `json:"currency"`
+	EconomicPeriod                FinancialChargePeriod     `json:"economicPeriod"`
+	TemporalBasis                 string                    `json:"temporalBasis"`
+	BillingTiming                 string                    `json:"billingTiming"`
+	DueDate                       string                    `json:"dueDate,omitempty"`
+	OwnerTimezone                 string                    `json:"ownerTimezone"`
+	InvoiceReconciliationEligible bool                      `json:"invoiceReconciliationEligible"`
+	AcceptedPrice                 AcceptedPriceTerms        `json:"acceptedPrice"`
+	ContactAttributions           []FinancialAttribution    `json:"contactAttributions"`
+	AssetAttributions             []FinancialAttribution    `json:"assetAttributions"`
+	Status                        string                    `json:"status"`
+	Diagnostics                   []string                  `json:"diagnostics"`
 }
 
 func (f FinancialAgreementChargeFact) Validate() error {
@@ -83,11 +84,16 @@ func (f FinancialAgreementChargeFact) Validate() error {
 			return err
 		}
 	}
-	if f.AgreementRevision < 1 || f.TermsRevision < 1 || f.TermsRevision > f.AgreementRevision || f.Title == "" || len(f.Title) > 100 || f.ContactAttributions == nil || f.AssetAttributions == nil || f.Diagnostics == nil {
+	if f.AgreementRevision < 1 || f.TermsRevision < 1 || f.TermsRevision > f.AgreementRevision || len(f.Title) > 100 || f.ContactAttributions == nil || f.AssetAttributions == nil || f.Diagnostics == nil {
 		return fmt.Errorf("financial agreement charge metadata is invalid")
 	}
 	if err := f.AcceptedPrice.Validate(); err != nil {
 		return err
+	}
+	if f.EnrollmentScope != nil {
+		if err := f.EnrollmentScope.Validate(); err != nil {
+			return fmt.Errorf("financial agreement enrollment scope: %w", err)
+		}
 	}
 	if f.Currency != f.AcceptedPrice.Currency || !validISODate(f.EconomicPeriod.StartDate) || !validISODate(f.EconomicPeriod.EndDate) || f.EconomicPeriod.EndDate < f.EconomicPeriod.StartDate {
 		return fmt.Errorf("financial agreement charge currency or period is invalid")
@@ -118,7 +124,7 @@ func (f FinancialAgreementChargeFact) Validate() error {
 		return fmt.Errorf("financial agreement temporal basis is invalid")
 	}
 	if f.Status == FinancialChargeStatusAvailable {
-		if f.AmountMinor == nil || *f.AmountMinor < 0 || *f.AmountMinor > MaxJavaScriptSafeInteger || (*f.AmountMinor == 0 && f.TemporalBasis != FinancialChargeBasisNormalized) || (f.Direction != FinancialChargeDirectionExpense && f.Direction != FinancialChargeDirectionIncome && f.Direction != FinancialChargeDirectionTransfer) {
+		if f.EnrollmentScope == nil || f.Title == "" || f.AmountMinor == nil || *f.AmountMinor < 0 || *f.AmountMinor > MaxJavaScriptSafeInteger || (*f.AmountMinor == 0 && f.TemporalBasis != FinancialChargeBasisNormalized) || (f.Direction != FinancialChargeDirectionExpense && f.Direction != FinancialChargeDirectionIncome && f.Direction != FinancialChargeDirectionTransfer) {
 			return fmt.Errorf("available financial agreement charge is invalid")
 		}
 		if err := validateAttributions(*f.AmountMinor, "contactAttributions", f.ContactAttributions); err != nil {

@@ -2,6 +2,7 @@ import type {
   IAcceptedPriceTerms,
   IFinancialAttribution,
 } from './financial-agreement';
+import type { IFinancialEnrollmentScope } from './financial-enrollment';
 
 export type FinancialChargeDirection = 'expense' | 'income' | 'transfer';
 export type FinancialChargeTemporalBasis =
@@ -23,6 +24,8 @@ export interface IFinancialAgreementChargeFact {
   readonly reportingSpaceID: string;
   readonly agreementID: string;
   readonly enrollmentID: string;
+  /** Owner-verified coverage; consumers must not infer it from mutable attributions. */
+  readonly enrollmentScope?: IFinancialEnrollmentScope;
   readonly happeningID: string;
   /** Source-owned label safe to display in an authorized reporting Space. */
   readonly title: string;
