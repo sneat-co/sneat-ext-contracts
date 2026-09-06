@@ -10,7 +10,8 @@
     "lint": "nx run-many -t lint --all",
     "tier-coherence": "node tools/tier-coherence/check.mjs",
     "peer-range-guard": "node tools/peer-range-guard/check.mjs",
-    "test:contract-generator": "vitest run --config tools/contract-generator/vitest.config.mts"
+    "test:contract-generator": "vitest run --config tools/contract-generator/vitest.config.mts",
+    "test:release-candidate": "node --test tools/release-candidate/release-candidate.test.mjs"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "22.1.5",
