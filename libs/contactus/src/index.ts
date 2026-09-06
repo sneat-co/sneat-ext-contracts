@@ -7,6 +7,7 @@ export * from './contact-nav-service';
 export * from './contactus-nav-service';
 export * from './contact-group-service';
 export * from './contact-role-service';
+export * from './contact-title';
 export * from './invite-service';
 export * from './default-contact-groups';
 
