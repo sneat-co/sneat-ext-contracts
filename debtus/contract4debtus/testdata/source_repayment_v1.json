@@ -1,0 +1,49 @@
+{
+  "request": {
+    "contractVersion": 1,
+    "source": {
+      "namespace": "splitus",
+      "spaceID": "house-1",
+      "recordID": "bill-1"
+    },
+    "lineID": "bea-to-alex",
+    "obligationID": "obligation-1",
+    "currency": "EUR",
+    "amountMinor": "3000",
+    "repaidAt": "2026-09-06T08:30:00.000Z",
+    "operationKey": "bill-1/repayment-1"
+  },
+  "response": {
+    "contractVersion": 1,
+    "source": {
+      "namespace": "splitus",
+      "spaceID": "house-1",
+      "recordID": "bill-1"
+    },
+    "operationKey": "bill-1/repayment-1",
+    "obligation": {
+      "lineID": "bea-to-alex",
+      "obligationIDs": ["obligation-1"],
+      "debtor": { "spaceID": "house-1", "contactID": "bea" },
+      "creditor": { "spaceID": "house-1", "contactID": "alex" },
+      "currency": "EUR",
+      "principalMinor": "6000",
+      "outstandingMinor": "3000",
+      "repaidMinor": "3000",
+      "creditMinor": "0",
+      "status": "part_settled",
+      "repaymentCapability": { "canRecordRepayment": true }
+    },
+    "repayment": {
+      "activityID": "repayment-1",
+      "rootActivityID": "obligation-1",
+      "lineIDs": ["bea-to-alex"],
+      "kind": "repayment",
+      "from": { "spaceID": "house-1", "contactID": "bea" },
+      "to": { "spaceID": "house-1", "contactID": "alex" },
+      "currency": "EUR",
+      "amountMinor": "3000",
+      "occurredAt": "2026-09-06T08:30:00.000Z"
+    }
+  }
+}

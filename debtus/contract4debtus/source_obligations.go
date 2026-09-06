@@ -6,21 +6,79 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
-	SourceNamespaceSplitus = "splitus"
+	SourceNamespaceSplitus           = "splitus"
+	SourceRepaymentContractVersion   = 1
+	MaxSourceObligationIDs           = 256
+	SourceRepaymentBrowserTimeLayout = "2006-01-02T15:04:05.000Z"
 
 	// ReconcileSourceObligationsDigestEncoding domain-separates fingerprints
 	// made by this contract and encoding from every other Debtus command.
 	ReconcileSourceObligationsDigestEncoding = "sneat-ext-contracts/debtus:reconcile-source-obligations:encoding-v1"
 )
+
+// FormatSourceRepaymentBrowserTime emits the exact browser wire timestamp.
+// time.Time's default JSON uses RFC3339Nano and omits .000 for a whole second,
+// so browser adapters must call this instead of directly marshaling time.Time.
+func FormatSourceRepaymentBrowserTime(value time.Time) (string, error) {
+	if value.IsZero() {
+		return "", fmt.Errorf("%w: repayment browser time is required", ErrInvalidRequest)
+	}
+	_, offset := value.Zone()
+	if offset != 0 || value.Nanosecond()%int(time.Millisecond) != 0 {
+		return "", fmt.Errorf("%w: repayment browser time must be UTC with millisecond precision", ErrInvalidRequest)
+	}
+	return value.Format(SourceRepaymentBrowserTimeLayout), nil
+}
+
+// ExactMinorAmountString is a canonical non-negative integer amount in a
+// currency's minor units. It is encoded as a JSON string so browser clients do
+// not lose precision. Use MinorUnits to obtain a checked int64 value.
+type ExactMinorAmountString string
+
+func (a *ExactMinorAmountString) UnmarshalJSON(data []byte) error {
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return fmt.Errorf("%w: amountMinor must be a JSON string: %v", ErrInvalidRequest, err)
+	}
+	parsed := ExactMinorAmountString(value)
+	if _, err := parsed.MinorUnits(); err != nil {
+		return err
+	}
+	*a = parsed
+	return nil
+}
+
+// MinorUnits parses the exact representation and rejects non-canonical or
+// signed-64-bit-overflow values.
+func (a ExactMinorAmountString) MinorUnits() (int64, error) {
+	value := string(a)
+	if value == "" || len(value) > 19 || len(value) > 1 && value[0] == '0' {
+		return 0, fmt.Errorf("%w: amountMinor must be a canonical non-negative integer string", ErrInvalidRequest)
+	}
+	for _, digit := range value {
+		if digit < '0' || digit > '9' {
+			return 0, fmt.Errorf("%w: amountMinor must be a canonical non-negative integer string", ErrInvalidRequest)
+		}
+	}
+	minor, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%w: amountMinor exceeds signed 64-bit range", ErrInvalidRequest)
+	}
+	return minor, nil
+}
 
 var (
 	ErrInvalidRequest = errors.New("invalid Debtus source obligation request")
@@ -140,7 +198,7 @@ func validateLine(sourceSpaceID string, line ObligationLine) error {
 }
 
 func validateID(name, value string) error {
-	if value == "" || strings.TrimSpace(value) != value || len(value) > 512 {
+	if !utf8.ValidString(value) || value == "" || strings.TrimSpace(value) != value || len(value) > 512 {
 		return fmt.Errorf("%w: %s is empty, padded, or longer than 512 bytes", ErrInvalidRequest, name)
 	}
 	for _, r := range value {
@@ -299,6 +357,42 @@ const (
 	SettlementStatusSettled     SettlementStatus = "settled"
 )
 
+// SourceRepaymentUnavailableReason is a stable server-authored explanation for
+// why a browser must not offer repayment for one source obligation. Clients
+// render this value; they never infer permission from Contactus data.
+type SourceRepaymentUnavailableReason string
+
+const (
+	SourceRepaymentReadOnlyRole            SourceRepaymentUnavailableReason = "readOnlyRole"
+	SourceRepaymentNotParty                SourceRepaymentUnavailableReason = "notParty"
+	SourceRepaymentNotOutstanding          SourceRepaymentUnavailableReason = "notOutstanding"
+	SourceRepaymentLedgerPartyUnresolved   SourceRepaymentUnavailableReason = "ledgerPartyUnresolved"
+	SourceRepaymentLinkedEventLimitReached SourceRepaymentUnavailableReason = "linkedEventLimitReached"
+)
+
+// SourceObligationRepaymentCapability is a render-time projection, not an
+// authorization grant. A provider must reauthorize every repayment command.
+type SourceObligationRepaymentCapability struct {
+	CanRecordRepayment         bool                             `json:"canRecordRepayment"`
+	RepaymentUnavailableReason SourceRepaymentUnavailableReason `json:"repaymentUnavailableReason,omitempty"`
+}
+
+func (c SourceObligationRepaymentCapability) Validate() error {
+	if c.CanRecordRepayment {
+		if c.RepaymentUnavailableReason != "" {
+			return fmt.Errorf("%w: enabled repayment capability cannot have an unavailable reason", ErrInvalidRequest)
+		}
+		return nil
+	}
+	switch c.RepaymentUnavailableReason {
+	case SourceRepaymentReadOnlyRole, SourceRepaymentNotParty, SourceRepaymentNotOutstanding,
+		SourceRepaymentLedgerPartyUnresolved, SourceRepaymentLinkedEventLimitReached:
+		return nil
+	default:
+		return fmt.Errorf("%w: disabled repayment capability requires a supported unavailable reason", ErrInvalidRequest)
+	}
+}
+
 // SourceObligationStatus reports exact current Debtus amounts for one source
 // line. PrincipalMinor is the accepted obligation principal, OutstandingMinor
 // is unpaid liability, RepaidMinor is repayment retained in Debtus history,
@@ -315,6 +409,10 @@ type SourceObligationStatus struct {
 	RepaidMinor      int64            `json:"repaidMinor"`
 	CreditMinor      int64            `json:"creditMinor"`
 	Status           SettlementStatus `json:"status"`
+	// RepaymentCapability is optional for compatibility with readers created
+	// before the source-scoped repayment contract. New mutation/read adapters
+	// must populate it whenever they expose the repayment action.
+	RepaymentCapability *SourceObligationRepaymentCapability `json:"repaymentCapability,omitempty"`
 }
 
 // Validate checks output invariants that consumers may rely on. The contract
@@ -327,23 +425,31 @@ func (s SourceObligationStatus) Validate() error {
 	}); err != nil {
 		return err
 	}
-	if len(s.ObligationIDs) == 0 {
-		return fmt.Errorf("%w: financial status requires an obligation ID", ErrInvalidRequest)
+	if len(s.ObligationIDs) == 0 || len(s.ObligationIDs) > MaxSourceObligationIDs {
+		return fmt.Errorf("%w: financial status requires 1 to %d obligation IDs", ErrInvalidRequest, MaxSourceObligationIDs)
 	}
+	seenObligationIDs := make(map[string]struct{}, len(s.ObligationIDs))
 	for _, obligationID := range s.ObligationIDs {
 		if err := validateID("obligation ID", obligationID); err != nil {
 			return err
 		}
+		if _, exists := seenObligationIDs[obligationID]; exists {
+			return fmt.Errorf("%w: duplicate obligation ID %q", ErrInvalidRequest, obligationID)
+		}
+		seenObligationIDs[obligationID] = struct{}{}
 	}
 	if s.PrincipalMinor < 0 || s.OutstandingMinor < 0 || s.RepaidMinor < 0 || s.CreditMinor < 0 {
 		return fmt.Errorf("%w: financial status amounts must be nonnegative minor units", ErrInvalidRequest)
 	}
 	switch s.Status {
 	case SettlementStatusUnsettled, SettlementStatusPartSettled, SettlementStatusSettled:
-		return nil
 	default:
 		return fmt.Errorf("%w: unknown settlement status %q", ErrInvalidRequest, s.Status)
 	}
+	if s.RepaymentCapability != nil {
+		return s.RepaymentCapability.Validate()
+	}
+	return nil
 }
 
 // SourceObligationsStatus is mutable authoritative state read from Debtus. It
@@ -478,6 +584,157 @@ func (r ListSourceObligationActivitiesRequest) Validate() error {
 type SourceObligationActivitiesPage struct {
 	Activities []SourceObligationActivity `json:"activities"`
 	NextCursor string                     `json:"nextCursor,omitempty"`
+}
+
+// RecordSourceObligationRepaymentRequest identifies one exact source-owned
+// obligation and one retry-safe repayment. ActorUserID is supplied from the
+// trusted authenticated host context and is deliberately absent from the
+// browser request DTO. It grants no authority: the provider must require the
+// actor to be the current debtor or creditor linked to this obligation and to
+// have current Space authority before any write or idempotency claim.
+type RecordSourceObligationRepaymentRequest struct {
+	ContractVersion int                    `json:"contractVersion"`
+	Source          SourceRef              `json:"source"`
+	LineID          string                 `json:"lineID"`
+	ObligationID    string                 `json:"obligationID"`
+	Currency        string                 `json:"currency"`
+	AmountMinor     ExactMinorAmountString `json:"amountMinor"`
+	RepaidAt        time.Time              `json:"repaidAt"`
+	OperationKey    string                 `json:"operationKey"`
+	ActorUserID     string                 `json:"-"`
+}
+
+func (r RecordSourceObligationRepaymentRequest) Validate() error {
+	if r.ContractVersion != SourceRepaymentContractVersion {
+		return fmt.Errorf("%w: unsupported source repayment contract version %d", ErrInvalidRequest, r.ContractVersion)
+	}
+	if err := validateToken("source namespace", r.Source.Namespace); err != nil {
+		return err
+	}
+	for name, value := range map[string]string{
+		"source spaceID": r.Source.SpaceID, "source recordID": r.Source.RecordID,
+		"lineID": r.LineID, "obligationID": r.ObligationID,
+		"operation key": r.OperationKey, "actor userID": r.ActorUserID,
+	} {
+		if err := validateID(name, value); err != nil {
+			return err
+		}
+	}
+	if !isCurrencyCode(r.Currency) {
+		return fmt.Errorf("%w: currency %q must be three uppercase ASCII letters", ErrInvalidRequest, r.Currency)
+	}
+	amount, err := r.AmountMinor.MinorUnits()
+	if err != nil {
+		return err
+	}
+	if amount <= 0 {
+		return fmt.Errorf("%w: amountMinor must be positive", ErrInvalidRequest)
+	}
+	if r.RepaidAt.IsZero() {
+		return fmt.Errorf("%w: repaidAt is required", ErrInvalidRequest)
+	}
+	_, offset := r.RepaidAt.Zone()
+	if offset != 0 {
+		return fmt.Errorf("%w: repaidAt must be UTC", ErrInvalidRequest)
+	}
+	if r.RepaidAt.Nanosecond()%int(time.Millisecond) != 0 {
+		return fmt.Errorf("%w: repaidAt must have millisecond precision", ErrInvalidRequest)
+	}
+	return nil
+}
+
+// DecodeRecordSourceObligationRepaymentRequest decodes the actor-free browser
+// DTO and adds the trusted authenticated actor supplied by the host. An
+// actorUserID field in JSON is rejected as unknown rather than accepted as
+// authority.
+func DecodeRecordSourceObligationRepaymentRequest(reader io.Reader, authenticatedActorUserID string) (RecordSourceObligationRepaymentRequest, error) {
+	decoder := json.NewDecoder(reader)
+	decoder.DisallowUnknownFields()
+	request := RecordSourceObligationRepaymentRequest{ActorUserID: authenticatedActorUserID}
+	if err := decoder.Decode(&request); err != nil {
+		return RecordSourceObligationRepaymentRequest{}, fmt.Errorf("%w: decode: %v", ErrInvalidRequest, err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return RecordSourceObligationRepaymentRequest{}, fmt.Errorf("%w: trailing JSON: %v", ErrInvalidRequest, err)
+	}
+	if err := request.Validate(); err != nil {
+		return RecordSourceObligationRepaymentRequest{}, err
+	}
+	return request, nil
+}
+
+// RecordSourceObligationRepaymentResult returns the updated authoritative
+// obligation plus the immutable repayment activity. It reuses the existing
+// source read models instead of defining a second financial projection. This
+// is a trusted Go-port result: the browser adapter formats every minor amount
+// as an exact string and omits SourceObligationActivity.ActorUserID.
+type RecordSourceObligationRepaymentResult struct {
+	ContractVersion int                      `json:"contractVersion"`
+	Source          SourceRef                `json:"source"`
+	OperationKey    string                   `json:"operationKey"`
+	Obligation      SourceObligationStatus   `json:"obligation"`
+	Repayment       SourceObligationActivity `json:"repayment"`
+}
+
+// ValidateFor binds a result to the exact accepted command. This catches a
+// provider returning a valid-looking activity for another source line,
+// obligation, actor, currency, amount, timestamp, or retry identity.
+func (r RecordSourceObligationRepaymentResult) ValidateFor(request RecordSourceObligationRepaymentRequest) error {
+	if err := request.Validate(); err != nil {
+		return err
+	}
+	if r.ContractVersion != SourceRepaymentContractVersion {
+		return fmt.Errorf("%w: unsupported source repayment result contract version %d", ErrInvalidRequest, r.ContractVersion)
+	}
+	if r.Source != request.Source {
+		return fmt.Errorf("%w: repayment result source does not match request", ErrInvalidRequest)
+	}
+	if r.OperationKey != request.OperationKey {
+		return fmt.Errorf("%w: repayment result operation key does not match request", ErrInvalidRequest)
+	}
+	if err := r.Obligation.Validate(); err != nil {
+		return err
+	}
+	if r.Obligation.RepaymentCapability == nil {
+		return fmt.Errorf("%w: repayment result requires server-authoritative capability", ErrInvalidRequest)
+	}
+	if r.Obligation.LineID != request.LineID || r.Obligation.Currency != request.Currency {
+		return fmt.Errorf("%w: repayment result obligation does not match requested line and currency", ErrInvalidRequest)
+	}
+	foundObligation := false
+	for _, obligationID := range r.Obligation.ObligationIDs {
+		if obligationID == request.ObligationID {
+			foundObligation = true
+			break
+		}
+	}
+	if !foundObligation {
+		return fmt.Errorf("%w: repayment result does not contain requested obligationID", ErrInvalidRequest)
+	}
+	if err := r.Repayment.Validate(); err != nil {
+		return err
+	}
+	if r.Repayment.From != r.Obligation.Debtor || r.Repayment.To != r.Obligation.Creditor {
+		return fmt.Errorf("%w: repayment parties do not match obligation direction", ErrInvalidRequest)
+	}
+	amount, _ := request.AmountMinor.MinorUnits()
+	if r.Repayment.Kind != SourceActivityRepayment || r.Repayment.RootActivityID != request.ObligationID ||
+		len(r.Repayment.LineIDs) != 1 || r.Repayment.LineIDs[0] != request.LineID ||
+		r.Repayment.Currency != request.Currency || r.Repayment.AmountMinor != amount ||
+		r.Repayment.ActorUserID != request.ActorUserID || !r.Repayment.OccurredAt.Equal(request.RepaidAt) {
+		return fmt.Errorf("%w: repayment activity does not match accepted command", ErrInvalidRequest)
+	}
+	return nil
+}
+
+// SourceObligationRepayments is the storage-neutral repayment port. Runtime
+// composition supplies the trusted actor and reauthorizes every call.
+type SourceObligationRepayments interface {
+	RecordSourceObligationRepayment(context.Context, RecordSourceObligationRepaymentRequest) (RecordSourceObligationRepaymentResult, error)
 }
 
 // SourceObligations provides the public Debtus reconciliation/read boundary.
