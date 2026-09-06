@@ -1,3 +1,15 @@
+## 0.2.3 (2026-09-06)
+
+### 🩹 Fixes
+
+- Add the versioned source-obligation repayment browser and Go provider ([af6e63d](https://github.com/sneat-co/sneat-ext-contracts/commit/af6e63d))
+  contracts with exact-string minor amounts, trusted-actor separation,
+  server-authoritative capability state, and strict request/result validation.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.2.2 (2026-09-05)
 
 ### 🩹 Fixes
