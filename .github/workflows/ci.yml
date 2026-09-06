@@ -58,6 +58,9 @@ jobs:
       - name: Peer-range guard (no exact @sneat/* pins)
         run: node tools/peer-range-guard/check.mjs
 
+      - name: Required-check policy tests
+        run: node --test tools/required-checks/check.test.mjs
+
   discover-go:
     runs-on: ubuntu-latest
     outputs:
@@ -90,3 +93,20 @@ jobs:
     uses: sneat-co/cicd/.github/workflows/go-ci.yml@main
     with:
       working-directory: ${{ matrix.dir }}
+
+  # Stable branch-protection identity. Matrix job names change as contract
+  # families are added, so policy requires this aggregate while retaining every
+  # underlying check as review evidence.
+  required-checks:
+    name: Required checks passed
+    if: always()
+    needs: [nx, tier-coherence, discover-go, go]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every required CI leg
+        env:
+          NX_RESULT: ${{ needs.nx.result }}
+          TIER_COHERENCE_RESULT: ${{ needs.tier-coherence.result }}
+          DISCOVER_GO_RESULT: ${{ needs.discover-go.result }}
+          GO_RESULT: ${{ needs.go.result }}
+        run: node tools/required-checks/check.mjs
