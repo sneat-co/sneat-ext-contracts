@@ -12,6 +12,11 @@ func TestFinancialAgreementChargeRejectsNormalizedReconciliation(t *testing.T) {
 	if err := fact.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	zero := int64(0)
+	fact.AmountMinor = &zero
+	if err := fact.Validate(); err != nil {
+		t.Fatal(err)
+	}
 	fact.Status, fact.AmountMinor, fact.Direction, fact.Diagnostics = FinancialChargeStatusUnavailable, nil, "", []string{"partial_billing_period_policy_unknown"}
 	if err := fact.Validate(); err != nil {
 		t.Fatal(err)

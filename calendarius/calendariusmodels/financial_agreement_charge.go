@@ -113,7 +113,7 @@ func (f FinancialAgreementChargeFact) Validate() error {
 		return fmt.Errorf("financial agreement temporal basis is invalid")
 	}
 	if f.Status == FinancialChargeStatusAvailable {
-		if f.AmountMinor == nil || *f.AmountMinor < 1 || *f.AmountMinor > MaxJavaScriptSafeInteger || (f.Direction != FinancialChargeDirectionExpense && f.Direction != FinancialChargeDirectionIncome && f.Direction != FinancialChargeDirectionTransfer) {
+		if f.AmountMinor == nil || *f.AmountMinor < 0 || *f.AmountMinor > MaxJavaScriptSafeInteger || (*f.AmountMinor == 0 && f.TemporalBasis != FinancialChargeBasisNormalized) || (f.Direction != FinancialChargeDirectionExpense && f.Direction != FinancialChargeDirectionIncome && f.Direction != FinancialChargeDirectionTransfer) {
 			return fmt.Errorf("available financial agreement charge is invalid")
 		}
 		if err := validateAttributions(*f.AmountMinor, "contactAttributions", f.ContactAttributions); err != nil {
