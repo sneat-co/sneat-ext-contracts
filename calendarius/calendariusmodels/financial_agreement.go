@@ -133,7 +133,9 @@ func (c FinancialConfirmation) Validate(termsRevision int64) error {
 		return fmt.Errorf("confirmedAt is invalid")
 	}
 	if c.RevokedAt != "" {
-		if _, err := time.Parse(time.RFC3339, c.RevokedAt); err != nil {
+		revokedAt, err := time.Parse(time.RFC3339, c.RevokedAt)
+		confirmedAt, _ := time.Parse(time.RFC3339, c.ConfirmedAt)
+		if err != nil || revokedAt.Before(confirmedAt) {
 			return fmt.Errorf("revokedAt is invalid")
 		}
 	}
@@ -198,6 +200,15 @@ func (f FinancialAgreementFact) Validate() error {
 	if err := validateReportingSpaceSide(f.ReportingSpaceID, f.ReportingSpaceSide, f.Payers, f.Receivers); err != nil {
 		return err
 	}
+	reportingShares := f.Payers
+	if f.ReportingSpaceSide == FinancialAgreementSideReceiver {
+		reportingShares = f.Receivers
+	}
+	for _, share := range reportingShares {
+		if share.Party.Kind == FinancialPartyKindSpace && share.Party.SpaceID == f.ReportingSpaceID && share.AmountMinor != f.ReportingAmountMinor {
+			return fmt.Errorf("reporting amount does not equal the reporting Space party share")
+		}
+	}
 	if err := validateAttributions(f.ReportingAmountMinor, "contactAttributions", f.ContactAttributions); err != nil {
 		return err
 	}
@@ -207,12 +218,24 @@ func (f FinancialAgreementFact) Validate() error {
 	if f.Confirmations == nil {
 		return fmt.Errorf("confirmations must be a non-nil array")
 	}
+	if len(f.Confirmations) > len(f.Payers)+len(f.Receivers) {
+		return fmt.Errorf("confirmations exceed agreement parties")
+	}
+	parties := map[string]struct{}{}
+	for _, side := range [][]FinancialPartyShare{f.Payers, f.Receivers} {
+		for _, share := range side {
+			parties[partyKey(share.Party)] = struct{}{}
+		}
+	}
 	seen := map[string]struct{}{}
 	for i, confirmation := range f.Confirmations {
 		if err := confirmation.Validate(f.TermsRevision); err != nil {
 			return fmt.Errorf("confirmations[%d]: %w", i, err)
 		}
 		key := partyKey(confirmation.Party)
+		if _, exists := parties[key]; !exists {
+			return fmt.Errorf("confirmations[%d] references a nonparty", i)
+		}
 		if _, exists := seen[key]; exists {
 			return fmt.Errorf("confirmations contains duplicate party")
 		}
@@ -419,6 +442,9 @@ func (r FinancialAgreementResult) Validate() error {
 	}
 	if r.SnapshotConsistent == (r.IncompleteReason != "") {
 		return fmt.Errorf("agreement result completeness is invalid")
+	}
+	if r.HasMore && r.SnapshotConsistent {
+		return fmt.Errorf("multi-page agreement result cannot claim snapshot consistency")
 	}
 	seen := map[string]struct{}{}
 	for i, agreement := range r.Agreements {

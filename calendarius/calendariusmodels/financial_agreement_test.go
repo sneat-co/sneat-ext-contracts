@@ -41,6 +41,22 @@ func TestFinancialAgreementRequiresExactIndependentSideTotals(t *testing.T) {
 	}
 }
 
+func TestFinancialAgreementReportingAmountEqualsExplicitSpaceShare(t *testing.T) {
+	value := validFinancialAgreement()
+	value.Payers = []FinancialPartyShare{
+		{Party: FinancialPartyRef{Kind: FinancialPartyKindSpace, SpaceID: "family"}, AmountMinor: 2000},
+		{Party: FinancialPartyRef{Kind: FinancialPartyKindContact, SpaceID: "family", ContactID: "sponsor"}, AmountMinor: 2000},
+	}
+	if err := value.Validate(); err == nil {
+		t.Fatal("wrong but in-range reporting amount accepted")
+	}
+	value.ReportingAmountMinor = 2000
+	value.ContactAttributions = []FinancialAttribution{{ID: "child-a", AmountMinor: 2000}}
+	if err := value.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFinancialAgreementAcceptedTermsAreStrictAndInitialRevisionIsValid(t *testing.T) {
 	value := validFinancialAgreement()
 	if err := value.AcceptedPrice.Validate(); err != nil {
@@ -90,6 +106,19 @@ func TestConfirmedAgreementRequiresActiveEvidenceFromEveryParty(t *testing.T) {
 	value.Confirmations[1].RevokedAt = "2026-09-03T11:00:00Z"
 	if err := value.Validate(); err == nil {
 		t.Fatal("confirmed agreement with revoked receiver evidence was accepted")
+	}
+}
+
+func TestFinancialAgreementRejectsNonpartyAndBackdatedRevocation(t *testing.T) {
+	value := validFinancialAgreement()
+	value.Confirmations = []FinancialConfirmation{{Party: FinancialPartyRef{Kind: FinancialPartyKindSpace, SpaceID: "stranger"}, TermsRevision: 1, ActorUserID: "user", ConfirmedAt: "2026-09-02T10:00:00Z"}}
+	if err := value.Validate(); err == nil {
+		t.Fatal("nonparty confirmation accepted")
+	}
+	value.Confirmations[0].Party = value.Payers[0].Party
+	value.Confirmations[0].RevokedAt = "2026-09-01T10:00:00Z"
+	if err := value.Validate(); err == nil {
+		t.Fatal("revocation before confirmation accepted")
 	}
 }
 
