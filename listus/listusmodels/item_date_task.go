@@ -21,7 +21,6 @@ type SaveListItemDateTaskRequest struct {
 	ItemID               string            `json:"itemID"`
 	OperationID          string            `json:"operationID"`
 	ExpectedTaskRevision int64             `json:"expectedTaskRevision"`
-	Title                string            `json:"title"`
 	DueDate              string            `json:"dueDate,omitempty"`
 	State                SourceTodoState   `json:"state"`
 }
@@ -34,9 +33,6 @@ func (v SaveListItemDateTaskRequest) Validate() error {
 		if value == "" || value != strings.TrimSpace(value) || len(value) > 100 {
 			return fmt.Errorf("%s must be trimmed and 1..100 bytes", name)
 		}
-	}
-	if v.Title == "" || v.Title != strings.TrimSpace(v.Title) || len(v.Title) > 100 {
-		return fmt.Errorf("title must be trimmed and 1..100 bytes")
 	}
 	if v.ExpectedTaskRevision < 0 || v.ExpectedTaskRevision > SourceTodoMaxSafeInteger {
 		return fmt.Errorf("expectedTaskRevision is outside the safe integer range")
@@ -60,6 +56,6 @@ func (v SaveListItemDateTaskRequest) Validate() error {
 }
 
 type SaveListItemDateTaskResponse struct {
-	ItemID   string               `json:"itemID"`
-	DateTask ListItemDateTaskLink `json:"dateTask"`
+	ItemID   string                `json:"itemID"`
+	DateTask *ListItemDateTaskLink `json:"dateTask,omitempty"`
 }

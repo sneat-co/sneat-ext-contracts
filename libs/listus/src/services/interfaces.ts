@@ -126,14 +126,13 @@ export type ListItemDateTaskState = 'active' | 'completed' | 'canceled';
 export interface ISaveListItemDateTaskRequest extends IListItemRequest {
   readonly operationID: string;
   readonly expectedTaskRevision: number;
-  readonly title: string;
   readonly dueDate?: string;
   readonly state: ListItemDateTaskState;
 }
 
 export interface ISaveListItemDateTaskResponse {
   readonly itemID: string;
-  readonly dateTask: IListItemDateTaskLink;
+  readonly dateTask?: IListItemDateTaskLink;
 }
 
 // Movie search/resolve/add-to-watchlist request & response DTOs - mirror the

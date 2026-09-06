@@ -3,7 +3,7 @@ package listusmodels
 import "testing"
 
 func TestSaveListItemDateTaskRequestValidation(t *testing.T) {
-	valid := SaveListItemDateTaskRequest{SpaceID: "space1", ListID: "do!tasks", ItemID: "item1", OperationID: "op1", Title: "Pay bill", DueDate: "2026-09-30", State: SourceTodoActive}
+	valid := SaveListItemDateTaskRequest{SpaceID: "space1", ListID: "do!tasks", ItemID: "item1", OperationID: "op1", DueDate: "2026-09-30", State: SourceTodoActive}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid request: %v", err)
 	}
