@@ -198,7 +198,12 @@ export interface IBudgetRollup {
   excludedItems: IBudgetLineItem[];
   /** Completeness of each independently loaded owning source. */
   sourceStatuses?: readonly IBudgetSourceStatus[];
-  /** Recorded bill actuals, kept separate from projected totals. */
+  /**
+   * Recorded bill actuals. A `matched` actual replaces its exact projected
+   * source line and is therefore included once in the rollup totals; consumers
+   * must not add this detail list to those totals again. Unresolved actuals stay
+   * separate until their source identity can be proved.
+   */
   actualBills?: readonly IBudgetActualBill[];
 }
 
