@@ -13,6 +13,7 @@ const (
 	MaxFinancialCommitmentPageSize           = 64
 	MaxFinancialCommitmentOccurrencesPerFact = 4096
 	MaxFinancialCommitmentCursorBytes        = 512
+	MaxJavaScriptSafeInteger                 = 9_007_199_254_740_991
 )
 
 type FinancialCommitmentQuery struct {
@@ -32,6 +33,10 @@ func (q FinancialCommitmentQuery) Validate() error {
 	}
 	if q.Months < 1 || q.Months > MaxFinancialCommitmentMonths {
 		return fmt.Errorf("months must be between 1 and %d", MaxFinancialCommitmentMonths)
+	}
+	fromMonth, _ := time.Parse("2006-01", q.FromMonthISO)
+	if fromMonth.Year() > 9999 || fromMonth.AddDate(0, q.Months-1, 0).Year() > 9999 {
+		return fmt.Errorf("query window exceeds year 9999")
 	}
 	if q.PageSize < 1 || q.PageSize > MaxFinancialCommitmentPageSize {
 		return fmt.Errorf("pageSize must be between 1 and %d", MaxFinancialCommitmentPageSize)
@@ -56,19 +61,28 @@ func (p FinancialCommitmentPage) Validate() error {
 	if p.Facts == nil {
 		return fmt.Errorf("facts must be a non-nil array")
 	}
+	if len(p.Facts) > MaxFinancialCommitmentPageSize {
+		return fmt.Errorf("facts exceeds maximum %d", MaxFinancialCommitmentPageSize)
+	}
 	if p.HasMore != (p.NextCursor != "") {
 		return fmt.Errorf("hasMore and nextCursor are inconsistent")
 	}
 	if p.IncompleteReason != "" && p.IncompleteReason != "query_limit" {
 		return fmt.Errorf("unsupported incompleteReason")
 	}
-	if len(p.NextCursor) > MaxFinancialCommitmentCursorBytes || strings.ContainsAny(p.NextCursor, "\r\n") {
+	if len(p.NextCursor) > MaxFinancialCommitmentCursorBytes || !utf8.ValidString(p.NextCursor) || strings.TrimSpace(p.NextCursor) != p.NextCursor || strings.ContainsAny(p.NextCursor, "\r\n") {
 		return fmt.Errorf("nextCursor is invalid")
 	}
+	seenFacts := make(map[string]struct{}, len(p.Facts))
 	for i := range p.Facts {
 		if err := p.Facts[i].Validate(); err != nil {
 			return fmt.Errorf("facts[%d]: %w", i, err)
 		}
+		key := p.Facts[i].SpaceID + "\x00" + p.Facts[i].HappeningID
+		if _, exists := seenFacts[key]; exists {
+			return fmt.Errorf("facts contains duplicate Space and happening identity")
+		}
+		seenFacts[key] = struct{}{}
 	}
 	return nil
 }
@@ -98,8 +112,11 @@ func (f FinancialCommitmentFact) Validate() error {
 	if strings.TrimSpace(f.Title) == "" {
 		return fmt.Errorf("title is required")
 	}
-	if f.PriceRevision < 0 {
-		return fmt.Errorf("priceRevision must not be negative")
+	if f.PriceRevision < 0 || int64(f.PriceRevision) > MaxJavaScriptSafeInteger {
+		return fmt.Errorf("priceRevision must be a non-negative JavaScript-safe integer")
+	}
+	if f.Prices == nil || f.Occurrences == nil {
+		return fmt.Errorf("prices and occurrences must be non-nil arrays")
 	}
 	if len(f.Occurrences) > MaxFinancialCommitmentOccurrencesPerFact {
 		return fmt.Errorf("occurrences exceeds maximum %d", MaxFinancialCommitmentOccurrencesPerFact)
@@ -137,8 +154,14 @@ func (f FinancialCommitmentFact) Validate() error {
 	}
 	seenOccurrences := map[string]struct{}{}
 	for i, occurrence := range f.Occurrences {
-		if occurrence.OccurrenceID == "" || !validISODate(occurrence.ScheduledDate) || !validISODate(occurrence.EffectiveDate) {
+		if err := validateEventHappeningText("occurrenceID", occurrence.OccurrenceID, EventHappeningIDMaxBytes, true); err != nil {
+			return fmt.Errorf("occurrences[%d]: %w", i, err)
+		}
+		if !validISODate(occurrence.ScheduledDate) || !validISODate(occurrence.EffectiveDate) {
 			return fmt.Errorf("occurrences[%d] identity and dates are required", i)
+		}
+		if !validFinancialEffect(occurrence.CancellationFinancialEffect) || !validFinancialEffect(occurrence.DateAdjustmentFinancialEffect) {
+			return fmt.Errorf("occurrences[%d] financial effect is invalid", i)
 		}
 		if _, exists := seenOccurrences[occurrence.OccurrenceID]; exists {
 			return fmt.Errorf("duplicate occurrenceID %q", occurrence.OccurrenceID)
@@ -168,7 +191,10 @@ type FinancialCommitmentPriceFact struct {
 }
 
 func (p FinancialCommitmentPriceFact) Validate() error {
-	if p.PriceID == "" || p.Currency == "" || p.AmountMinor < 0 || p.ExpenseQuantity <= 0 || p.Term.Unit == "" || p.Term.Length < 1 {
+	if err := validateEventHappeningText("priceID", p.PriceID, EventHappeningIDMaxBytes, true); err != nil {
+		return err
+	}
+	if p.Currency == "" || p.AmountMinor < 0 || p.ExpenseQuantity <= 0 || p.Term.Unit == "" || p.Term.Length < 1 {
 		return fmt.Errorf("price fields are invalid")
 	}
 	return nil
@@ -190,13 +216,11 @@ type FinancialCommitmentSource interface {
 }
 
 func validMonthISO(value string) bool {
-	if len(value) != 7 || value[4] != '-' {
-		return false
-	}
-	var year, month int
-	_, err := fmt.Sscanf(value, "%04d-%02d", &year, &month)
-	return err == nil && year >= 1900 && year <= 9999 && month >= 1 && month <= 12
+	parsed, err := time.Parse("2006-01", value)
+	return err == nil && parsed.Year() >= 1900 && parsed.Year() <= 9999 && parsed.Format("2006-01") == value
 }
+
+func validFinancialEffect(value string) bool { return value == "" || value == "unknown" }
 
 func validISODate(value string) bool {
 	if len(value) != len("2006-01-02") {

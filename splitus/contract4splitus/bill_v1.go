@@ -651,6 +651,9 @@ func (b BillV1) Validate() error {
 	if b.RecurringOccurrence == nil && len(b.ResolvedSourceEffects) > 0 {
 		return invalid("resolvedSourceEffects require recurringOccurrence")
 	}
+	if len(b.ResolvedSourceEffects) > 0 && b.RecurringOccurrence.ExpectedAmount == nil {
+		return invalid("resolvedSourceEffects require recurringOccurrence expectedAmount")
+	}
 	if b.RecurringOccurrence != nil && b.RecurringOccurrence.ExpectedAmount != nil && len(b.ResolvedSourceEffects) > 0 {
 		expectedMinor, _ := nonNegativeMinorUnits("expectedAmount", *b.RecurringOccurrence.ExpectedAmount)
 		if resolvedExpectedMinor != expectedMinor {
@@ -703,6 +706,9 @@ func (e ResolvedSourceEffectV1) Validate() error {
 	}
 	if e.PriceRevision < 1 {
 		return invalid("priceRevision must be positive")
+	}
+	if e.PriceRevision > 9_007_199_254_740_991 {
+		return invalid("priceRevision must be a JavaScript-safe integer")
 	}
 	minor, err := nonNegativeMinorUnits("expectedAmount", e.ExpectedAmount)
 	if err != nil {

@@ -275,6 +275,13 @@ func TestBillV1BindsResolvedSourceEffectsToCapturedExpectedAmount(t *testing.T) 
 	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("accepted duplicate resolved source price IDs: %v", err)
 	}
+
+	response = appliedBillResponse()
+	response.Bill.RecurringOccurrence.ExpectedAmount = nil
+	response.Bill.ResolvedSourceEffects = []ResolvedSourceEffectV1{{PriceID: "usage", PriceRevision: 3, ExpectedAmount: exact("80.00")}}
+	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("accepted source effects without a captured expected baseline: %v", err)
+	}
 }
 
 func TestCreateBillV1ResponseRejectsDebtusObligationsOutsideReceipt(t *testing.T) {
