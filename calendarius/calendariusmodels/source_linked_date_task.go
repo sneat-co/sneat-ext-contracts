@@ -24,7 +24,6 @@ type SourceLinkedDateTaskActionDisposition string
 const (
 	SourceLinkedDateTaskNavigate      SourceLinkedDateTaskActionDisposition = "navigate"
 	SourceLinkedDateTaskRequiresInput SourceLinkedDateTaskActionDisposition = "requires_input"
-	SourceLinkedDateTaskExecute       SourceLinkedDateTaskActionDisposition = "execute"
 )
 
 // SourceLinkedDateTaskRef is the owner-qualified identity of a source item.

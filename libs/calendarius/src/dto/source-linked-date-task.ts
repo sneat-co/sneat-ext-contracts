@@ -1,8 +1,7 @@
 export type SourceLinkedDateTaskState = 'active' | 'completed' | 'canceled';
 export type SourceLinkedDateTaskActionDisposition =
   | 'navigate'
-  | 'requires_input'
-  | 'execute';
+  | 'requires_input';
 
 export interface ISourceLinkedDateTaskRef {
   readonly namespace: string;

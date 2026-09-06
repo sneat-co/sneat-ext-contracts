@@ -23,7 +23,7 @@ func TestMutateSourceLinkedDateTaskRequestValidation(t *testing.T) {
 		}
 	}
 	v = validLinkedTaskRequest()
-	v.ActionDisposition = SourceLinkedDateTaskExecute
+	v.ActionDisposition = "execute"
 	if err := v.Validate(); err == nil {
 		t.Fatal("accepted unimplemented execute action")
 	}
