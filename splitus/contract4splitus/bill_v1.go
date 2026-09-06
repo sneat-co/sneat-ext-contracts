@@ -149,6 +149,7 @@ type UtilityDetailsV1 struct {
 type RecurringOccurrenceV1 struct {
 	HappeningID          string                    `json:"happeningID"`
 	OccurrenceID         string                    `json:"occurrenceID"`
+	ChargeID             string                    `json:"chargeID,omitempty"`
 	ExpectedAmount       *ExactDecimalString       `json:"expectedAmount,omitempty"`
 	StandingChargeAmount *ExactDecimalString       `json:"standingChargeAmount,omitempty"`
 	ExpectedComparison   ExpectedActualComparison  `json:"expectedComparison,omitempty"`
@@ -353,6 +354,11 @@ func (r RecurringOccurrenceV1) Validate(actual int64, billID string) error {
 	}
 	if err := validateStorageID("occurrenceID", r.OccurrenceID); err != nil {
 		return err
+	}
+	if r.ChargeID != "" {
+		if err := validateStorageID("chargeID", r.ChargeID); err != nil {
+			return err
+		}
 	}
 	if r.ExpectedAmount == nil && r.ExpectedComparison != "" && r.ExpectedComparison != ExpectedActualNotAvailable {
 		return invalid("comparison must be omitted or not_available when expectedAmount is absent")
@@ -734,8 +740,8 @@ func (e ResolvedSourceEffectV1) Validate() error {
 	if err := validateStorageID("priceID", e.PriceID); err != nil {
 		return err
 	}
-	if e.PriceRevision < 1 {
-		return invalid("priceRevision must be positive")
+	if e.PriceRevision < 0 || (e.PriceRevision == 0 && e.AgreementID == "") {
+		return invalid("priceRevision must be positive unless captured from an identified financial agreement")
 	}
 	if e.PriceRevision > 9_007_199_254_740_991 {
 		return invalid("priceRevision must be a JavaScript-safe integer")

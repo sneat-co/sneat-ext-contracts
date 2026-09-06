@@ -86,6 +86,7 @@ export interface ISplitusUtilityDetailsV1 {
 export interface ISplitusRecurringOccurrenceV1 {
   readonly happeningID: string;
   readonly occurrenceID: string;
+  readonly chargeID?: string;
   readonly expectedAmount?: ExactDecimalString;
   readonly standingChargeAmount?: ExactDecimalString;
   readonly expectedComparison?: SplitusExpectedActualComparison;
@@ -1019,6 +1020,10 @@ function recurring(
       input['occurrenceID'],
       'recurringOccurrence.occurrenceID',
     ),
+    chargeID:
+      input['chargeID'] === undefined
+        ? undefined
+        : storageID(input['chargeID'], 'recurringOccurrence.chargeID'),
     expectedAmount,
     standingChargeAmount,
     expectedComparison,

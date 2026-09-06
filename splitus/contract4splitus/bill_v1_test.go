@@ -76,6 +76,10 @@ func TestResolvedSourceEffectExactAgreementIdentityIsAllOrNone(t *testing.T) {
 	if err := effect.Validate(); err != nil {
 		t.Fatal(err)
 	}
+	effect.PriceRevision = 0
+	if err := effect.Validate(); err != nil {
+		t.Fatalf("initial agreement price revision rejected: %v", err)
+	}
 	effect.ChargeID = ""
 	if effect.Validate() == nil {
 		t.Fatal("partial agreement source identity accepted")
