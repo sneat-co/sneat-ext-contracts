@@ -58,6 +58,9 @@ jobs:
       - name: Peer-range guard (no exact @sneat/* pins)
         run: node tools/peer-range-guard/check.mjs
 
+      - name: Required-check policy tests
+        run: node --test tools/required-checks/check.test.mjs
+
   discover-go:
     runs-on: ubuntu-latest
     outputs:
