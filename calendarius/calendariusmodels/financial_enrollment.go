@@ -63,7 +63,7 @@ func (s FinancialEnrollmentScope) Validate() error {
 }
 
 func (s FinancialEnrollmentScope) Canonical() FinancialEnrollmentScope {
-	result := FinancialEnrollmentScope{Kind: s.Kind, Subjects: append([]FinancialEnrollmentSubjectRef(nil), s.Subjects...)}
+	result := FinancialEnrollmentScope{Kind: s.Kind, Subjects: append(make([]FinancialEnrollmentSubjectRef, 0, len(s.Subjects)), s.Subjects...)}
 	sort.Slice(result.Subjects, func(i, j int) bool {
 		if result.Subjects[i].ExtensionID == result.Subjects[j].ExtensionID {
 			return result.Subjects[i].EntityID < result.Subjects[j].EntityID

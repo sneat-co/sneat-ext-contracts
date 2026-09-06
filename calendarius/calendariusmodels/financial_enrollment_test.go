@@ -14,7 +14,14 @@ func TestResolveFinancialEnrollmentRequestCanonicalScope(t *testing.T) {
 	if err := (FinancialEnrollmentScope{Kind: FinancialEnrollmentScopeWholeHappening, Subjects: []FinancialEnrollmentSubjectRef{}}).Validate(); err != nil {
 		t.Fatal(err)
 	}
-	for _, scope := range []FinancialEnrollmentScope{{Kind: FinancialEnrollmentScopeSubjects, Subjects: []FinancialEnrollmentSubjectRef{}}, {Kind: FinancialEnrollmentScopeWholeHappening, Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}}}, {Kind: FinancialEnrollmentScopeSubjects, Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}, {ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}}}} {
+	whole := ResolveFinancialEnrollmentRequest{OwnerSpaceID: "space1", HappeningID: "happening1", OperationID: "operation2", Scope: FinancialEnrollmentScope{Kind: FinancialEnrollmentScopeWholeHappening, Subjects: []FinancialEnrollmentSubjectRef{}}}
+	if err := whole.Validate(); err != nil {
+		t.Fatalf("whole-happening request rejected: %v", err)
+	}
+	if canonicalWhole := whole.Scope.Canonical(); canonicalWhole.Subjects == nil || canonicalWhole.Canonical().Subjects == nil {
+		t.Fatal("canonicalization changed an explicit empty subjects array to nil")
+	}
+	for _, scope := range []FinancialEnrollmentScope{{Kind: FinancialEnrollmentScopeWholeHappening}, {Kind: FinancialEnrollmentScopeSubjects, Subjects: []FinancialEnrollmentSubjectRef{}}, {Kind: FinancialEnrollmentScopeWholeHappening, Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}}}, {Kind: FinancialEnrollmentScopeSubjects, Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}, {ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "child"}}}} {
 		if scope.Validate() == nil {
 			t.Fatalf("accepted scope %+v", scope)
 		}
