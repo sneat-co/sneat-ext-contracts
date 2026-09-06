@@ -18,6 +18,10 @@ func TestResolveFinancialEnrollmentRequestCanonicalScope(t *testing.T) {
 	if err := whole.Validate(); err != nil {
 		t.Fatalf("whole-happening request rejected: %v", err)
 	}
+	whole.Scope.Subjects = nil
+	if err := whole.Validate(); err == nil {
+		t.Fatal("whole-happening request accepted omitted subjects")
+	}
 	if canonicalWhole := whole.Scope.Canonical(); canonicalWhole.Subjects == nil || canonicalWhole.Canonical().Subjects == nil {
 		t.Fatal("canonicalization changed an explicit empty subjects array to nil")
 	}

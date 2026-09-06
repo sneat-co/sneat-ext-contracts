@@ -86,6 +86,9 @@ func (r ResolveFinancialEnrollmentRequest) Validate() error {
 			return err
 		}
 	}
+	if r.Scope.Subjects == nil {
+		return fmt.Errorf("financial enrollment subjects must be an array")
+	}
 	return r.Scope.Canonical().Validate()
 }
 
