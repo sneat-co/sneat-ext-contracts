@@ -210,6 +210,14 @@ func TestCreateBillV1BindsExpectedComparisonToActual(t *testing.T) {
 	}
 }
 
+func TestCreateBillV1AllowsServerDerivedExpectedComparison(t *testing.T) {
+	request := electricityBill()
+	request.RecurringOccurrence.ExpectedComparison = ""
+	if err := request.Validate(); err != nil {
+		t.Fatalf("Validate() rejected omitted comparison: %v", err)
+	}
+}
+
 func TestCreateBillV1BindsPreviousComparableToActual(t *testing.T) {
 	request := electricityBill()
 	request.RecurringOccurrence.PreviousComparable.ActualAmount = exact("95.00")

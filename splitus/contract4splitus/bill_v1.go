@@ -151,7 +151,7 @@ type RecurringOccurrenceV1 struct {
 	OccurrenceID         string                    `json:"occurrenceID"`
 	ExpectedAmount       *ExactDecimalString       `json:"expectedAmount,omitempty"`
 	StandingChargeAmount *ExactDecimalString       `json:"standingChargeAmount,omitempty"`
-	ExpectedComparison   ExpectedActualComparison  `json:"expectedComparison"`
+	ExpectedComparison   ExpectedActualComparison  `json:"expectedComparison,omitempty"`
 	PreviousComparable   *PreviousComparableBillV1 `json:"previousComparable,omitempty"`
 }
 
@@ -354,8 +354,8 @@ func (r RecurringOccurrenceV1) Validate(actual int64, billID string) error {
 	if err := validateStorageID("occurrenceID", r.OccurrenceID); err != nil {
 		return err
 	}
-	if (r.ExpectedAmount == nil) != (r.ExpectedComparison == ExpectedActualNotAvailable) {
-		return invalid("comparison must be not_available exactly when expectedAmount is absent")
+	if r.ExpectedAmount == nil && r.ExpectedComparison != "" && r.ExpectedComparison != ExpectedActualNotAvailable {
+		return invalid("comparison must be omitted or not_available when expectedAmount is absent")
 	}
 	if r.ExpectedAmount != nil {
 		expected, err := positiveMinorUnits("expectedAmount", *r.ExpectedAmount)
@@ -368,7 +368,7 @@ func (r RecurringOccurrenceV1) Validate(actual int64, billID string) error {
 		} else if actual < expected {
 			want = ExpectedActualDecreased
 		}
-		if r.ExpectedComparison != want {
+		if r.ExpectedComparison != "" && r.ExpectedComparison != want {
 			return invalid("comparison does not match expected and actual amounts")
 		}
 	}

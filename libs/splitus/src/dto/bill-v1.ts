@@ -88,7 +88,7 @@ export interface ISplitusRecurringOccurrenceV1 {
   readonly occurrenceID: string;
   readonly expectedAmount?: ExactDecimalString;
   readonly standingChargeAmount?: ExactDecimalString;
-  readonly expectedComparison: SplitusExpectedActualComparison;
+  readonly expectedComparison?: SplitusExpectedActualComparison;
   readonly previousComparable?: ISplitusPreviousComparableBillV1;
 }
 
@@ -979,14 +979,17 @@ function recurring(
           input['standingChargeAmount'],
           'recurringOccurrence.standingChargeAmount',
         );
-  const expectedComparison = enumValue(
-    input['expectedComparison'],
-    ['not_available', 'matches', 'increased', 'decreased'] as const,
-    'recurringOccurrence.expectedComparison',
-  );
+  const expectedComparison = input['expectedComparison'] === undefined
+    ? undefined
+    : enumValue(
+        input['expectedComparison'],
+        ['not_available', 'matches', 'increased', 'decreased'] as const,
+        'recurringOccurrence.expectedComparison',
+      );
   if (
-    (expectedAmount === undefined) !==
-    (expectedComparison === 'not_available')
+    expectedAmount === undefined &&
+    expectedComparison !== undefined &&
+    expectedComparison !== 'not_available'
   ) {
     throw new TypeError(
       'comparison must be not_available exactly when expectedAmount is absent',
@@ -997,7 +1000,7 @@ function recurring(
       actualAmount,
       expectedAmount,
     );
-    if (expectedComparison !== expectedComparisonForAmounts) {
+    if (expectedComparison !== undefined && expectedComparison !== expectedComparisonForAmounts) {
       throw new TypeError('comparison does not match expected and actual amounts');
     }
   }
