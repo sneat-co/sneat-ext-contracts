@@ -55,10 +55,25 @@ export interface IFinancialAgreementChargeFact {
 
 export interface IFinancialAgreementChargePage {
   readonly charges: readonly IFinancialAgreementChargeFact[];
+  /** Selected-deal authority independent of charge rows in this window. */
+  readonly coverages: readonly IFinancialAgreementCoverageFact[];
   readonly hasMore: boolean;
   readonly nextCursor?: string;
   readonly snapshotConsistent: boolean;
   /** Digest of the full bounded result, stable across every page. */
   readonly snapshotDigest?: string;
   readonly incompleteReason?: string;
+}
+
+export interface IFinancialAgreementCoverageFact {
+  readonly ownerSpaceID: string;
+  readonly reportingSpaceID: string;
+  readonly agreementID: string;
+  readonly enrollmentID: string;
+  readonly enrollmentScope: IFinancialEnrollmentScope;
+  readonly happeningID: string;
+  readonly state: 'recorded_external' | 'confirmed';
+  readonly effectiveFromISO: string;
+  readonly effectiveToISO?: string;
+  readonly verified: true;
 }

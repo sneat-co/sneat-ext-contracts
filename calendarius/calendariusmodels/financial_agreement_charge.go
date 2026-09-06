@@ -139,22 +139,64 @@ func (f FinancialAgreementChargeFact) Validate() error {
 }
 
 type FinancialAgreementChargePage struct {
-	Charges            []FinancialAgreementChargeFact `json:"charges"`
-	HasMore            bool                           `json:"hasMore"`
-	NextCursor         string                         `json:"nextCursor,omitempty"`
-	SnapshotConsistent bool                           `json:"snapshotConsistent"`
-	SnapshotDigest     string                         `json:"snapshotDigest,omitempty"`
-	IncompleteReason   string                         `json:"incompleteReason,omitempty"`
+	Charges []FinancialAgreementChargeFact `json:"charges"`
+	// Coverages are owner-issued selection authority independent of whether an
+	// agreement emits a charge in this window. Consumers use them to avoid
+	// resurrecting unselected catalog prices before or after an agreement.
+	Coverages          []FinancialAgreementCoverageFact `json:"coverages"`
+	HasMore            bool                             `json:"hasMore"`
+	NextCursor         string                           `json:"nextCursor,omitempty"`
+	SnapshotConsistent bool                             `json:"snapshotConsistent"`
+	SnapshotDigest     string                           `json:"snapshotDigest,omitempty"`
+	IncompleteReason   string                           `json:"incompleteReason,omitempty"`
 }
 
 func (p FinancialAgreementChargePage) Validate() error {
-	if p.Charges == nil || len(p.Charges) > MaxFinancialAgreementChargePageSize || p.HasMore != (p.NextCursor != "") || p.SnapshotConsistent != (p.SnapshotDigest != "") || !p.SnapshotConsistent && p.IncompleteReason == "" || p.SnapshotConsistent && p.IncompleteReason != "" {
+	if p.Charges == nil || p.Coverages == nil || len(p.Charges) > MaxFinancialAgreementChargePageSize || len(p.Coverages) > 64 || p.HasMore != (p.NextCursor != "") || p.SnapshotConsistent != (p.SnapshotDigest != "") || !p.SnapshotConsistent && p.IncompleteReason == "" || p.SnapshotConsistent && p.IncompleteReason != "" {
 		return fmt.Errorf("financial agreement charge page metadata is invalid")
 	}
 	for i, charge := range p.Charges {
 		if err := charge.Validate(); err != nil {
 			return fmt.Errorf("charges[%d]: %w", i, err)
 		}
+	}
+	for i, coverage := range p.Coverages {
+		if err := coverage.Validate(); err != nil {
+			return fmt.Errorf("coverages[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// FinancialAgreementCoverageFact states which enrollment scope is governed by
+// an explicit selected-deal lifecycle. It carries no amount or schedule.
+type FinancialAgreementCoverageFact struct {
+	OwnerSpaceID     string                    `json:"ownerSpaceID"`
+	ReportingSpaceID string                    `json:"reportingSpaceID"`
+	AgreementID      string                    `json:"agreementID"`
+	EnrollmentID     string                    `json:"enrollmentID"`
+	EnrollmentScope  *FinancialEnrollmentScope `json:"enrollmentScope"`
+	HappeningID      string                    `json:"happeningID"`
+	State            string                    `json:"state"`
+	EffectiveFromISO string                    `json:"effectiveFromISO"`
+	EffectiveToISO   string                    `json:"effectiveToISO,omitempty"`
+	Verified         bool                      `json:"verified"`
+}
+
+func (f FinancialAgreementCoverageFact) Validate() error {
+	for name, value := range map[string]string{"ownerSpaceID": f.OwnerSpaceID, "reportingSpaceID": f.ReportingSpaceID, "agreementID": f.AgreementID, "enrollmentID": f.EnrollmentID, "happeningID": f.HappeningID} {
+		if err := validateFinancialCommitmentID(name, value); err != nil {
+			return err
+		}
+	}
+	if f.EnrollmentScope == nil || !f.Verified || !validISODate(f.EffectiveFromISO) || f.EffectiveToISO != "" && (!validISODate(f.EffectiveToISO) || f.EffectiveToISO < f.EffectiveFromISO) {
+		return fmt.Errorf("financial agreement coverage is invalid")
+	}
+	if err := f.EnrollmentScope.Validate(); err != nil {
+		return fmt.Errorf("financial agreement coverage scope: %w", err)
+	}
+	if f.State != FinancialAgreementStateRecordedExternal && f.State != FinancialAgreementStateConfirmed {
+		return fmt.Errorf("financial agreement coverage state is invalid")
 	}
 	return nil
 }
