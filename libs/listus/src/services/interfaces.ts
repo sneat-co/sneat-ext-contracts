@@ -5,6 +5,7 @@ import {
   IListItemBase,
   IListItemBrief,
   IListItemDbo,
+  IListItemDateTaskLink,
   IWatchMovieFields,
   IWatchWith,
   MovieDetails,
@@ -118,6 +119,20 @@ export type IDeleteListItemsRequest = IListItemIDsRequest;
 
 export interface ISetListItemsIsComplete extends IListItemIDsRequest {
   isDone: boolean;
+}
+
+export type ListItemDateTaskState = 'active' | 'completed' | 'canceled';
+
+export interface ISaveListItemDateTaskRequest extends IListItemRequest {
+  readonly operationID: string;
+  readonly expectedTaskRevision: number;
+  readonly dueDate?: string;
+  readonly state: ListItemDateTaskState;
+}
+
+export interface ISaveListItemDateTaskResponse {
+  readonly itemID: string;
+  readonly dateTask?: IListItemDateTaskLink;
 }
 
 // Movie search/resolve/add-to-watchlist request & response DTOs - mirror the

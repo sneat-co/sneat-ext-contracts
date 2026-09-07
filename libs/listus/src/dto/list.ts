@@ -4,6 +4,7 @@ import {
   IWithCreated,
   IWithRestrictions,
   IWithSpaceIDs,
+  ISpaceModuleItemRef,
   SneatRecordStatus,
 } from '@sneat/dto';
 
@@ -19,6 +20,29 @@ export interface IListItemCommon extends IListCommon {
   subListType?: ListType;
   quantity?: IQuantity;
   category?: string;
+  /** Server-authored link to the canonical date-only Calendar task. */
+  dateTask?: IListItemDateTaskLink;
+  /** Server-authored owner lifecycle; public item writes must reject it. */
+  sourceManagement?: IListItemSourceManagement;
+}
+
+export interface IListItemDateTaskLink {
+  readonly happening: ISpaceModuleItemRef;
+  readonly source: ISpaceModuleItemRef;
+  readonly purpose: string;
+  /** Revision of the Calendar-owned task, used for optimistic correction. */
+  readonly revision: number;
+}
+
+export type SourceTodoCompletionDisposition = 'navigate' | 'requires_input';
+
+export interface IListItemSourceManagement {
+  readonly source: ISpaceModuleItemRef;
+  readonly purpose: string;
+  readonly completion: {
+    readonly disposition: SourceTodoCompletionDisposition;
+    readonly actionID: string;
+  };
 }
 
 export type IListItemBase = IListItemCommon;

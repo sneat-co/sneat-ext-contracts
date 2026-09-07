@@ -7,3 +7,7 @@ export * from './todo_move_funcs';
 export * from './weekday';
 export type { IReminderDbo } from './reminder';
 export * from './responsibility';
+export * from './financial-agreement';
+export * from './financial-agreement-charge';
+export * from './financial-enrollment';
+export * from './source-linked-date-task';
