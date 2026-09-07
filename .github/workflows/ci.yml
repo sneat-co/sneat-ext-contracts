@@ -58,9 +58,6 @@ jobs:
       - name: Peer-range guard (no exact @sneat/* pins)
         run: node tools/peer-range-guard/check.mjs
 
-      - name: Required-check policy tests
-        run: node --test tools/required-checks/check.test.mjs
-
   discover-go:
     runs-on: ubuntu-latest
     outputs:
@@ -94,23 +91,64 @@ jobs:
     with:
       working-directory: ${{ matrix.dir }}
 
-  # Stable branch-protection identity. Matrix job names change as contract
-  # families are added, so policy requires this aggregate while retaining every
-  # underlying check as review evidence.
-  required-checks:
-    name: Required checks passed
-    if: always()
-    needs: [nx, tier-coherence, discover-go, go]
+  release-candidate-policy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Pull-request GITHUB_SHA is a synthetic merge. Release validation
+          # must inspect the exact candidate commit that branch protection checks.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify protected release candidate policy
+        env:
+          CI_BASE: ${{ github.event.pull_request.base.sha }}
+          CI_CHECKED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --test tools/release-candidate/release-candidate.test.mjs
+          EVENT="$GITHUB_EVENT_NAME" BASE="$CI_BASE" CHECKED="$CI_CHECKED" node tools/release-candidate/release-candidate.mjs verify-ci
 
-      - name: Verify every required CI leg
+  required-checks:
+    # Keep this name aligned with the exact GitHub App status required by
+    # branch protection. This job only combines the results above.
+    name: Required checks passed
+    if: ${{ always() }}
+    needs: [nx, tier-coherence, discover-go, go, release-candidate-policy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require every CI dependency to reach its expected conclusion
         env:
           NX_RESULT: ${{ needs.nx.result }}
           TIER_COHERENCE_RESULT: ${{ needs.tier-coherence.result }}
           DISCOVER_GO_RESULT: ${{ needs.discover-go.result }}
           GO_DIRS: ${{ needs.discover-go.outputs.dirs }}
           GO_RESULT: ${{ needs.go.result }}
-        run: node tools/required-checks/check.mjs
+          RELEASE_CANDIDATE_POLICY_RESULT: ${{ needs.release-candidate-policy.result }}
+        run: |
+          set -eu
+
+          require_success() {
+            if [ "$2" != "success" ]; then
+              echo "Required check '$1' concluded: $2; expected success" >&2
+              exit 1
+            fi
+          }
+
+          require_success "Nx lint, test, and build" "$NX_RESULT"
+          require_success "Tier coherence" "$TIER_COHERENCE_RESULT"
+          require_success "Go module discovery" "$DISCOVER_GO_RESULT"
+          require_success "Release candidate policy" "$RELEASE_CANDIDATE_POLICY_RESULT"
+
+          if [ "$GO_DIRS" = "[]" ]; then
+            expected_go_result=skipped
+          else
+            expected_go_result=success
+          fi
+          if [ "$GO_RESULT" != "$expected_go_result" ]; then
+            echo "Required check 'Go module matrix' concluded: $GO_RESULT; expected $expected_go_result" >&2
+            exit 1
+          fi
+
+          echo "All required checks passed. This job only combines their results."
