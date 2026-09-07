@@ -35,17 +35,17 @@ const (
 // SourceLinkedDateTaskRef is the owner-qualified identity of a source item.
 // LineID distinguishes independently dated obligations within one record.
 type SourceLinkedDateTaskRef struct {
-	Namespace    string `json:"namespace"`
-	OwnerSpaceID string `json:"ownerSpaceID"`
-	RecordID     string `json:"recordID"`
-	LineID       string `json:"lineID"`
+	Namespace    string `json:"namespace" firestore:"namespace"`
+	OwnerSpaceID string `json:"ownerSpaceID" firestore:"ownerSpaceID"`
+	RecordID     string `json:"recordID" firestore:"recordID"`
+	LineID       string `json:"lineID" firestore:"lineID"`
 }
 
 // SourceLinkedDateTaskRelatedRef is persisted through standard Sneat Linkage.
 // Stable source identity remains separate from this navigational relation.
 type SourceLinkedDateTaskRelatedRef struct {
-	ItemRef coretypes.ItemRef `json:"itemRef"`
-	Role    string            `json:"role"`
+	ItemRef coretypes.ItemRef `json:"itemRef" firestore:"itemRef"`
+	Role    string            `json:"role" firestore:"role"`
 }
 
 func (v SourceLinkedDateTaskRelatedRef) Validate() error {
@@ -87,14 +87,14 @@ func (v SourceLinkedDateTaskRef) Validate() error {
 }
 
 type SourceLinkedDateTask struct {
-	HappeningID       string                                `json:"happeningID"`
-	Revision          int64                                 `json:"revision"`
-	Source            SourceLinkedDateTaskRef               `json:"source"`
-	Title             string                                `json:"title"`
-	DueDate           string                                `json:"dueDate,omitempty"`
-	State             SourceLinkedDateTaskState             `json:"state"`
-	ActionID          string                                `json:"actionID,omitempty"`
-	ActionDisposition SourceLinkedDateTaskActionDisposition `json:"actionDisposition,omitempty"`
+	HappeningID       string                                `json:"happeningID" firestore:"happeningID"`
+	Revision          int64                                 `json:"revision" firestore:"revision"`
+	Source            SourceLinkedDateTaskRef               `json:"source" firestore:"source"`
+	Title             string                                `json:"title" firestore:"title"`
+	DueDate           string                                `json:"dueDate,omitempty" firestore:"dueDate,omitempty"`
+	State             SourceLinkedDateTaskState             `json:"state" firestore:"state"`
+	ActionID          string                                `json:"actionID,omitempty" firestore:"actionID,omitempty"`
+	ActionDisposition SourceLinkedDateTaskActionDisposition `json:"actionDisposition,omitempty" firestore:"actionDisposition,omitempty"`
 }
 
 // HappeningItemRef identifies the native Calendar task for reciprocal Sneat
@@ -197,6 +197,6 @@ func (v MutateSourceLinkedDateTaskRequest) Validate() error {
 }
 
 type SourceLinkedDateTaskMutation struct {
-	Task        SourceLinkedDateTask `json:"task"`
-	Disposition string               `json:"disposition"`
+	Task        SourceLinkedDateTask `json:"task" firestore:"task"`
+	Disposition string               `json:"disposition" firestore:"disposition"`
 }

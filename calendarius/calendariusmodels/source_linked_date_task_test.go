@@ -1,11 +1,31 @@
 package calendariusmodels
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/sneat-co/sneat-go-core/coretypes"
 )
+
+func TestSourceLinkedDateTaskPersistenceTagsMatchWireNames(t *testing.T) {
+	for _, value := range []any{
+		SourceLinkedDateTaskRef{},
+		SourceLinkedDateTaskRelatedRef{},
+		SourceLinkedDateTask{},
+		SourceLinkedDateTaskMutation{},
+	} {
+		typeOf := reflect.TypeOf(value)
+		for i := 0; i < typeOf.NumField(); i++ {
+			field := typeOf.Field(i)
+			jsonName := strings.Split(field.Tag.Get("json"), ",")[0]
+			firestoreName := strings.Split(field.Tag.Get("firestore"), ",")[0]
+			if jsonName == "" || firestoreName != jsonName {
+				t.Fatalf("%s.%s firestore tag %q does not match JSON tag %q", typeOf.Name(), field.Name, firestoreName, jsonName)
+			}
+		}
+	}
+}
 
 func TestLinkedDateTaskPreservesCompositeFinancialLineIdentity(t *testing.T) {
 	v := validLinkedTaskRequest()

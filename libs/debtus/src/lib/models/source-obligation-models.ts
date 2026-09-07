@@ -190,6 +190,61 @@ const maxExactMinorUnits = 9_223_372_036_854_775_807n;
 const exactMinorPattern = /^(?:0|[1-9][0-9]*)$/;
 const utcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const goUtcTimestampPattern =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
+
+export function parseDebtusSourceObligationDueDateV1(
+  value: unknown,
+  expectedSource?: IDebtusSourceRefV1,
+  expectedLineID?: string,
+): IDebtusSourceObligationDueDateV1 {
+  const input = exactRecord(value, 'dueDateTask', [
+    'contractVersion', 'source', 'lineID', 'revision', 'dueDate', 'happeningID',
+    'state', 'todoListID', 'todoItemID', 'updatedAt', 'updatedBy',
+  ] as const);
+  if (input['contractVersion'] !== DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION) {
+    throw new TypeError('unsupported Debtus source due-date contract version');
+  }
+  const source = sourceRef(input['source']);
+  if (expectedSource) assertSource(source, expectedSource);
+  const lineID = storageID(input['lineID'], 'dueDateTask.lineID');
+  if (expectedLineID !== undefined && lineID !== expectedLineID) {
+    throw new TypeError('dueDateTask.lineID does not match the requested source line');
+  }
+  const revision = input['revision'];
+  if (!Number.isSafeInteger(revision) || (revision as number) < 1) {
+    throw new TypeError('dueDateTask.revision must be a positive safe integer');
+  }
+  const state = enumValue(input['state'], ['active', 'completed', 'canceled'] as const, 'dueDateTask.state');
+  const dueDate = input['dueDate'];
+  if (dueDate !== undefined && (typeof dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || new Date(`${dueDate}T00:00:00.000Z`).toISOString().slice(0, 10) !== dueDate)) {
+    throw new TypeError('dueDateTask.dueDate must be YYYY-MM-DD');
+  }
+  if (state === 'active' && dueDate === undefined) {
+    throw new TypeError('active dueDateTask requires dueDate');
+  }
+  const todoListID =
+    input['todoListID'] === undefined
+      ? undefined
+      : storageID(input['todoListID'], 'dueDateTask.todoListID');
+  const todoItemID =
+    input['todoItemID'] === undefined
+      ? undefined
+      : storageID(input['todoItemID'], 'dueDateTask.todoItemID');
+  return {
+    contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
+    source,
+    lineID,
+    revision: revision as number,
+    dueDate,
+    happeningID: storageID(input['happeningID'], 'dueDateTask.happeningID'),
+    state,
+    todoListID,
+    todoItemID,
+    updatedAt: serverUtcTimestamp(input['updatedAt'], 'dueDateTask.updatedAt'),
+    updatedBy: storageID(input['updatedBy'], 'dueDateTask.updatedBy'),
+  };
+}
 
 export function parseDebtusExactMinorAmountString(
   value: unknown,
@@ -531,6 +586,37 @@ function utcTimestamp(value: unknown, name: string): DebtusUtcTimestampString {
   ) {
     throw new TypeError(
       `${name} must be a valid UTC RFC 3339 timestamp with millisecond precision`,
+    );
+  }
+  return value;
+}
+
+function serverUtcTimestamp(
+  value: unknown,
+  name: string,
+): DebtusUtcTimestampString {
+  if (
+    typeof value !== 'string' ||
+    !goUtcTimestampPattern.test(value) ||
+    Number.isNaN(Date.parse(value))
+  ) {
+    throw new TypeError(
+      `${name} must be a valid UTC RFC 3339 timestamp with up to nanosecond precision`,
+    );
+  }
+  const instant = new Date(value);
+  const fields = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  if (
+    fields === null ||
+    instant.getUTCFullYear() !== Number(fields[1]) ||
+    instant.getUTCMonth() + 1 !== Number(fields[2]) ||
+    instant.getUTCDate() !== Number(fields[3]) ||
+    instant.getUTCHours() !== Number(fields[4]) ||
+    instant.getUTCMinutes() !== Number(fields[5]) ||
+    instant.getUTCSeconds() !== Number(fields[6])
+  ) {
+    throw new TypeError(
+      `${name} must be a valid UTC RFC 3339 timestamp with up to nanosecond precision`,
     );
   }
   return value;

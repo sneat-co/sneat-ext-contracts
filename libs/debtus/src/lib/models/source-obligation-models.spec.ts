@@ -1,11 +1,32 @@
 // eslint-disable-next-line @nx/enforce-module-boundaries -- this golden file is shared with the public Go module's wire test.
 import wholeSecondWireExample from '../../../../../debtus/contract4debtus/testdata/source_repayment_v1.json';
 import {
+  DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
   DEBTUS_SOURCE_REPAYMENT_CONTRACT_VERSION,
   parseDebtusExactMinorAmountString,
+  parseDebtusSourceObligationDueDateV1,
   parseRecordDebtusSourceRepaymentV1Request,
   parseRecordDebtusSourceRepaymentV1Response,
 } from './source-obligation-models';
+
+describe('Debtus source due-date result', () => {
+  const result = (updatedAt: string) => ({
+    contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
+    source: { namespace: 'splitus', spaceID: 'house-1', recordID: 'bill-1' },
+    lineID: 'line-1', revision: 2, dueDate: '2026-09-21', happeningID: 'task-1',
+    state: 'active', updatedAt, updatedBy: 'user-1',
+  });
+
+  it.each(['2026-09-07T05:56:12Z', '2026-09-07T05:56:12.1Z', '2026-09-07T05:56:12.123Z', '2026-09-07T05:56:12.123456789Z'])(
+    'accepts Go RFC3339Nano timestamp %s',
+    (updatedAt) => expect(parseDebtusSourceObligationDueDateV1(result(updatedAt)).updatedAt).toBe(updatedAt),
+  );
+
+  it.each(['2026-09-07T05:56:12.1234567890Z', '2026-09-07T05:56:12.123+01:00', '2026-02-30T05:56:12Z'])(
+    'rejects invalid server timestamp %s',
+    (updatedAt) => expect(() => parseDebtusSourceObligationDueDateV1(result(updatedAt))).toThrow(/UTC RFC 3339 timestamp/),
+  );
+});
 
 const request = () => ({
   contractVersion: DEBTUS_SOURCE_REPAYMENT_CONTRACT_VERSION,
