@@ -44,6 +44,17 @@ func TestRecordTransferRepaymentRequestUsesExactMinorUnitsAndExplicitSpace(t *te
 	}
 }
 
+func TestRecordTransferRepaymentRequestAcceptsRFC3339NumericUTCOffset(t *testing.T) {
+	repaidAt, err := time.Parse(time.RFC3339, "2026-09-07T12:00:00.000+00:00")
+	if err != nil {
+		t.Fatalf("parse repaidAt: %v", err)
+	}
+	valid := RecordTransferRepaymentRequest{ContractVersion: 1, SpaceID: "house", TransferID: "transfer1", Currency: "EUR", AmountMinor: "123", RepaidAt: repaidAt, OperationKey: "repay1", ActorUserID: "member1"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("expected +00:00 offset to be treated as UTC: %v", err)
+	}
+}
+
 func TestTransferDueDateResultTitleIsOptionalAndBounded(t *testing.T) {
 	result := TransferDueDateResult{
 		ContractVersion: TransferDueDateContractVersion, SpaceID: "house", TransferID: "transfer1",

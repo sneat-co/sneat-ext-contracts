@@ -157,7 +157,7 @@ func (r RecordTransferRepaymentRequest) Validate() error {
 	if err != nil || minor <= 0 {
 		return fmt.Errorf("%w: amountMinor must be positive: %v", ErrInvalidRequest, err)
 	}
-	if r.RepaidAt.IsZero() || r.RepaidAt.Location() != time.UTC || r.RepaidAt.Nanosecond()%int(time.Millisecond) != 0 {
+	if _, offset := r.RepaidAt.Zone(); r.RepaidAt.IsZero() || offset != 0 || r.RepaidAt.Nanosecond()%int(time.Millisecond) != 0 {
 		return fmt.Errorf("%w: repaidAt must be UTC with millisecond precision", ErrInvalidRequest)
 	}
 	return nil
