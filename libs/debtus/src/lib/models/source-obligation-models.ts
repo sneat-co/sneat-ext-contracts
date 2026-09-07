@@ -195,14 +195,43 @@ const utcTimestampPattern =
 const goUtcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
 
+type DebtusDueDateTaskState = 'active' | 'completed' | 'canceled';
+
+/** Fields every Debtus due-date task projection shares regardless of its owner. */
+interface IDebtusDueDateTaskFieldsV1 {
+  readonly revision: number;
+  readonly title?: string;
+  readonly dueDate?: string;
+  readonly happeningID: string;
+  readonly state: DebtusDueDateTaskState;
+  readonly todoListID?: string;
+  readonly todoItemID?: string;
+  readonly updatedAt: DebtusUtcTimestampString;
+  readonly updatedBy: string;
+}
+
+const dueDateTaskFieldKeys = [
+  'contractVersion',
+  'revision',
+  'title',
+  'dueDate',
+  'happeningID',
+  'state',
+  'todoListID',
+  'todoItemID',
+  'updatedAt',
+  'updatedBy',
+] as const;
+
 export function parseDebtusSourceObligationDueDateV1(
   value: unknown,
   expectedSource?: IDebtusSourceRefV1,
   expectedLineID?: string,
 ): IDebtusSourceObligationDueDateV1 {
   const input = exactRecord(value, 'dueDateTask', [
-    'contractVersion', 'source', 'lineID', 'revision', 'title', 'dueDate', 'happeningID',
-    'state', 'todoListID', 'todoItemID', 'updatedAt', 'updatedBy',
+    ...dueDateTaskFieldKeys,
+    'source',
+    'lineID',
   ] as const);
   if (input['contractVersion'] !== DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION) {
     throw new TypeError('unsupported Debtus source due-date contract version');
@@ -213,17 +242,146 @@ export function parseDebtusSourceObligationDueDateV1(
   if (expectedLineID !== undefined && lineID !== expectedLineID) {
     throw new TypeError('dueDateTask.lineID does not match the requested source line');
   }
+  return {
+    contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
+    source,
+    lineID,
+    ...dueDateTaskFields(input),
+  };
+}
+
+/**
+ * Parses a transfer due-date task projection. When the caller knows which
+ * transfer it asked about, pass its identity so a response naming another
+ * Space or transfer is rejected instead of silently adopted.
+ */
+export function parseDebtusTransferDueDateV1(
+  value: unknown,
+  expectedSpaceID?: string,
+  expectedTransferID?: string,
+): IDebtusTransferDueDateV1 {
+  const input = exactRecord(value, 'dueDateTask', [
+    ...dueDateTaskFieldKeys,
+    'spaceID',
+    'transferID',
+    'currency',
+    'outstandingMinor',
+  ] as const);
+  if (input['contractVersion'] !== DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION) {
+    throw new TypeError('unsupported Debtus transfer due-date contract version');
+  }
+  const spaceID = storageID(input['spaceID'], 'dueDateTask.spaceID');
+  if (expectedSpaceID !== undefined && spaceID !== expectedSpaceID) {
+    throw new TypeError('dueDateTask.spaceID does not match the requested Space');
+  }
+  const transferID = storageID(input['transferID'], 'dueDateTask.transferID');
+  if (expectedTransferID !== undefined && transferID !== expectedTransferID) {
+    throw new TypeError(
+      'dueDateTask.transferID does not match the requested transfer',
+    );
+  }
+  return {
+    contractVersion: DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
+    spaceID,
+    transferID,
+    ...dueDateTaskFields(input),
+    currency: currency(input['currency']),
+    outstandingMinor: parseDebtusExactMinorAmountString(
+      input['outstandingMinor'],
+    ),
+  };
+}
+
+/**
+ * Parses a transfer repayment receipt and binds it to the request that
+ * produced it: the receipt and its embedded due-date task must both name the
+ * requested Space and transfer.
+ */
+export function parseDebtusTransferRepaymentV1(
+  value: unknown,
+  request: Pick<IRecordDebtusTransferRepaymentV1Request, 'spaceID' | 'transferID'>,
+): IDebtusTransferRepaymentV1 {
+  const expectedSpaceID = storageID(request.spaceID, 'request.spaceID');
+  const expectedTransferID = storageID(request.transferID, 'request.transferID');
+  const input = exactRecord(value, 'transfer repayment', [
+    'contractVersion',
+    'spaceID',
+    'transferID',
+    'repaymentID',
+    'outstandingMinor',
+    'fullyRepaid',
+    'dueDateTask',
+  ] as const);
+  if (input['contractVersion'] !== DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION) {
+    throw new TypeError('unsupported Debtus transfer repayment contract version');
+  }
+  const spaceID = storageID(input['spaceID'], 'transfer repayment.spaceID');
+  if (spaceID !== expectedSpaceID) {
+    throw new TypeError('transfer repayment spaceID does not match the request');
+  }
+  const transferID = storageID(
+    input['transferID'],
+    'transfer repayment.transferID',
+  );
+  if (transferID !== expectedTransferID) {
+    throw new TypeError(
+      'transfer repayment transferID does not match the request',
+    );
+  }
+  if (typeof input['fullyRepaid'] !== 'boolean') {
+    throw new TypeError('transfer repayment.fullyRepaid must be boolean');
+  }
+  return {
+    contractVersion: DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
+    spaceID,
+    transferID,
+    repaymentID: storageID(
+      input['repaymentID'],
+      'transfer repayment.repaymentID',
+    ),
+    outstandingMinor: parseDebtusExactMinorAmountString(
+      input['outstandingMinor'],
+    ),
+    fullyRepaid: input['fullyRepaid'],
+    dueDateTask: parseDebtusTransferDueDateV1(
+      input['dueDateTask'],
+      spaceID,
+      transferID,
+    ),
+  };
+}
+
+/** Validates the owner-independent due-date task fields already key-checked by the caller. */
+function dueDateTaskFields(
+  input: Record<(typeof dueDateTaskFieldKeys)[number], unknown>,
+): IDebtusDueDateTaskFieldsV1 {
   const revision = input['revision'];
   if (!Number.isSafeInteger(revision) || (revision as number) < 1) {
     throw new TypeError('dueDateTask.revision must be a positive safe integer');
   }
-  const state = enumValue(input['state'], ['active', 'completed', 'canceled'] as const, 'dueDateTask.state');
+  const state = enumValue(
+    input['state'],
+    ['active', 'completed', 'canceled'] as const,
+    'dueDateTask.state',
+  );
   const title = input['title'];
-  if (title !== undefined && (typeof title !== 'string' || title === '' || title.trim() !== title || title.length > 100)) {
+  if (
+    title !== undefined &&
+    (typeof title !== 'string' ||
+      title === '' ||
+      title.trim() !== title ||
+      title.length > 100)
+  ) {
     throw new TypeError('dueDateTask.title must be trimmed and 1..100 characters');
   }
   const dueDate = input['dueDate'];
-  if (dueDate !== undefined && (typeof dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || new Date(`${dueDate}T00:00:00.000Z`).toISOString().slice(0, 10) !== dueDate)) {
+  if (
+    dueDate !== undefined &&
+    (typeof dueDate !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
+      new Date(`${dueDate}T00:00:00.000Z`).toISOString().slice(0, 10) !==
+        dueDate)
+  ) {
     throw new TypeError('dueDateTask.dueDate must be YYYY-MM-DD');
   }
   if (state === 'active' && dueDate === undefined) {
@@ -238,9 +396,6 @@ export function parseDebtusSourceObligationDueDateV1(
       ? undefined
       : storageID(input['todoItemID'], 'dueDateTask.todoItemID');
   return {
-    contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
-    source,
-    lineID,
     revision: revision as number,
     title,
     dueDate,

@@ -172,3 +172,29 @@ type RecordTransferRepaymentResult struct {
 	FullyRepaid      bool                   `json:"fullyRepaid"`
 	DueDateTask      TransferDueDateResult  `json:"dueDateTask"`
 }
+
+// Validate checks the receipt invariants consumers rely on, including that
+// the embedded due-date task belongs to the repaid transfer.
+func (r RecordTransferRepaymentResult) Validate() error {
+	if r.ContractVersion != TransferDueDateContractVersion {
+		return fmt.Errorf("%w: unsupported transfer repayment contract version", ErrInvalidRequest)
+	}
+	for name, value := range map[string]string{"spaceID": r.SpaceID, "transferID": r.TransferID, "repaymentID": r.RepaymentID} {
+		if err := validateID(name, value); err != nil {
+			return err
+		}
+	}
+	if _, err := r.OutstandingMinor.MinorUnits(); err != nil {
+		return fmt.Errorf("%w: invalid outstandingMinor", ErrInvalidRequest)
+	}
+	if err := r.DueDateTask.Validate(); err != nil {
+		return err
+	}
+	if r.DueDateTask.SpaceID != r.SpaceID {
+		return fmt.Errorf("%w: due-date task spaceID differs from repayment", ErrInvalidRequest)
+	}
+	if r.DueDateTask.TransferID != r.TransferID {
+		return fmt.Errorf("%w: due-date task transferID differs from repayment", ErrInvalidRequest)
+	}
+	return nil
+}

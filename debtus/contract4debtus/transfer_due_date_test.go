@@ -62,3 +62,35 @@ func TestTransferDueDateResultTitleIsOptionalAndBounded(t *testing.T) {
 		t.Fatal("accepted untrimmed title")
 	}
 }
+
+func TestRecordTransferRepaymentResultRequiresMatchingDueTaskIdentity(t *testing.T) {
+	due := TransferDueDateResult{
+		ContractVersion: TransferDueDateContractVersion, SpaceID: "house", TransferID: "transfer1",
+		Revision: 2, HappeningID: "task1", State: SourceObligationDueDateCompleted,
+		UpdatedAt: time.Now().UTC(), UpdatedBy: "member1", Currency: "EUR", OutstandingMinor: "0",
+	}
+	valid := RecordTransferRepaymentResult{
+		ContractVersion: TransferDueDateContractVersion, SpaceID: "house", TransferID: "transfer1",
+		RepaymentID: "return1", OutstandingMinor: "0", FullyRepaid: true, DueDateTask: due,
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid receipt: %v", err)
+	}
+	for name, mutate := range map[string]func(*RecordTransferRepaymentResult){
+		"other transfer in task": func(r *RecordTransferRepaymentResult) { r.DueDateTask.TransferID = "transfer2" },
+		"other space in task":    func(r *RecordTransferRepaymentResult) { r.DueDateTask.SpaceID = "flat" },
+		"active task without due": func(r *RecordTransferRepaymentResult) {
+			r.DueDateTask.State = SourceObligationDueDateActive
+		},
+		"missing repayment ID": func(r *RecordTransferRepaymentResult) { r.RepaymentID = "" },
+		"non-canonical amount": func(r *RecordTransferRepaymentResult) { r.OutstandingMinor = "01" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := valid
+			mutate(&r)
+			if err := r.Validate(); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
