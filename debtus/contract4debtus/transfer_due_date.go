@@ -54,17 +54,19 @@ func (r SetTransferDueDateRequest) Validate() error {
 }
 
 type TransferDueDateResult struct {
-	ContractVersion int                          `json:"contractVersion"`
-	SpaceID         string                       `json:"spaceID"`
-	TransferID      string                       `json:"transferID"`
-	Revision        uint64                       `json:"revision"`
-	DueDate         string                       `json:"dueDate,omitempty"`
-	HappeningID     string                       `json:"happeningID"`
-	State           SourceObligationDueDateState `json:"state"`
-	TodoListID      string                       `json:"todoListID,omitempty"`
-	TodoItemID      string                       `json:"todoItemID,omitempty"`
-	UpdatedAt       time.Time                    `json:"updatedAt"`
-	UpdatedBy       string                       `json:"updatedBy"`
+	ContractVersion  int                          `json:"contractVersion"`
+	SpaceID          string                       `json:"spaceID"`
+	TransferID       string                       `json:"transferID"`
+	Revision         uint64                       `json:"revision"`
+	DueDate          string                       `json:"dueDate,omitempty"`
+	HappeningID      string                       `json:"happeningID"`
+	State            SourceObligationDueDateState `json:"state"`
+	TodoListID       string                       `json:"todoListID,omitempty"`
+	TodoItemID       string                       `json:"todoItemID,omitempty"`
+	UpdatedAt        time.Time                    `json:"updatedAt"`
+	UpdatedBy        string                       `json:"updatedBy"`
+	Currency         string                       `json:"currency"`
+	OutstandingMinor ExactMinorAmountString       `json:"outstandingMinor"`
 }
 
 func (r TransferDueDateResult) Validate() error {
@@ -78,6 +80,12 @@ func (r TransferDueDateResult) Validate() error {
 	}
 	if r.UpdatedAt.IsZero() {
 		return fmt.Errorf("%w: updatedAt is required", ErrInvalidRequest)
+	}
+	if len(r.Currency) != 3 || strings.ToUpper(r.Currency) != r.Currency {
+		return fmt.Errorf("%w: invalid currency", ErrInvalidRequest)
+	}
+	if _, err := r.OutstandingMinor.MinorUnits(); err != nil {
+		return fmt.Errorf("%w: invalid outstandingMinor", ErrInvalidRequest)
 	}
 	if r.DueDate != "" {
 		parsed, err := time.Parse("2006-01-02", r.DueDate)

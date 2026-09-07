@@ -71,6 +71,8 @@ export interface IDebtusTransferDueDateV1 {
   readonly todoItemID?: string;
   readonly updatedAt: DebtusUtcTimestampString;
   readonly updatedBy: string;
+  readonly currency: string;
+  readonly outstandingMinor: DebtusExactMinorAmountString;
 }
 
 export interface IRecordDebtusTransferRepaymentV1Request {
