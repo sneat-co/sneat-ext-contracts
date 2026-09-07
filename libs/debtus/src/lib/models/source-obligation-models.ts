@@ -326,7 +326,7 @@ export function parseRecordDebtusSourceRepaymentV1Response(
   if (operationKey !== expected.operationKey) {
     throw new TypeError('repayment response operationKey does not match request');
   }
-  const obligation = sourceObligation(input['obligation'], source.spaceID);
+  const obligation = sourceObligation(input['obligation'], source);
   if (
     obligation.lineID !== expected.lineID ||
     obligation.currency !== expected.currency ||
@@ -396,8 +396,9 @@ function sourceContact(
 
 function sourceObligation(
   value: unknown,
-  sourceSpaceID: string,
+  source: IDebtusSourceRefV1,
 ): IDebtusSourceObligationV1 {
+  const sourceSpaceID = source.spaceID;
   const input = exactRecord(
     value,
     'obligation',
@@ -413,8 +414,16 @@ function sourceObligation(
       'creditMinor',
       'status',
       'repaymentCapability',
+      // Present once the obligation has a linked Calendar/Listus due task;
+      // the repayment receipt carries the same obligation shape as status.
+      'dueDateTask',
     ] as const,
   );
+  const lineID = storageID(input['lineID'], 'obligation.lineID');
+  const dueDateTask =
+    input['dueDateTask'] === undefined
+      ? undefined
+      : parseDebtusSourceObligationDueDateV1(input['dueDateTask'], source, lineID);
   const debtor = sourceContact(input['debtor'], 'obligation.debtor', sourceSpaceID);
   const creditor = sourceContact(
     input['creditor'],
@@ -425,7 +434,7 @@ function sourceObligation(
     throw new TypeError('obligation debtor and creditor must differ');
   }
   return {
-    lineID: storageID(input['lineID'], 'obligation.lineID'),
+    lineID,
     obligationIDs: identifierArray(
       input['obligationIDs'],
       'obligation.obligationIDs',
@@ -446,6 +455,7 @@ function sourceObligation(
       'obligation.status',
     ),
     repaymentCapability: repaymentCapability(input['repaymentCapability']),
+    ...(dueDateTask ? { dueDateTask } : {}),
   };
 }
 

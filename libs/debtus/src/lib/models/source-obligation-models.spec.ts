@@ -159,6 +159,52 @@ describe('Debtus source repayment response contract', () => {
     ).toEqual(response());
   });
 
+  it('accepts a partial repayment receipt whose obligation carries its due task', () => {
+    // The receipt uses the same obligation shape as status: once a Calendar/
+    // Listus due task exists, Debtus includes it and the receipt must remain valid.
+    const value = response();
+    const dueDateTask = {
+      contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
+      source: { namespace: 'splitus', spaceID: 'house-1', recordID: 'bill-1' },
+      lineID: 'bea-to-alex',
+      revision: 2,
+      dueDate: '2026-09-18',
+      happeningID: 'due-1',
+      state: 'active',
+      todoListID: 'do!v5',
+      todoItemID: 'source-1',
+      updatedAt: '2026-09-07T07:08:40.968Z',
+      updatedBy: 'user-1',
+    };
+    const parsed = parseRecordDebtusSourceRepaymentV1Response(
+      { ...value, obligation: { ...value.obligation, dueDateTask } },
+      request(),
+    );
+    expect(parsed.obligation.dueDateTask).toEqual(dueDateTask);
+    expect(parsed.obligation.outstandingMinor).toBe('3000');
+  });
+
+  it('rejects a receipt whose due task names another source line', () => {
+    const value = response();
+    const dueDateTask = {
+      contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
+      source: { namespace: 'splitus', spaceID: 'house-1', recordID: 'bill-1' },
+      lineID: 'other-line',
+      revision: 1,
+      dueDate: '2026-09-18',
+      happeningID: 'due-1',
+      state: 'active',
+      updatedAt: '2026-09-07T07:08:40Z',
+      updatedBy: 'user-1',
+    };
+    expect(() =>
+      parseRecordDebtusSourceRepaymentV1Response(
+        { ...value, obligation: { ...value.obligation, dueDateTask } },
+        request(),
+      ),
+    ).toThrow(/does not match the requested source line/);
+  });
+
   it('accepts a full repayment whose updated capability is unavailable', () => {
     const value = response();
     value.obligation.outstandingMinor = '0';
