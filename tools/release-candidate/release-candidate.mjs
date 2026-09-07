@@ -352,10 +352,16 @@ function sameFile(left, right, path) {
   return git(['show', `${left}:${path}`], false) === git(['show', `${right}:${path}`], false);
 }
 
-function bumpVersion(version, bump) {
+export function bumpVersion(version, bump) {
   const [major, minor, patch] = version.split('.').map(Number);
-  if (bump === 'major') return `${major + 1}.0.0`;
-  if (bump === 'minor') return `${major}.${minor + 1}.0`;
+  // Nx release keeps 0.x packages below 1.0: a "major" plan on 0.x bumps the
+  // minor, and a "minor" plan bumps the patch (observed on main 2026-09-07:
+  // budgetus-contract 0.2.6 + minor plan -> 0.2.7). Mirror that here so the
+  // expected version matches what nx actually writes; a 1.0.0 of any contract
+  // is an explicit decision, never a side effect of a plan.
+  const effective = major === 0 ? (bump === 'major' ? 'minor' : bump === 'minor' ? 'patch' : bump) : bump;
+  if (effective === 'major') return `${major + 1}.0.0`;
+  if (effective === 'minor') return `${major}.${minor + 1}.0`;
   return `${major}.${minor}.${patch + 1}`;
 }
 

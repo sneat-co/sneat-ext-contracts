@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import {
+  bumpVersion,
   classifyPublication,
   createReleaseMetadata,
   metadataPath,
@@ -341,3 +342,12 @@ function git(args, trim = true) {
   const value = execFileSync('git', args, { encoding: 'utf8' });
   return trim ? value.trim() : value;
 }
+
+test('mirrors nx major-zero semantics when computing the expected plan version', () => {
+  assert.equal(bumpVersion('0.2.6', 'major'), '0.3.0');
+  assert.equal(bumpVersion('0.2.6', 'minor'), '0.2.7');
+  assert.equal(bumpVersion('0.2.6', 'patch'), '0.2.7');
+  assert.equal(bumpVersion('1.4.2', 'major'), '2.0.0');
+  assert.equal(bumpVersion('1.4.2', 'minor'), '1.5.0');
+  assert.equal(bumpVersion('1.4.2', 'patch'), '1.4.3');
+});
