@@ -1,3 +1,20 @@
+## 0.2.7 (2026-09-07)
+
+### 🚀 Features
+
+- Move Budgetus financial outlook authority to the backend facade, retire the ([041c7f7](https://github.com/sneat-co/sneat-ext-contracts/commit/041c7f7))
+  client rollup service, and expose per-device courtesy masking separately from
+  financial state.
+
+
+### 🩹 Fixes
+
+- Expose Splitus bill actuals separately from projections, including initial participant balances, authoritative Debtus outstanding amounts, captured recurring expectations, and honest date provenance. ([92e52cc](https://github.com/sneat-co/sneat-ext-contracts/commit/92e52cc))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.2.6 (2026-09-06)
 
 ### 🩹 Fixes
