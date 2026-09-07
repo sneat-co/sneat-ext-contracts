@@ -1,6 +1,9 @@
 package contract4debtus
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestSetTransferDueDateRequestRequiresExplicitSpaceAndActor(t *testing.T) {
 	valid := SetTransferDueDateRequest{ContractVersion: 1, SpaceID: "house", TransferID: "transfer1", Title: "Repay Alex", DueDate: "2026-10-01", OperationKey: "operation1", ActorUserID: "member1"}
@@ -19,5 +22,24 @@ func TestSetTransferDueDateRequestRequiresExplicitSpaceAndActor(t *testing.T) {
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestRecordTransferRepaymentRequestUsesExactMinorUnitsAndExplicitSpace(t *testing.T) {
+	valid := RecordTransferRepaymentRequest{ContractVersion: 1, SpaceID: "house", TransferID: "transfer1", Currency: "EUR", AmountMinor: "123", RepaidAt: time.Date(2026, 9, 7, 12, 0, 0, 0, time.UTC), OperationKey: "repay1", ActorUserID: "member1"}
+	if err := valid.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*RecordTransferRepaymentRequest){
+		"space":             func(r *RecordTransferRepaymentRequest) { r.SpaceID = "" },
+		"numeric ambiguity": func(r *RecordTransferRepaymentRequest) { r.AmountMinor = "01" },
+		"lower currency":    func(r *RecordTransferRepaymentRequest) { r.Currency = "eur" },
+		"missing actor":     func(r *RecordTransferRepaymentRequest) { r.ActorUserID = "" },
+	} {
+		request := valid
+		mutate(&request)
+		if request.Validate() == nil {
+			t.Fatalf("%s accepted", name)
+		}
 	}
 }

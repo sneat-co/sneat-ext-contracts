@@ -99,4 +99,64 @@ func (r TransferDueDateResult) Validate() error {
 
 type TransferDueDates interface {
 	SetTransferDueDate(context.Context, SetTransferDueDateRequest) (TransferDueDateResult, error)
+	GetTransferDueDate(context.Context, GetTransferDueDateRequest) (TransferDueDateResult, error)
+	RecordTransferRepayment(context.Context, RecordTransferRepaymentRequest) (RecordTransferRepaymentResult, error)
+}
+
+type GetTransferDueDateRequest struct {
+	SpaceID     string `json:"spaceID"`
+	TransferID  string `json:"transferID"`
+	ActorUserID string `json:"-"`
+}
+
+func (r GetTransferDueDateRequest) Validate() error {
+	for name, value := range map[string]string{"spaceID": r.SpaceID, "transferID": r.TransferID, "actor": r.ActorUserID} {
+		if err := validateID(name, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type RecordTransferRepaymentRequest struct {
+	ContractVersion int                    `json:"contractVersion"`
+	SpaceID         string                 `json:"spaceID"`
+	TransferID      string                 `json:"transferID"`
+	Currency        string                 `json:"currency"`
+	AmountMinor     ExactMinorAmountString `json:"amountMinor"`
+	RepaidAt        time.Time              `json:"repaidAt"`
+	OperationKey    string                 `json:"operationKey"`
+	ActorUserID     string                 `json:"-"`
+}
+
+func (r RecordTransferRepaymentRequest) Validate() error {
+	if r.ContractVersion != TransferDueDateContractVersion {
+		return fmt.Errorf("%w: unsupported transfer repayment contract version", ErrInvalidRequest)
+	}
+	for name, value := range map[string]string{"spaceID": r.SpaceID, "transferID": r.TransferID, "operationKey": r.OperationKey, "actor": r.ActorUserID} {
+		if err := validateID(name, value); err != nil {
+			return err
+		}
+	}
+	if len(r.Currency) != 3 || strings.ToUpper(r.Currency) != r.Currency {
+		return fmt.Errorf("%w: currency must be 3 uppercase letters", ErrInvalidRequest)
+	}
+	minor, err := r.AmountMinor.MinorUnits()
+	if err != nil || minor <= 0 {
+		return fmt.Errorf("%w: amountMinor must be positive: %v", ErrInvalidRequest, err)
+	}
+	if r.RepaidAt.IsZero() || r.RepaidAt.Location() != time.UTC || r.RepaidAt.Nanosecond()%int(time.Millisecond) != 0 {
+		return fmt.Errorf("%w: repaidAt must be UTC with millisecond precision", ErrInvalidRequest)
+	}
+	return nil
+}
+
+type RecordTransferRepaymentResult struct {
+	ContractVersion  int                    `json:"contractVersion"`
+	SpaceID          string                 `json:"spaceID"`
+	TransferID       string                 `json:"transferID"`
+	RepaymentID      string                 `json:"repaymentID"`
+	OutstandingMinor ExactMinorAmountString `json:"outstandingMinor"`
+	FullyRepaid      bool                   `json:"fullyRepaid"`
+	DueDateTask      TransferDueDateResult  `json:"dueDateTask"`
 }
