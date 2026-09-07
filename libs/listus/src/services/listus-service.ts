@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { IListContext } from '../contexts';
 import {
   IApplyListTemplateRequest,
+  IListBrief,
   IApplyListTemplateResult,
   ListType,
 } from '../dto';
@@ -34,6 +35,10 @@ import {
 // inherited ModuleSpaceItemService surface, so it types the injected token as
 // an intersection with ModuleSpaceItemService<IListBrief, IListDbo>.
 export interface IListusService {
+  /** Watches canonical list briefs from `/spaces/{spaceID}/ext/listus`. */
+  observeSpaceLists(
+    spaceID: string,
+  ): Observable<Readonly<Record<string, IListBrief>>>;
   applyListTemplate(
     request: IApplyListTemplateRequest,
   ): Observable<IApplyListTemplateResult>;
