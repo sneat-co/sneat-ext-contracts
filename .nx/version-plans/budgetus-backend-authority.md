@@ -1,5 +1,5 @@
 ---
-budgetus-contract: major
+budgetus-contract: minor
 ---
 
 Move Budgetus financial outlook authority to the backend facade, retire the
