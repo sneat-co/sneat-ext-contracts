@@ -285,6 +285,63 @@ describe('Splitus bill response contract version 1', () => {
     );
   });
 
+  it('preserves the immutable resolved agreement source effect', () => {
+    const response = billResponse();
+    const bill = response['bill'] as Record<string, unknown>;
+    bill['resolvedSourceEffects'] = [
+      {
+        priceID: 'monthly-price',
+        priceRevision: 0,
+        expectedAmount: '80.00',
+        sourceAttributionCaptured: true,
+        assetIDs: ['shared-home'],
+        contactLinks: [{ contactID: 'bea-contact', roles: ['participant'] }],
+        ownerSpaceID: 'housemates-space',
+        agreementID: 'agreement-1',
+        enrollmentID: 'enrollment-1',
+        chargeID: 'charge-2026-08',
+        occurrenceID: 'month:2026-08',
+        direction: 'expense',
+        temporalBasis: 'contract_period_cost',
+        economicPeriod: {
+          startDate: '2026-08-01',
+          endDate: '2026-08-31',
+        },
+        invoiceReconciliationEligible: true,
+        contactAttributions: [{ id: 'bea-contact', amount: '80.00' }],
+        assetAttributions: [{ id: 'shared-home', amount: '80.00' }],
+      },
+    ];
+
+    const parsed = parseCreateSplitusBillV1Response(response);
+    expect(parsed.bill.resolvedSourceEffects).toHaveLength(1);
+    expect(parsed.bill.resolvedSourceEffects[0]).toMatchObject({
+      agreementID: 'agreement-1',
+      chargeID: 'charge-2026-08',
+      expectedAmount: '80.00',
+      direction: 'expense',
+      invoiceReconciliationEligible: true,
+    });
+  });
+
+  it('rejects a structurally invalid resolved source amount', () => {
+    const response = billResponse();
+    const bill = response['bill'] as Record<string, unknown>;
+    bill['resolvedSourceEffects'] = [
+      {
+        priceID: 'monthly-price',
+        priceRevision: 2,
+        expectedAmount: 80,
+        sourceAttributionCaptured: true,
+        ownerSpaceID: 'housemates-space',
+      },
+    ];
+
+    expect(() => parseCreateSplitusBillV1Response(response)).toThrow(
+      'canonical decimal string',
+    );
+  });
+
   it('rejects a numeric amount from an untrusted API response', () => {
     const response = billResponse();
     const bill = response['bill'] as Record<string, unknown>;

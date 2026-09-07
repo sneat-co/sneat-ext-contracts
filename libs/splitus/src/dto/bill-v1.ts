@@ -102,6 +102,48 @@ export interface ISplitusPreviousComparableBillV1 {
   >;
 }
 
+export type SplitusResolvedSourceDirection =
+  | 'expense'
+  | 'income'
+  | 'transfer';
+
+export type SplitusResolvedSourceTemporalBasis =
+  | 'occurrence_service_cost'
+  | 'contract_period_cost'
+  | 'normalized_service_cost';
+
+export interface ISplitusSourceContactLinkV1 {
+  readonly contactID: string;
+  readonly roles: readonly string[];
+}
+
+export interface ISplitusSourceAttributionV1 {
+  readonly id: string;
+  readonly amount: ExactDecimalString;
+}
+
+/** Immutable source facts captured by Splitus when the actual bill is accepted. */
+export interface ISplitusResolvedSourceEffectV1 {
+  readonly priceID: string;
+  readonly priceRevision: number;
+  readonly expectedAmount: ExactDecimalString;
+  readonly sourceAttributionCaptured: boolean;
+  readonly assetIDs: readonly string[];
+  readonly contactLinks: readonly ISplitusSourceContactLinkV1[];
+  /** Present as one complete group for agreement-backed reconciliation. */
+  readonly ownerSpaceID?: string;
+  readonly agreementID?: string;
+  readonly enrollmentID?: string;
+  readonly chargeID?: string;
+  readonly occurrenceID?: string;
+  readonly direction?: SplitusResolvedSourceDirection;
+  readonly temporalBasis?: SplitusResolvedSourceTemporalBasis;
+  readonly economicPeriod?: ISplitusBillingPeriodV1;
+  readonly invoiceReconciliationEligible?: boolean;
+  readonly contactAttributions: readonly ISplitusSourceAttributionV1[];
+  readonly assetAttributions: readonly ISplitusSourceAttributionV1[];
+}
+
 export interface ICreateSplitusBillV1Request {
   readonly contractVersion: SplitusBillContractVersion;
   readonly spaceID: string;
@@ -190,6 +232,7 @@ export interface ISplitusDebtusStatusV1 {
 }
 
 export interface ISplitusBillV1 extends ICreateSplitusBillV1Request {
+  readonly resolvedSourceEffects?: readonly ISplitusResolvedSourceEffectV1[];
   /** Canonical positive decimal integer encoded as a string. */
   readonly revision: string;
   readonly posting: ISplitusBillPostingV1;
@@ -422,6 +465,7 @@ export function parseListSplitusBillsV1Response(
 export function parseSplitusBillV1(value: unknown): ISplitusBillV1 {
   const input = record(value, 'bill');
   const request = parseCreateSplitusBillV1Request(input);
+  const resolvedSourceEffects = sourceEffects(input['resolvedSourceEffects']);
   const revisionValue = positiveIntegerString(input['revision'], 'revision');
   const createdAt = timestamp(input['createdAt'], 'createdAt');
   const updatedAt = timestamp(input['updatedAt'], 'updatedAt');
@@ -450,12 +494,138 @@ export function parseSplitusBillV1(value: unknown): ISplitusBillV1 {
   }
   return {
     ...request,
+    resolvedSourceEffects,
     revision: revisionValue,
     posting: postingValue,
     debtus: debtusValue,
     createdAt,
     updatedAt,
   };
+}
+
+function sourceEffects(
+  value: unknown,
+): readonly ISplitusResolvedSourceEffectV1[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new RangeError('resolvedSourceEffects exceeds maximum item count 100');
+  }
+  const effects = value.map((item, index) => sourceEffect(item, index));
+  return effects;
+}
+
+function sourceEffect(
+  value: unknown,
+  index: number,
+): ISplitusResolvedSourceEffectV1 {
+  const input = record(value, `resolvedSourceEffects[${index}]`);
+  const agreementID = optionalStorageID(input['agreementID'], 'agreementID');
+  const priceRevision = input['priceRevision'];
+  if (
+    typeof priceRevision !== 'number' ||
+    !Number.isSafeInteger(priceRevision) ||
+    priceRevision < 0
+  ) {
+    throw new RangeError('priceRevision must be a non-negative safe integer');
+  }
+  const expectedAmount = parseExactDecimalString(
+    input['expectedAmount'],
+  );
+  if (typeof input['sourceAttributionCaptured'] !== 'boolean') {
+    throw new TypeError('sourceAttributionCaptured must be boolean');
+  }
+  const assetIDs =
+    input['assetIDs'] === undefined
+      ? []
+      : identifierArray(input['assetIDs'], 'assetIDs', 100);
+  const contactLinks = sourceContactLinks(input['contactLinks']);
+  const ownerSpaceID = optionalStorageID(input['ownerSpaceID'], 'ownerSpaceID');
+  const enrollmentID = optionalStorageID(input['enrollmentID'], 'enrollmentID');
+  const chargeID = optionalStorageID(input['chargeID'], 'chargeID');
+  const occurrenceID = optionalStorageID(input['occurrenceID'], 'occurrenceID');
+  const direction = optionalEnum(
+    input['direction'],
+    ['expense', 'income', 'transfer'] as const,
+    'direction',
+  );
+  const temporalBasis = optionalEnum(
+    input['temporalBasis'],
+    [
+      'occurrence_service_cost',
+      'contract_period_cost',
+      'normalized_service_cost',
+    ] as const,
+    'temporalBasis',
+  );
+  const economicPeriod =
+    input['economicPeriod'] === undefined
+      ? undefined
+      : period(input['economicPeriod']);
+  const eligible = optionalBoolean(
+    input['invoiceReconciliationEligible'],
+    'invoiceReconciliationEligible',
+  );
+  const contactAttributions = sourceAttributions(
+    input['contactAttributions'],
+    'contactAttributions',
+  );
+  const assetAttributions = sourceAttributions(
+    input['assetAttributions'],
+    'assetAttributions',
+  );
+  return {
+    priceID: storageID(input['priceID'], 'priceID'),
+    priceRevision,
+    expectedAmount,
+    sourceAttributionCaptured: input['sourceAttributionCaptured'],
+    assetIDs,
+    contactLinks,
+    ownerSpaceID,
+    agreementID,
+    enrollmentID,
+    chargeID,
+    occurrenceID,
+    direction,
+    temporalBasis,
+    economicPeriod,
+    invoiceReconciliationEligible: eligible,
+    contactAttributions,
+    assetAttributions,
+  };
+}
+
+function sourceContactLinks(value: unknown): readonly ISplitusSourceContactLinkV1[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new RangeError('contactLinks exceeds maximum item count 100');
+  }
+  const links = value.map((item, index) => {
+    const input = record(item, `contactLinks[${index}]`);
+    const roles = textArray(input['roles'], `contactLinks[${index}].roles`, 32);
+    return {
+      contactID: storageID(input['contactID'], `contactLinks[${index}].contactID`),
+      roles,
+    };
+  });
+  return links;
+}
+
+function sourceAttributions(
+  value: unknown,
+  name: string,
+): readonly ISplitusSourceAttributionV1[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new RangeError(`${name} exceeds maximum item count 100`);
+  }
+  const values = value.map((item, index) => {
+    const input = record(item, `${name}[${index}]`);
+    return {
+      id: storageID(input['id'], `${name}[${index}].id`),
+      amount: parseExactDecimalString(input['amount']),
+    };
+  });
+  return values;
 }
 
 function splitusBillListItem(value: unknown): ISplitusBillListItemV1 {
@@ -1181,4 +1351,37 @@ function enumValue<const T extends readonly string[]>(
     throw new TypeError(`${name} has an unsupported value`);
   }
   return value as T[number];
+}
+
+function optionalStorageID(value: unknown, name: string): string | undefined {
+  return value === undefined ? undefined : storageID(value, name);
+}
+
+function optionalEnum<const T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+  name: string,
+): T[number] | undefined {
+  return value === undefined ? undefined : enumValue(value, allowed, name);
+}
+
+function optionalBoolean(value: unknown, name: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'boolean') throw new TypeError(`${name} must be boolean`);
+  return value;
+}
+
+function textArray(value: unknown, name: string, maximum: number): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > maximum) {
+    throw new RangeError(`${name} exceeds maximum item count ${maximum}`);
+  }
+  const values = value.map((item, index) =>
+    optionalText(item, `${name}[${index}]`, 100),
+  );
+  if (values.some((item) => item === undefined)) {
+    throw new TypeError(`${name} contains an invalid value`);
+  }
+  const result = values as string[];
+  return result;
 }
