@@ -185,3 +185,37 @@ export interface IRevokeFinancialAgreementGrantRequest
   extends IConfirmFinancialAgreementRequest {
   readonly reason?: string;
 }
+
+export interface IFinancialAgreementOfferReadRequest {
+  readonly ownerSpaceID: string;
+  readonly agreementID: string;
+  readonly partySpaceID: string;
+}
+
+/**
+ * The deliberately narrow cross-Space offer view: selected terms and party
+ * shares, never owner enrollment, contacts, assets, or arbitrary happening
+ * data. Mirrors the Go `FinancialAgreementOfferView` JSON exactly.
+ */
+export interface IFinancialAgreementOfferView {
+  readonly ownerSpaceID: string;
+  readonly reportingSpaceID: string;
+  readonly agreementID: string;
+  readonly happeningID: string;
+  readonly happeningTitle: string;
+  readonly revision: number;
+  readonly termsRevision: number;
+  readonly state: FinancialAgreementState;
+  readonly payers: readonly IFinancialPartyShare[];
+  readonly receivers: readonly IFinancialPartyShare[];
+  readonly acceptedPrice: IAcceptedPriceTerms;
+  readonly effectiveFromISO: string;
+  readonly effectiveToISO?: string;
+}
+
+export interface IFinancialAgreementConfirmationResponse {
+  readonly agreementID: string;
+  readonly revision: number;
+  readonly state: FinancialAgreementState;
+  readonly updatedAt: string;
+}
