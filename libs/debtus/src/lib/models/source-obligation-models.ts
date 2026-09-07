@@ -73,6 +73,26 @@ export interface IDebtusTransferDueDateV1 {
   readonly updatedBy: string;
 }
 
+export interface IRecordDebtusTransferRepaymentV1Request {
+  readonly contractVersion: typeof DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION;
+  readonly spaceID: string;
+  readonly transferID: string;
+  readonly currency: string;
+  readonly amountMinor: DebtusExactMinorAmountString;
+  readonly repaidAt: DebtusUtcTimestampString;
+  readonly operationKey: string;
+}
+
+export interface IDebtusTransferRepaymentV1 {
+  readonly contractVersion: typeof DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION;
+  readonly spaceID: string;
+  readonly transferID: string;
+  readonly repaymentID: string;
+  readonly outstandingMinor: DebtusExactMinorAmountString;
+  readonly fullyRepaid: boolean;
+  readonly dueDateTask: IDebtusTransferDueDateV1;
+}
+
 export interface IDebtusSourceContactRefV1 {
   readonly spaceID: string;
   readonly contactID: string;
