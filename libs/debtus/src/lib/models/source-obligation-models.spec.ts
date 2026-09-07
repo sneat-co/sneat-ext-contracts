@@ -3,8 +3,11 @@ import wholeSecondWireExample from '../../../../../debtus/contract4debtus/testda
 import {
   DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
   DEBTUS_SOURCE_REPAYMENT_CONTRACT_VERSION,
+  DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
   parseDebtusExactMinorAmountString,
   parseDebtusSourceObligationDueDateV1,
+  parseDebtusTransferDueDateV1,
+  parseDebtusTransferRepaymentV1,
   parseRecordDebtusSourceRepaymentV1Request,
   parseRecordDebtusSourceRepaymentV1Response,
 } from './source-obligation-models';
@@ -33,6 +36,91 @@ describe('Debtus source due-date result', () => {
     'rejects invalid server timestamp %s',
     (updatedAt) => expect(() => parseDebtusSourceObligationDueDateV1(result(updatedAt))).toThrow(/UTC RFC 3339 timestamp/),
   );
+});
+
+const omit = (value: Record<string, unknown>, key: string) => {
+  const copy = { ...value };
+  delete copy[key];
+  return copy;
+};
+
+describe('Debtus transfer due-date result', () => {
+  const result = (updatedAt: string) => ({
+    contractVersion: DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
+    spaceID: 'house-1', transferID: 'transfer-1', revision: 2, title: 'Repay Alex',
+    dueDate: '2026-09-21', happeningID: 'task-1', state: 'active', updatedAt,
+    updatedBy: 'user-1', currency: 'EUR', outstandingMinor: '377',
+  });
+
+  it.each(['2026-09-07T05:56:12Z', '2026-09-07T05:56:12.1Z', '2026-09-07T05:56:12.123Z', '2026-09-07T05:56:12.123456789Z'])(
+    'accepts Go RFC3339Nano timestamp %s',
+    (updatedAt) => expect(parseDebtusTransferDueDateV1(result(updatedAt)).updatedAt).toBe(updatedAt),
+  );
+
+  it.each(['2026-09-07T05:56:12.1234567890Z', '2026-09-07T05:56:12.123+01:00', '2026-02-30T05:56:12Z'])(
+    'rejects invalid server timestamp %s',
+    (updatedAt) => expect(() => parseDebtusTransferDueDateV1(result(updatedAt))).toThrow(/UTC RFC 3339 timestamp/),
+  );
+
+  it('returns the exact projection and keeps legacy results without a title', () => {
+    const titled = result('2026-09-07T05:56:12Z');
+    expect(parseDebtusTransferDueDateV1(titled)).toEqual(titled);
+    expect(parseDebtusTransferDueDateV1({ ...titled, title: undefined }).title).toBeUndefined();
+  });
+
+  it('binds the result to the requested Space and transfer', () => {
+    const value = result('2026-09-07T05:56:12Z');
+    expect(parseDebtusTransferDueDateV1(value, 'house-1', 'transfer-1').transferID).toBe('transfer-1');
+    expect(() => parseDebtusTransferDueDateV1(value, 'house-2', 'transfer-1')).toThrow(/does not match the requested Space/);
+    expect(() => parseDebtusTransferDueDateV1(value, 'house-1', 'transfer-2')).toThrow(/does not match the requested transfer/);
+  });
+
+  it('rejects an active task without dueDate and accepts a completed one', () => {
+    const withoutDueDate = omit(result('2026-09-07T05:56:12Z'), 'dueDate');
+    expect(() => parseDebtusTransferDueDateV1(withoutDueDate)).toThrow(/active dueDateTask requires dueDate/);
+    expect(parseDebtusTransferDueDateV1({ ...withoutDueDate, state: 'completed' }).state).toBe('completed');
+  });
+
+  it('rejects unknown fields, numeric amounts, and foreign contract versions', () => {
+    const value = result('2026-09-07T05:56:12Z');
+    expect(() => parseDebtusTransferDueDateV1({ ...value, actorUserID: 'user-1' })).toThrow(/unsupported field actorUserID/);
+    expect(() => parseDebtusTransferDueDateV1({ ...value, outstandingMinor: 377 })).toThrow(/canonical non-negative integer string/);
+    expect(() => parseDebtusTransferDueDateV1({ ...value, currency: 'eur' })).toThrow(/currency/);
+    expect(() => parseDebtusTransferDueDateV1({ ...value, revision: 0 })).toThrow(/revision/);
+  });
+});
+
+describe('Debtus transfer repayment receipt', () => {
+  const owner = { spaceID: 'house-1', transferID: 'transfer-1' };
+  const dueDateTask = () => ({
+    contractVersion: DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
+    ...owner, revision: 3, dueDate: '2026-09-21', happeningID: 'task-1', state: 'completed',
+    updatedAt: '2026-09-07T05:56:12.123456789Z', updatedBy: 'user-1', currency: 'EUR', outstandingMinor: '0',
+  });
+  const receipt = () => ({
+    contractVersion: DEBTUS_TRANSFER_DUE_DATE_CONTRACT_VERSION,
+    ...owner, repaymentID: 'return-1', outstandingMinor: '0', fullyRepaid: true, dueDateTask: dueDateTask(),
+  });
+
+  it('accepts a receipt whose due task names the same transfer', () => {
+    expect(parseDebtusTransferRepaymentV1(receipt(), owner)).toEqual(receipt());
+  });
+
+  it('rejects a receipt for another transfer or Space', () => {
+    expect(() => parseDebtusTransferRepaymentV1({ ...receipt(), transferID: 'transfer-2' }, owner)).toThrow(/transferID does not match the request/);
+    expect(() => parseDebtusTransferRepaymentV1(receipt(), { ...owner, spaceID: 'house-2' })).toThrow(/spaceID does not match the request/);
+  });
+
+  it('rejects a receipt whose embedded due task names another transfer', () => {
+    const value = { ...receipt(), dueDateTask: { ...dueDateTask(), transferID: 'transfer-2' } };
+    expect(() => parseDebtusTransferRepaymentV1(value, owner)).toThrow(/dueDateTask.transferID does not match/);
+  });
+
+  it('rejects unknown fields, missing due task, and non-boolean fullyRepaid', () => {
+    expect(() => parseDebtusTransferRepaymentV1({ ...receipt(), actorUserID: 'user-1' }, owner)).toThrow(/unsupported field actorUserID/);
+    expect(() => parseDebtusTransferRepaymentV1(omit(receipt(), 'dueDateTask'), owner)).toThrow(/dueDateTask must be an object/);
+    expect(() => parseDebtusTransferRepaymentV1({ ...receipt(), fullyRepaid: 'true' }, owner)).toThrow(/fullyRepaid must be boolean/);
+  });
 });
 
 const request = () => ({
