@@ -1,22 +1,70 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "42f844ce1cbbbf68f781502786a6a91d6cdb56de",
+  "reviewedSource": "7c03256785b5f107c832ec6ede8dfd31690b2ba5",
   "plans": [
     {
-      "path": ".nx/version-plans/contactus-contact-title.md",
-      "sha256": "c4de6341116b3fd828dcaaeb2d88b5e1e0852b563cae0c0233ed99428d549b6a"
+      "path": ".nx/version-plans/budgetus-backend-authority.md",
+      "sha256": "44e8c0361198b692e936d29f194dd9f42dbfc80120aecf09d657407a81292519"
+    },
+    {
+      "path": ".nx/version-plans/financial-agreement-provider-union-20260906.md",
+      "sha256": "efd387210e7ed20cdca6b9c9f97b1472e75b8913ed665e8a6e4909654e6609fa"
+    },
+    {
+      "path": ".nx/version-plans/version-plan-1788691200000.md",
+      "sha256": "608197d333f5f834468c629c2d11384dfa83c56126d8fb1e2627e919fd5c13b6"
     }
   ],
   "releases": [
     {
-      "family": "contactus",
-      "project": "contactus-contract",
-      "package": "@sneat/extension-contactus-contract",
-      "manifestPath": "libs/contactus/package.json",
-      "changelogPath": "libs/contactus/CHANGELOG.md",
-      "version": "0.12.9",
-      "npmTag": "contactus-contract-v0.12.9",
-      "siblingGoTag": "contactus/v0.12.9"
+      "family": "budgetus",
+      "project": "budgetus-contract",
+      "package": "@sneat/extension-budgetus-contract",
+      "manifestPath": "libs/budgetus/package.json",
+      "changelogPath": "libs/budgetus/CHANGELOG.md",
+      "version": "0.2.7",
+      "npmTag": "budgetus-contract-v0.2.7",
+      "siblingGoTag": null
+    },
+    {
+      "family": "calendarius",
+      "project": "calendarius-contract",
+      "package": "@sneat/extension-calendarius-contract",
+      "manifestPath": "libs/calendarius/package.json",
+      "changelogPath": "libs/calendarius/CHANGELOG.md",
+      "version": "0.27.8",
+      "npmTag": "calendarius-contract-v0.27.8",
+      "siblingGoTag": "calendarius/v0.27.8"
+    },
+    {
+      "family": "debtus",
+      "project": "debtus-contract",
+      "package": "@sneat/extension-debtus-contract",
+      "manifestPath": "libs/debtus/package.json",
+      "changelogPath": "libs/debtus/CHANGELOG.md",
+      "version": "0.2.4",
+      "npmTag": "debtus-contract-v0.2.4",
+      "siblingGoTag": "debtus/v0.2.4"
+    },
+    {
+      "family": "listus",
+      "project": "listus-contract",
+      "package": "@sneat/extension-listus-contract",
+      "manifestPath": "libs/listus/package.json",
+      "changelogPath": "libs/listus/CHANGELOG.md",
+      "version": "0.0.10",
+      "npmTag": "listus-contract-v0.0.10",
+      "siblingGoTag": "listus/v0.0.10"
+    },
+    {
+      "family": "splitus",
+      "project": "splitus-contract",
+      "package": "@sneat/extension-splitus-contract",
+      "manifestPath": "libs/splitus/package.json",
+      "changelogPath": "libs/splitus/CHANGELOG.md",
+      "version": "0.2.3",
+      "npmTag": "splitus-contract-v0.2.3",
+      "siblingGoTag": "splitus/v0.2.3"
     }
   ]
 }
