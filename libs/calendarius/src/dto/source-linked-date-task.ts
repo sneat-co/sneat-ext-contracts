@@ -7,6 +7,7 @@ export interface ISourceLinkedDateTaskRef {
   readonly namespace: string;
   readonly ownerSpaceID: string;
   readonly recordID: string;
+  /** Opaque source-owned identity, up to 512 UTF-8 bytes; never a document path. */
   readonly lineID: string;
 }
 

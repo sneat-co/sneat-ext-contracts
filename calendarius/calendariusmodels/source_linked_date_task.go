@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sneat-co/sneat-go-core/coretypes"
 	corevalidate "github.com/sneat-co/sneat-go-core/validate"
@@ -63,7 +64,7 @@ func (v SourceLinkedDateTaskRef) Validate() error {
 	if err := coretypes.ValidateSpaceID(coretypes.SpaceID(v.OwnerSpaceID)); err != nil {
 		return fmt.Errorf("ownerSpaceID: %w", err)
 	}
-	for name, value := range map[string]string{"namespace": v.Namespace, "recordID": v.RecordID, "lineID": v.LineID} {
+	for name, value := range map[string]string{"namespace": v.Namespace, "recordID": v.RecordID} {
 		if value != strings.TrimSpace(value) || value == "" || len(value) > 100 {
 			return fmt.Errorf("%s must be a trimmed non-empty identifier of at most 100 bytes", name)
 		}
@@ -71,8 +72,16 @@ func (v SourceLinkedDateTaskRef) Validate() error {
 	if err := corevalidate.RecordID(v.RecordID); err != nil {
 		return fmt.Errorf("recordID: %w", err)
 	}
-	if err := corevalidate.RecordID(v.LineID); err != nil {
-		return fmt.Errorf("lineID: %w", err)
+	// A source line is an opaque domain identity, not a Firestore document ID.
+	// Match the shared financial source-line boundary; composite Splitus IDs
+	// must remain intact rather than being truncated or replaced by another ID.
+	if !utf8.ValidString(v.LineID) || v.LineID == "" || strings.TrimSpace(v.LineID) != v.LineID || len(v.LineID) > 512 {
+		return fmt.Errorf("lineID must be a trimmed non-empty identifier of at most 512 bytes")
+	}
+	for _, character := range v.LineID {
+		if character < 0x20 || character == 0x7f {
+			return fmt.Errorf("lineID must not contain control characters")
+		}
 	}
 	return nil
 }

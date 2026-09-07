@@ -1,10 +1,25 @@
 package calendariusmodels
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sneat-co/sneat-go-core/coretypes"
 )
+
+func TestLinkedDateTaskPreservesCompositeFinancialLineIdentity(t *testing.T) {
+	v := validLinkedTaskRequest()
+	v.Source.LineID = "shared/bill/" + strings.Repeat("a", 500)
+	if err := v.Validate(); err != nil {
+		t.Fatalf("valid opaque financial line rejected: %v", err)
+	}
+	for _, invalid := range []string{strings.Repeat("a", 513), "line\n1", " line", string([]byte{0xff})} {
+		v.Source.LineID = invalid
+		if err := v.Validate(); err == nil {
+			t.Fatalf("invalid source line accepted: %q", invalid)
+		}
+	}
+}
 
 func validLinkedTaskRequest() MutateSourceLinkedDateTaskRequest {
 	return MutateSourceLinkedDateTaskRequest{OperationID: "op1", Source: SourceLinkedDateTaskRef{Namespace: "debtus", OwnerSpaceID: "family1", RecordID: "debt1", LineID: "payment1"}, Title: "Pay electricity bill", DueDate: "2026-09-30", State: SourceLinkedDateTaskActive, ActionID: "open-source", ActionDisposition: SourceLinkedDateTaskNavigate, Related: []SourceLinkedDateTaskRelatedRef{{ItemRef: coretypes.ItemRef{ExtID: "debtus", Collection: "obligations", ItemID: "debt1"}, Role: "source"}}}
