@@ -13,7 +13,7 @@ describe('Debtus source due-date result', () => {
   const result = (updatedAt: string) => ({
     contractVersion: DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION,
     source: { namespace: 'splitus', spaceID: 'house-1', recordID: 'bill-1' },
-    lineID: 'line-1', revision: 2, dueDate: '2026-09-21', happeningID: 'task-1',
+    lineID: 'line-1', revision: 2, title: 'Pay electricity', dueDate: '2026-09-21', happeningID: 'task-1',
     state: 'active', updatedAt, updatedBy: 'user-1',
   });
 
@@ -21,6 +21,13 @@ describe('Debtus source due-date result', () => {
     'accepts Go RFC3339Nano timestamp %s',
     (updatedAt) => expect(parseDebtusSourceObligationDueDateV1(result(updatedAt)).updatedAt).toBe(updatedAt),
   );
+
+  it('keeps title when present and accepts legacy results without it', () => {
+    const titled = result('2026-09-07T05:56:12Z');
+    expect(parseDebtusSourceObligationDueDateV1(titled).title).toBe('Pay electricity');
+    const legacy = { ...titled, title: undefined };
+    expect(parseDebtusSourceObligationDueDateV1(legacy).title).toBeUndefined();
+  });
 
   it.each(['2026-09-07T05:56:12.1234567890Z', '2026-09-07T05:56:12.123+01:00', '2026-02-30T05:56:12Z'])(
     'rejects invalid server timestamp %s',

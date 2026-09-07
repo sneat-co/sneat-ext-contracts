@@ -39,6 +39,7 @@ export interface IDebtusSourceObligationDueDateV1 {
   readonly source: IDebtusSourceRefV1;
   readonly lineID: string;
   readonly revision: number;
+  readonly title?: string;
   readonly dueDate?: string;
   readonly happeningID: string;
   readonly state: 'active' | 'completed' | 'canceled';
@@ -64,6 +65,7 @@ export interface IDebtusTransferDueDateV1 {
   readonly spaceID: string;
   readonly transferID: string;
   readonly revision: number;
+  readonly title?: string;
   readonly dueDate?: string;
   readonly happeningID: string;
   readonly state: 'active' | 'completed' | 'canceled';
@@ -199,7 +201,7 @@ export function parseDebtusSourceObligationDueDateV1(
   expectedLineID?: string,
 ): IDebtusSourceObligationDueDateV1 {
   const input = exactRecord(value, 'dueDateTask', [
-    'contractVersion', 'source', 'lineID', 'revision', 'dueDate', 'happeningID',
+    'contractVersion', 'source', 'lineID', 'revision', 'title', 'dueDate', 'happeningID',
     'state', 'todoListID', 'todoItemID', 'updatedAt', 'updatedBy',
   ] as const);
   if (input['contractVersion'] !== DEBTUS_SOURCE_DUE_DATE_CONTRACT_VERSION) {
@@ -216,6 +218,10 @@ export function parseDebtusSourceObligationDueDateV1(
     throw new TypeError('dueDateTask.revision must be a positive safe integer');
   }
   const state = enumValue(input['state'], ['active', 'completed', 'canceled'] as const, 'dueDateTask.state');
+  const title = input['title'];
+  if (title !== undefined && (typeof title !== 'string' || title === '' || title.trim() !== title || title.length > 100)) {
+    throw new TypeError('dueDateTask.title must be trimmed and 1..100 characters');
+  }
   const dueDate = input['dueDate'];
   if (dueDate !== undefined && (typeof dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || new Date(`${dueDate}T00:00:00.000Z`).toISOString().slice(0, 10) !== dueDate)) {
     throw new TypeError('dueDateTask.dueDate must be YYYY-MM-DD');
@@ -236,6 +242,7 @@ export function parseDebtusSourceObligationDueDateV1(
     source,
     lineID,
     revision: revision as number,
+    title,
     dueDate,
     happeningID: storageID(input['happeningID'], 'dueDateTask.happeningID'),
     state,

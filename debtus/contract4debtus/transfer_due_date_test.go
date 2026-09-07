@@ -43,3 +43,22 @@ func TestRecordTransferRepaymentRequestUsesExactMinorUnitsAndExplicitSpace(t *te
 		}
 	}
 }
+
+func TestTransferDueDateResultTitleIsOptionalAndBounded(t *testing.T) {
+	result := TransferDueDateResult{
+		ContractVersion: TransferDueDateContractVersion, SpaceID: "house", TransferID: "transfer1",
+		Revision: 1, DueDate: "2026-10-01", HappeningID: "task1", State: SourceObligationDueDateActive,
+		UpdatedAt: time.Now().UTC(), UpdatedBy: "member1", Currency: "EUR", OutstandingMinor: "123",
+	}
+	if err := result.Validate(); err != nil {
+		t.Fatalf("legacy result without title: %v", err)
+	}
+	result.Title = "Repay Alex"
+	if err := result.Validate(); err != nil {
+		t.Fatalf("result with title: %v", err)
+	}
+	result.Title = " untrimmed"
+	if err := result.Validate(); err == nil {
+		t.Fatal("accepted untrimmed title")
+	}
+}

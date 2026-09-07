@@ -816,6 +816,7 @@ type SourceObligationDueDateResult struct {
 	Source          SourceRef                    `json:"source"`
 	LineID          string                       `json:"lineID"`
 	Revision        uint64                       `json:"revision"`
+	Title           string                       `json:"title,omitempty"`
 	DueDate         string                       `json:"dueDate,omitempty"`
 	HappeningID     string                       `json:"happeningID"`
 	State           SourceObligationDueDateState `json:"state"`
@@ -846,6 +847,9 @@ func (r SourceObligationDueDateResult) Validate() error {
 	}
 	if err := validateID("updatedBy", r.UpdatedBy); err != nil {
 		return err
+	}
+	if r.Title != "" && (r.Title != strings.TrimSpace(r.Title) || len(r.Title) > 100) {
+		return fmt.Errorf("%w: title must be trimmed and at most 100 bytes", ErrInvalidRequest)
 	}
 	if r.UpdatedAt.IsZero() {
 		return fmt.Errorf("%w: updatedAt is required", ErrInvalidRequest)
