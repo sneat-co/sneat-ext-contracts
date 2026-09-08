@@ -111,6 +111,15 @@ test('rejects forged reviewed plan content', () => {
   );
 });
 
+test('accepts a changelog created by a first publication', () => {
+  const repo = newFixture({ initialChangelog: false });
+  process.chdir(repo.path);
+
+  assert.doesNotThrow(
+    () => validateGeneratedTree({ source: repo.source, candidate: repo.candidate, metadata: repo.metadata }),
+  );
+});
+
 test('rejects a candidate presented against a different reviewed source', () => {
   const repo = newFixture();
   process.chdir(repo.path);
@@ -296,7 +305,7 @@ test('preserves partial npm retry and refuses a wrong-SHA tag', () => {
   );
 });
 
-function newFixture({ merge = true } = {}) {
+function newFixture({ merge = true, initialChangelog = true } = {}) {
   const path = mkdtempSync(join(tmpdir(), 'contract-release-'));
   process.chdir(path);
   git(['init', '-b', 'main']);
@@ -308,7 +317,7 @@ function newFixture({ merge = true } = {}) {
   writeFileSync('.nx/version-plans/contactus.md', '---\ncontactus-contract: patch\n---\n\nRelease helper.\n');
   writeFileSync('libs/contactus/project.json', '{"name":"contactus-contract"}\n');
   writeFileSync('libs/contactus/package.json', '{"name":"@sneat/extension-contactus-contract","version":"0.12.8"}\n');
-  writeFileSync('libs/contactus/CHANGELOG.md', '# Changelog\n');
+  if (initialChangelog) writeFileSync('libs/contactus/CHANGELOG.md', '# Changelog\n');
   writeFileSync('contactus/go.mod', 'module example.test/contactus\n');
   git(['add', '.']);
   git(['commit', '-m', 'reviewed source']);
