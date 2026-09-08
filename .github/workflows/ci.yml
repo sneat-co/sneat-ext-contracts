@@ -44,7 +44,9 @@ jobs:
       # contract this repo owns (contracts.json) must install and type-check
       # together. Trivial pass while contracts.json lists no family (Phase 0).
       - name: Tier-coherence check
-        run: node tools/tier-coherence/check.mjs
+        run: |
+          node --test tools/tier-coherence/check.test.mjs
+          node tools/tier-coherence/check.mjs
 
       # REQ peer-range-no-exact-pins: no libs/<family>/package.json may
       # declare a bare exact @sneat/* peer/dependency (ng-packagr copies

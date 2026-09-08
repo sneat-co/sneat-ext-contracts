@@ -14,7 +14,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -41,6 +41,75 @@ function entryNpmName(entry) {
   return typeof entry === 'string' ? entry : (entry.npmName ?? entry.dir);
 }
 
+function packageName(entry) {
+  return `@sneat/extension-${entryNpmName(entry)}-contract`;
+}
+
+export function isRegistryNotFound(error) {
+  const output = `${error?.stdout ?? ''}\n${error?.stderr ?? ''}`;
+  return /(?:^|\s)(?:E404|ERR_PNPM_FETCH_404)(?:\s|$)/m.test(output)
+    || /\b404\s+Not Found\b/i.test(output);
+}
+
+function isPublished(name) {
+  try {
+    execFileSync('npm', ['view', `${name}@latest`, 'version', '--json'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return true;
+  } catch (error) {
+    if (isRegistryNotFound(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function packLocalContract(entry) {
+  const dir = entryDir(entry);
+  const project = JSON.parse(
+    readFileSync(path.join(repoRoot, 'libs', dir, 'project.json'), 'utf8'),
+  );
+  const packDir = path.join(workDir, 'local-packages');
+  mkdirSync(packDir, { recursive: true });
+  execFileSync('pnpm', ['nx', 'build', project.name, '--skip-nx-cache'], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  });
+  const packed = JSON.parse(execFileSync(
+    'npm',
+    [
+      'pack',
+      path.join(repoRoot, 'dist', 'libs', dir),
+      '--json',
+      '--pack-destination',
+      packDir,
+    ],
+    { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
+  ));
+  if (packed.length !== 1 || packed[0].name !== packageName(entry)) {
+    throw new Error(`tier-coherence: local package identity mismatch for ${dir}`);
+  }
+  return `file:${path.join(packDir, packed[0].filename)}`;
+}
+
+export function createDependencyPlan(families, published, localPackage) {
+  const dependencies = {};
+  const bootstrapped = [];
+  for (const family of families) {
+    const name = packageName(family);
+    if (published(name)) {
+      dependencies[name] = 'latest';
+      continue;
+    }
+    dependencies[name] = localPackage(family);
+    bootstrapped.push(entryDir(family));
+  }
+  return { dependencies, bootstrapped };
+}
+
 function main() {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   const families = manifest.families ?? [];
@@ -57,9 +126,20 @@ function main() {
 
   // "latest" (not a resolved pin): the whole point is to prove whatever npm
   // currently serves as latest for every owned family installs together.
-  const dependencies = {};
-  for (const family of families) {
-    dependencies[`@sneat/extension-${entryNpmName(family)}-contract`] = 'latest';
+  // A family's first pull request is the one unavoidable exception: npm cannot
+  // serve a package until that change has passed this check and released. Build
+  // and pack only an exact registry-404 family locally so its real distributable
+  // is still checked alongside every already-published latest package. Network,
+  // authentication, and other registry failures remain hard failures.
+  const { dependencies, bootstrapped } = createDependencyPlan(
+    families,
+    isPublished,
+    packLocalContract,
+  );
+  if (bootstrapped.length > 0) {
+    console.log(
+      `tier-coherence: bootstrapping unpublished local contract(s): ${bootstrapped.join(', ')}`,
+    );
   }
 
   writeFileSync(
@@ -138,4 +218,9 @@ function main() {
   );
 }
 
-main();
+if (
+  process.argv[1]
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  main();
+}
