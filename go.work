@@ -33,3 +33,7 @@ use (
 	./splitus
 	./trackus
 )
+
+// Bootstrap the first media contract release without requiring media/v0.1.0
+// to exist remotely while the sibling modules are validated in this workspace.
+replace github.com/sneat-co/sneat-ext-contracts/media v0.1.0 => ./media
