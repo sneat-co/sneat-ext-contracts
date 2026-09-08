@@ -237,7 +237,9 @@ export function validateGeneratedTree({ source, candidate, metadata }) {
     if (stableJson(expected) !== stableJson(release)) {
       fail(`Forged or stale release metadata for ${release.project}.`);
     }
-    if (git(['show', `${source}:${release.changelogPath}`], false) === git(['show', `${candidate}:${release.changelogPath}`], false)) {
+    const candidateChangelog = git(['show', `${candidate}:${release.changelogPath}`], false);
+    const sourceHasChangelog = gitMayFail(['cat-file', '-e', `${source}:${release.changelogPath}`]);
+    if (sourceHasChangelog && git(['show', `${source}:${release.changelogPath}`], false) === candidateChangelog) {
       fail(`${release.changelogPath} did not change in the generated candidate.`);
     }
   }
