@@ -26,6 +26,7 @@ use (
 	./gameboard
 	./kids-club
 	./listus
+	./media
 	./schoolus
 	./sneat-team
 	./sportius

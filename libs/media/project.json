@@ -1,0 +1,22 @@
+{
+  "name": "media-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/media/src",
+  "projectType": "library",
+  "tags": ["family:media", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": { "project": "libs/media/ng-package.json", "tsConfig": "libs/media/tsconfig.lib.json" },
+      "configurations": { "production": { "tsConfig": "libs/media/tsconfig.lib.prod.json" } },
+      "defaultConfiguration": "production"
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": { "cwd": "libs/media", "command": "vitest run" }
+    },
+    "nx-release-publish": { "options": { "packageRoot": "dist/{projectRoot}" } }
+  }
+}

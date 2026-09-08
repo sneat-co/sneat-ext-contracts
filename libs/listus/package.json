@@ -10,6 +10,7 @@
     "@sneat/core": "^0.27.6",
     "@sneat/data": "^0.27.6",
     "@sneat/dto": "^0.27.6",
+    "@sneat/extension-media-contract": "workspace:^",
     "@sneat/space-models": "^0.27.6"
   },
   "sideEffects": false

@@ -1,4 +1,5 @@
 import { IRecord } from '@sneat/data';
+import { IMediaRef } from '@sneat/extension-media-contract';
 import {
   IShortSpaceInfo,
   IWithCreated,
@@ -16,6 +17,11 @@ export interface IQuantity {
 }
 
 export interface IListItemCommon extends IListCommon {
+  /**
+   * The item’s primary product/photo reference. The MediaLink is authoritative;
+   * this is only the denormalized forward reference needed for list rendering.
+   */
+  photo?: IMediaRef;
   subListId?: string;
   subListType?: ListType;
   quantity?: IQuantity;
