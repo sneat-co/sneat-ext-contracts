@@ -57,6 +57,9 @@ change:
 | Source family | Allowed target | Why | Added in |
 | --- | --- | --- | --- |
 | commitius | template | commitius specializes the maintained list/template extension; `libs/commitius/src/index.ts` re-exports `@sneat/extension-template-contract` types (`ITemplateService`, `ITemplateSpaceDbo`) and depends on it as a peer. `template` is not yet migrated into this monorepo (still external npm), so this edge is a forward declaration for when it lands. | batch 3 (families: assetus, listus, debtus, sportius, contactus, calendarius, commitius, communitycentrum, togethered) |
+| assetus | media | Assets store provider-neutral media references for photos without depending on storage or serving implementations. | shared media platform MVP |
+| contactus | media | Contacts store provider-neutral avatar media references alongside the legacy avatar during migration. | shared media platform MVP |
+| listus | media | List items store provider-neutral media references for item photos and attachments. | shared media platform MVP |
 
 ## Adding a new family lib
 

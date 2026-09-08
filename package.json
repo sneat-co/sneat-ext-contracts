@@ -9,11 +9,13 @@
     "test": "nx run-many -t test --all",
     "lint": "nx run-many -t lint --all",
     "tier-coherence": "node tools/tier-coherence/check.mjs",
+    "test:tier-coherence": "node --test tools/tier-coherence/check.test.mjs",
     "peer-range-guard": "node tools/peer-range-guard/check.mjs",
     "test:contract-generator": "vitest run --config tools/contract-generator/vitest.config.mts",
     "test:release-candidate": "node --test tools/release-candidate/release-candidate.test.mjs"
   },
   "devDependencies": {
+    "@sneat/extension-media-contract": "workspace:*",
     "@angular-devkit/build-angular": "22.1.5",
     "@angular/build": "22.1.5",
     "@angular/common": "22.1.3",

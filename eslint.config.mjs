@@ -57,12 +57,13 @@ export default [
             { sourceTag: 'family:kids-club', onlyDependOnLibsWithTags: ['family:kids-club'] },
             { sourceTag: 'family:sneat-team', onlyDependOnLibsWithTags: ['family:sneat-team'] },
             { sourceTag: 'family:rsvp-express', onlyDependOnLibsWithTags: ['family:rsvp-express'] },
-            { sourceTag: 'family:assetus', onlyDependOnLibsWithTags: ['family:assetus'] },
-            { sourceTag: 'family:listus', onlyDependOnLibsWithTags: ['family:listus'] },
+            { sourceTag: 'family:assetus', onlyDependOnLibsWithTags: ['family:assetus', 'family:media'] },
+            { sourceTag: 'family:listus', onlyDependOnLibsWithTags: ['family:listus', 'family:media'] },
             { sourceTag: 'family:debtus', onlyDependOnLibsWithTags: ['family:debtus'] },
             { sourceTag: 'family:sportius', onlyDependOnLibsWithTags: ['family:sportius'] },
-            { sourceTag: 'family:contactus', onlyDependOnLibsWithTags: ['family:contactus'] },
+            { sourceTag: 'family:contactus', onlyDependOnLibsWithTags: ['family:contactus', 'family:media'] },
             { sourceTag: 'family:calendarius', onlyDependOnLibsWithTags: ['family:calendarius'] },
+            { sourceTag: 'family:media', onlyDependOnLibsWithTags: ['family:media'] },
             // commitius specializes the not-yet-migrated `template` extension
             // (@sneat/extension-template-contract, an external npm peer today —
             // its index.ts re-exports that package's service/DBO types).

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sneat-co/sneat-ext-contracts/contactus/contactusmodels/const4contactus"
+	"github.com/sneat-co/sneat-ext-contracts/media/models4media"
 	core "github.com/sneat-co/sneat-go-core"
 	"github.com/sneat-co/sneat-go-core/models/dbmodels"
 	"github.com/sneat-co/sneat-go-core/models/dbprofile"
@@ -45,7 +46,8 @@ type ContactBrief struct {
 	PetKind  string `json:"species,omitempty" firestore:"species,omitempty"`
 
 	// Avatar holds a photo of a member
-	Avatar *dbprofile.Avatar `json:"avatar,omitempty" firestore:"avatar,omitempty"`
+	Avatar      *dbprofile.Avatar `json:"avatar,omitempty" firestore:"avatar,omitempty"`
+	AvatarMedia *models4media.Ref `json:"avatarMedia,omitempty" firestore:"avatarMedia,omitempty"`
 }
 
 func (v *ContactBrief) SetName(field, value string) {
@@ -85,7 +87,8 @@ func (v *ContactBrief) Equal(v2 *ContactBrief) bool {
 		v.OptionalCountryID == v2.OptionalCountryID &&
 		v.Names.Equal(v2.Names) &&
 		v.WithOptionalRelatedAs.Equal(v2.WithOptionalRelatedAs) &&
-		v.Avatar.Equal(v2.Avatar)
+		v.Avatar.Equal(v2.Avatar) &&
+		v.AvatarMedia.Equal(v2.AvatarMedia)
 }
 
 // Validate returns error if not valid

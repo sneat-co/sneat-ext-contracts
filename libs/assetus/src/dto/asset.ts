@@ -3,6 +3,7 @@
 // sharing/availability/borrow/lend field and no ext.yardius.
 
 import { CountryId, ITitledRecord, IWithSpaceIDs } from '@sneat/dto';
+import { IMediaRef } from '@sneat/extension-media-contract';
 
 // --- Enums (string values must match the backend exactly) ---
 
@@ -373,6 +374,7 @@ export interface IAssetBrief {
 }
 
 export interface IAssetDbo extends IAssetBrief, IWithSpaceIDs, IWithAssetSpaces {
+	imageMedia?: Record<string, IMediaRef>;
   description?: string;
   acquisitionDate?: string; // ISO date
   purchasePrice?: IMoney;

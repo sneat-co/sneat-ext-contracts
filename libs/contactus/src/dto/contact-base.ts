@@ -1,6 +1,7 @@
 import { IAvatar, IPersonNames } from '@sneat/auth-models';
 import { AgeGroupID, Gender } from '@sneat/core';
 import { IWithRelatedOnly } from '@sneat/dto';
+import { IMediaRef } from '@sneat/extension-media-contract';
 import { IAddress } from './address';
 import { ContactType } from './contact-types';
 import { PetKind } from './pet-kind';
@@ -40,6 +41,7 @@ export interface IContactBase extends IWithRelatedOnly, IContactChannels {
   readonly petBreed?: string;
   readonly address?: IAddress;
   readonly avatar?: IAvatar;
+  readonly avatarMedia?: IMediaRef;
   readonly roles?: readonly string[];
   readonly groupIDs?: readonly string[];
   readonly invitesCount?: string;
