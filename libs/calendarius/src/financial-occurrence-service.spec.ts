@@ -30,6 +30,14 @@ describe('financial occurrence contract', () => {
     });
     const service: IFinancialOccurrenceService = {
       listFinancialOccurrences: () => of(parsed),
+      listFinancialAgreementCharges: () =>
+        of({
+          charges: [],
+          coverages: [],
+          hasMore: false,
+          snapshotConsistent: true,
+          snapshotDigest: 'empty-source-digest',
+        }),
     };
 
     const result = await firstValueFrom(

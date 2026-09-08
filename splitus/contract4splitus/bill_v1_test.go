@@ -46,6 +46,51 @@ func electricityBill() CreateBillV1Request {
 	}
 }
 
+func TestResolvedSourceEffectValidation(t *testing.T) {
+	effect := ResolvedSourceEffectV1{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), SourceAttributionCaptured: true, AssetIDs: []string{"house"}, ContactLinks: []SourceContactLinkV1{{ContactID: "alice", Roles: []string{"participant"}}}}
+	if err := effect.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []ResolvedSourceEffectV1{
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), AssetIDs: []string{"house"}},
+		{PriceID: "", PriceRevision: 2, ExpectedAmount: exact("120.00")},
+		{PriceID: "monthly", PriceRevision: 0, ExpectedAmount: exact("120.00")},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("0.00")},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), AssetIDs: []string{"house", "house"}},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), ContactLinks: []SourceContactLinkV1{{ContactID: "alice"}, {ContactID: "alice"}}},
+		{PriceID: "monthly", PriceRevision: 2, ExpectedAmount: exact("120.00"), ContactLinks: []SourceContactLinkV1{{ContactID: "alice", Roles: []string{"participant", "participant"}}}},
+	} {
+		if invalid.Validate() == nil {
+			t.Fatalf("accepted invalid effect: %+v", invalid)
+		}
+	}
+}
+
+func TestResolvedSourceEffectExactAgreementIdentityIsAllOrNone(t *testing.T) {
+	effect := ResolvedSourceEffectV1{
+		PriceID: "month1", PriceRevision: 2, ExpectedAmount: exact("120.00"),
+		OwnerSpaceID: "family1", AgreementID: "agreement1", EnrollmentID: "enrollment1", ChargeID: "charge1", OccurrenceID: "month:2026-09",
+		Direction: "expense", TemporalBasis: "contract_period_cost", EconomicPeriod: &BillingPeriodV1{StartDate: "2026-09-01", EndDate: "2026-09-30"}, InvoiceReconciliationEligible: true,
+		SourceAttributionCaptured: true, ContactAttributions: []SourceAttributionV1{{ID: "child1", Amount: exact("120.00")}}, AssetAttributions: []SourceAttributionV1{{ID: "home1", Amount: exact("120.00")}},
+	}
+	if err := effect.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	effect.PriceRevision = 0
+	if err := effect.Validate(); err != nil {
+		t.Fatalf("initial agreement price revision rejected: %v", err)
+	}
+	effect.ChargeID = ""
+	if effect.Validate() == nil {
+		t.Fatal("partial agreement source identity accepted")
+	}
+	effect.ChargeID = "charge1"
+	effect.TemporalBasis = "normalized_service_cost"
+	if effect.Validate() == nil {
+		t.Fatal("normalized comparison accepted as invoice reconciliation evidence")
+	}
+}
+
 func TestCreateBillV1AcceptsEUR90ForThreeHousemates(t *testing.T) {
 	request := electricityBill()
 	if err := request.Validate(); err != nil {
@@ -169,6 +214,14 @@ func TestCreateBillV1BindsExpectedComparisonToActual(t *testing.T) {
 	}
 }
 
+func TestCreateBillV1AllowsServerDerivedExpectedComparison(t *testing.T) {
+	request := electricityBill()
+	request.RecurringOccurrence.ExpectedComparison = ""
+	if err := request.Validate(); err != nil {
+		t.Fatalf("Validate() rejected omitted comparison: %v", err)
+	}
+}
+
 func TestCreateBillV1BindsPreviousComparableToActual(t *testing.T) {
 	request := electricityBill()
 	request.RecurringOccurrence.PreviousComparable.ActualAmount = exact("95.00")
@@ -233,6 +286,38 @@ func TestCreateBillV1ResponseValidatesPostingAndDebtusProjection(t *testing.T) {
 	response.Bill.Posting.Receipt.Revision = "2"
 	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("Validate() mismatched receipt error = %v, want ErrInvalidRequest", err)
+	}
+}
+
+func TestBillV1BindsResolvedSourceEffectsToCapturedExpectedAmount(t *testing.T) {
+	response := appliedBillResponse()
+	response.Bill.ResolvedSourceEffects = []ResolvedSourceEffectV1{
+		{PriceID: "usage", PriceRevision: 3, ExpectedAmount: exact("65.00")},
+		{PriceID: "standing", PriceRevision: 4, ExpectedAmount: exact("15.00")},
+	}
+	if err := response.Validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	response.Bill.ResolvedSourceEffects[1].ExpectedAmount = exact("14.99")
+	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("accepted source effects that do not equal captured expected amount: %v", err)
+	}
+
+	response = appliedBillResponse()
+	response.Bill.ResolvedSourceEffects = []ResolvedSourceEffectV1{
+		{PriceID: "usage", PriceRevision: 3, ExpectedAmount: exact("40.00")},
+		{PriceID: "usage", PriceRevision: 4, ExpectedAmount: exact("40.00")},
+	}
+	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("accepted duplicate resolved source price IDs: %v", err)
+	}
+
+	response = appliedBillResponse()
+	response.Bill.RecurringOccurrence.ExpectedAmount = nil
+	response.Bill.ResolvedSourceEffects = []ResolvedSourceEffectV1{{PriceID: "usage", PriceRevision: 3, ExpectedAmount: exact("80.00")}}
+	if err := response.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("accepted source effects without a captured expected baseline: %v", err)
 	}
 }
 

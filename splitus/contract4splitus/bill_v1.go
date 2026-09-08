@@ -149,9 +149,10 @@ type UtilityDetailsV1 struct {
 type RecurringOccurrenceV1 struct {
 	HappeningID          string                    `json:"happeningID"`
 	OccurrenceID         string                    `json:"occurrenceID"`
+	ChargeID             string                    `json:"chargeID,omitempty"`
 	ExpectedAmount       *ExactDecimalString       `json:"expectedAmount,omitempty"`
 	StandingChargeAmount *ExactDecimalString       `json:"standingChargeAmount,omitempty"`
-	ExpectedComparison   ExpectedActualComparison  `json:"expectedComparison"`
+	ExpectedComparison   ExpectedActualComparison  `json:"expectedComparison,omitempty"`
 	PreviousComparable   *PreviousComparableBillV1 `json:"previousComparable,omitempty"`
 }
 
@@ -354,8 +355,13 @@ func (r RecurringOccurrenceV1) Validate(actual int64, billID string) error {
 	if err := validateStorageID("occurrenceID", r.OccurrenceID); err != nil {
 		return err
 	}
-	if (r.ExpectedAmount == nil) != (r.ExpectedComparison == ExpectedActualNotAvailable) {
-		return invalid("comparison must be not_available exactly when expectedAmount is absent")
+	if r.ChargeID != "" {
+		if err := validateStorageID("chargeID", r.ChargeID); err != nil {
+			return err
+		}
+	}
+	if r.ExpectedAmount == nil && r.ExpectedComparison != "" && r.ExpectedComparison != ExpectedActualNotAvailable {
+		return invalid("comparison must be omitted or not_available when expectedAmount is absent")
 	}
 	if r.ExpectedAmount != nil {
 		expected, err := positiveMinorUnits("expectedAmount", *r.ExpectedAmount)
@@ -368,7 +374,7 @@ func (r RecurringOccurrenceV1) Validate(actual int64, billID string) error {
 		} else if actual < expected {
 			want = ExpectedActualDecreased
 		}
-		if r.ExpectedComparison != want {
+		if r.ExpectedComparison != "" && r.ExpectedComparison != want {
 			return invalid("comparison does not match expected and actual amounts")
 		}
 	}
@@ -614,16 +620,51 @@ func (o DebtusObligationV1) Validate(spaceID, billID string, billCurrency Curren
 
 type BillV1 struct {
 	CreateBillV1Request
-	Revision  string          `json:"revision"`
-	Posting   BillPostingV1   `json:"posting"`
-	Debtus    *DebtusStatusV1 `json:"debtus,omitempty"`
-	CreatedAt string          `json:"createdAt"`
-	UpdatedAt string          `json:"updatedAt"`
+	// ResolvedSourceEffects are immutable response-only acceptance provenance
+	// captured by Splitus. They are not copied schedules and cannot be supplied
+	// by CreateBillV1Request.
+	ResolvedSourceEffects []ResolvedSourceEffectV1 `json:"resolvedSourceEffects,omitempty"`
+	Revision              string                   `json:"revision"`
+	Posting               BillPostingV1            `json:"posting"`
+	Debtus                *DebtusStatusV1          `json:"debtus,omitempty"`
+	CreatedAt             string                   `json:"createdAt"`
+	UpdatedAt             string                   `json:"updatedAt"`
 }
 
 func (b BillV1) Validate() error {
 	if err := b.CreateBillV1Request.Validate(); err != nil {
 		return err
+	}
+	if len(b.ResolvedSourceEffects) > 100 {
+		return invalid("resolvedSourceEffects exceeds maximum item count 100")
+	}
+	seenSourcePrices := make(map[string]struct{}, len(b.ResolvedSourceEffects))
+	var resolvedExpectedMinor int64
+	for i, effect := range b.ResolvedSourceEffects {
+		if err := effect.Validate(); err != nil {
+			return invalid("resolvedSourceEffects[%d]: %v", i, err)
+		}
+		if _, exists := seenSourcePrices[effect.PriceID]; exists {
+			return invalid("resolvedSourceEffects contains duplicate priceID %q", effect.PriceID)
+		}
+		seenSourcePrices[effect.PriceID] = struct{}{}
+		minor, _ := nonNegativeMinorUnits("expectedAmount", effect.ExpectedAmount)
+		if minor > math.MaxInt64-resolvedExpectedMinor {
+			return invalid("resolvedSourceEffects expectedAmount sum overflows")
+		}
+		resolvedExpectedMinor += minor
+	}
+	if b.RecurringOccurrence == nil && len(b.ResolvedSourceEffects) > 0 {
+		return invalid("resolvedSourceEffects require recurringOccurrence")
+	}
+	if len(b.ResolvedSourceEffects) > 0 && b.RecurringOccurrence.ExpectedAmount == nil {
+		return invalid("resolvedSourceEffects require recurringOccurrence expectedAmount")
+	}
+	if b.RecurringOccurrence != nil && b.RecurringOccurrence.ExpectedAmount != nil && len(b.ResolvedSourceEffects) > 0 {
+		expectedMinor, _ := nonNegativeMinorUnits("expectedAmount", *b.RecurringOccurrence.ExpectedAmount)
+		if resolvedExpectedMinor != expectedMinor {
+			return invalid("resolvedSourceEffects must equal recurringOccurrence expectedAmount")
+		}
 	}
 	if err := validatePositiveIntegerString("revision", b.Revision); err != nil {
 		return err
@@ -655,6 +696,161 @@ func (b BillV1) Validate() error {
 		if err := validateDebtusMatchesReceipt(*b.Posting.Receipt, *b.Debtus); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+type ResolvedSourceEffectV1 struct {
+	PriceID        string             `json:"priceID"`
+	PriceRevision  int64              `json:"priceRevision"`
+	ExpectedAmount ExactDecimalString `json:"expectedAmount"`
+	// SourceAttributionCaptured distinguishes an intentionally empty immutable
+	// owner snapshot from a legacy bill that predates attribution capture.
+	SourceAttributionCaptured bool `json:"sourceAttributionCaptured"`
+	// AssetIDs and ContactLinks preserve the owner-normalized source context at
+	// acceptance. They explain the expectation and do not define bill payables.
+	AssetIDs     []string              `json:"assetIDs,omitempty"`
+	ContactLinks []SourceContactLinkV1 `json:"contactLinks,omitempty"`
+	// The following fields are an all-or-none immutable owner snapshot. Legacy
+	// bills omit them and remain readable, but cannot claim exact reconciliation.
+	OwnerSpaceID                  string                `json:"ownerSpaceID,omitempty"`
+	AgreementID                   string                `json:"agreementID,omitempty"`
+	EnrollmentID                  string                `json:"enrollmentID,omitempty"`
+	ChargeID                      string                `json:"chargeID,omitempty"`
+	OccurrenceID                  string                `json:"occurrenceID,omitempty"`
+	Direction                     string                `json:"direction,omitempty"`
+	TemporalBasis                 string                `json:"temporalBasis,omitempty"`
+	EconomicPeriod                *BillingPeriodV1      `json:"economicPeriod,omitempty"`
+	InvoiceReconciliationEligible bool                  `json:"invoiceReconciliationEligible,omitempty"`
+	ContactAttributions           []SourceAttributionV1 `json:"contactAttributions,omitempty"`
+	AssetAttributions             []SourceAttributionV1 `json:"assetAttributions,omitempty"`
+}
+
+type SourceAttributionV1 struct {
+	ID     string             `json:"id"`
+	Amount ExactDecimalString `json:"amount"`
+}
+
+type SourceContactLinkV1 struct {
+	ContactID string   `json:"contactID"`
+	Roles     []string `json:"roles,omitempty"`
+}
+
+func (e ResolvedSourceEffectV1) Validate() error {
+	if err := validateStorageID("priceID", e.PriceID); err != nil {
+		return err
+	}
+	if e.PriceRevision < 0 || (e.PriceRevision == 0 && e.AgreementID == "") {
+		return invalid("priceRevision must be positive unless captured from an identified financial agreement")
+	}
+	if e.PriceRevision > 9_007_199_254_740_991 {
+		return invalid("priceRevision must be a JavaScript-safe integer")
+	}
+	minor, err := nonNegativeMinorUnits("expectedAmount", e.ExpectedAmount)
+	if err != nil {
+		return err
+	}
+	if minor <= 0 {
+		return invalid("expectedAmount must be positive")
+	}
+	if len(e.AssetIDs) > 100 || len(e.ContactLinks) > 100 {
+		return invalid("source references exceed maximum item count 100")
+	}
+	if !e.SourceAttributionCaptured && (len(e.AssetIDs) > 0 || len(e.ContactLinks) > 0) {
+		return invalid("source attribution references require sourceAttributionCaptured")
+	}
+	seenAssets := make(map[string]struct{}, len(e.AssetIDs))
+	for i, assetID := range e.AssetIDs {
+		if err := validateStorageID("assetIDs", assetID); err != nil {
+			return invalid("assetIDs[%d]: %v", i, err)
+		}
+		if _, exists := seenAssets[assetID]; exists {
+			return invalid("assetIDs contains duplicate ID %q", assetID)
+		}
+		seenAssets[assetID] = struct{}{}
+	}
+	seenContacts := make(map[string]struct{}, len(e.ContactLinks))
+	for i, link := range e.ContactLinks {
+		if err := validateStorageID("contactID", link.ContactID); err != nil {
+			return invalid("contactLinks[%d]: %v", i, err)
+		}
+		if _, exists := seenContacts[link.ContactID]; exists {
+			return invalid("contactLinks contains duplicate contactID %q", link.ContactID)
+		}
+		seenContacts[link.ContactID] = struct{}{}
+		if len(link.Roles) > 32 {
+			return invalid("contactLinks[%d].roles exceeds maximum item count 32", i)
+		}
+		seenRoles := make(map[string]struct{}, len(link.Roles))
+		for j, role := range link.Roles {
+			if strings.TrimSpace(role) == "" || strings.TrimSpace(role) != role || !utf8.ValidString(role) || len(role) > 100 {
+				return invalid("contactLinks[%d].roles[%d] is invalid", i, j)
+			}
+			if _, exists := seenRoles[role]; exists {
+				return invalid("contactLinks[%d].roles contains duplicate role %q", i, role)
+			}
+			seenRoles[role] = struct{}{}
+		}
+	}
+	identityFields := []string{e.OwnerSpaceID, e.AgreementID, e.EnrollmentID, e.ChargeID, e.OccurrenceID, e.Direction, e.TemporalBasis}
+	identityPresent := false
+	for _, value := range identityFields {
+		identityPresent = identityPresent || value != ""
+	}
+	identityPresent = identityPresent || e.EconomicPeriod != nil || e.InvoiceReconciliationEligible || len(e.ContactAttributions) != 0 || len(e.AssetAttributions) != 0
+	if identityPresent {
+		for name, value := range map[string]string{"ownerSpaceID": e.OwnerSpaceID, "agreementID": e.AgreementID, "enrollmentID": e.EnrollmentID, "chargeID": e.ChargeID, "occurrenceID": e.OccurrenceID} {
+			if err := validateStorageID(name, value); err != nil {
+				return err
+			}
+		}
+		if e.Direction != "expense" && e.Direction != "income" && e.Direction != "transfer" {
+			return invalid("resolved source direction is invalid")
+		}
+		if e.TemporalBasis != "occurrence_service_cost" && e.TemporalBasis != "contract_period_cost" && e.TemporalBasis != "normalized_service_cost" {
+			return invalid("resolved source temporalBasis is invalid")
+		}
+		if e.EconomicPeriod == nil {
+			return invalid("resolved source economicPeriod is required")
+		}
+		if err := e.EconomicPeriod.Validate(); err != nil {
+			return err
+		}
+		if e.InvoiceReconciliationEligible && e.TemporalBasis == "normalized_service_cost" {
+			return invalid("normalized source effect cannot reconcile an invoice")
+		}
+		if err := validateSourceAttributions("contactAttributions", e.ContactAttributions, minor); err != nil {
+			return err
+		}
+		if err := validateSourceAttributions("assetAttributions", e.AssetAttributions, minor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSourceAttributions(name string, values []SourceAttributionV1, expectedMinor int64) error {
+	if len(values) > 100 {
+		return invalid("%s exceeds maximum item count 100", name)
+	}
+	seen := make(map[string]struct{}, len(values))
+	var total int64
+	for i, value := range values {
+		if err := validateStorageID(name, value.ID); err != nil {
+			return invalid("%s[%d]: %v", name, i, err)
+		}
+		if _, exists := seen[value.ID]; exists {
+			return invalid("%s contains duplicate ID %q", name, value.ID)
+		}
+		seen[value.ID] = struct{}{}
+		minor, err := nonNegativeMinorUnits(name, value.Amount)
+		if err != nil || minor <= 0 || total > expectedMinor-minor {
+			return invalid("%s[%d] amount is invalid", name, i)
+		}
+		total += minor
+	}
+	if len(values) > 0 && total != expectedMinor {
+		return invalid("%s must total expectedAmount", name)
 	}
 	return nil
 }
