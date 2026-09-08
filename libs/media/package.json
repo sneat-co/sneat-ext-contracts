@@ -1,6 +1,8 @@
 {
   "name": "@sneat/extension-media-contract",
-  "version": "0.1.0",
-  "publishConfig": { "access": "public" },
+  "version": "0.1.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false
 }
