@@ -6,11 +6,11 @@ toolchain go1.27.0
 
 require (
 	github.com/dal-go/dalgo v0.64.4
-	github.com/sneat-co/sneat-ext-contracts/media v0.1.0
+	github.com/sneat-co/sneat-ext-contracts/media v0.1.1
 	github.com/sneat-co/sneat-go-core v0.63.0
 	github.com/strongo/slice v0.3.5
 	github.com/strongo/strongoapp v0.31.50
-	github.com/strongo/validation v0.0.10
+	github.com/strongo/validation v0.0.13
 )
 
 require (
