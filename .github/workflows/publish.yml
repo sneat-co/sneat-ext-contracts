@@ -313,9 +313,25 @@ jobs:
         run: |
           set -euo pipefail
           npm_integrities='{}'
+          # The publish immediately above succeeded; this step only confirms the
+          # registry agrees. Those are separated by npm's own propagation delay,
+          # which is not bounded by anything this workflow controls.
+          #
+          # On 2026-09-18 six attempts five seconds apart — thirty seconds in
+          # total — were not enough. @sneat/extension-contactus-contract@0.12.11
+          # was published successfully and was already `latest`, this check
+          # failed anyway, and because the failure stops the job the
+          # `go-module-tags` job was skipped. The npm package existed and the Go
+          # tag contactus/v0.12.11 did not, which is the worst outcome available:
+          # a half-published release, reported as a failure whose message says
+          # the package is missing when it is not.
+          #
+          # Widened to roughly three minutes with increasing backoff. A genuinely
+          # unpublished package still fails, only later; a slow registry no
+          # longer costs a Go tag.
           while IFS=$'\t' read -r name version; do
             integrity=''
-            for attempt in 1 2 3 4 5 6; do
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
               error_file="$(mktemp)"
               if output="$(npm view "${name}@${version}" dist.integrity --json 2>"$error_file")"; then
                 rm -f "$error_file"
@@ -324,9 +340,14 @@ jobs:
               else
                 rm -f "$error_file"
               fi
-              [[ "$attempt" == 6 ]] || sleep 5
+              if [[ "$attempt" != 10 ]]; then
+                delay=$(( attempt * 5 ))
+                [[ "$delay" -gt 30 ]] && delay=30
+                echo "::notice::${name}@${version} not yet visible on the registry; retrying in ${delay}s (attempt ${attempt}/10)"
+                sleep "$delay"
+              fi
             done
-            [[ -n "$integrity" ]] || { echo "::error::no verifiable npm integrity for ${name}@${version}"; exit 1; }
+            [[ -n "$integrity" ]] || { echo "::error::no verifiable npm integrity for ${name}@${version} after ~3 minutes. If the package is visible on the registry, this is propagation lag and the job can be re-run; if it is absent, the publish above did not take effect."; exit 1; }
             npm_integrities="$(node -e 'const v=JSON.parse(process.argv[1]);v[process.argv[2]]=process.argv[3];process.stdout.write(JSON.stringify(v))' "$npm_integrities" "${name}@${version}" "$integrity")"
           done < <(node -e 'for(const r of require("./.nx/release-candidate.json").releases) console.log([r.package,r.version].join("\t"))')
           releases="$(node -e 'process.stdout.write(JSON.stringify(require("./.nx/release-candidate.json").releases))')"
