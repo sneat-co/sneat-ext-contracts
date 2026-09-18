@@ -282,13 +282,19 @@ jobs:
         if: steps.state.outputs.prepared == 'true'
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          SNEAT_CI_READWRITE_TOKEN: ${{ secrets.SNEAT_CI_READWRITE_TOKEN }}
+          RELEASER_APP_ID: ${{ vars.SNEAT_RELEASER_APP_ID }}
+          RELEASER_PRIVATE_KEY: ${{ secrets.SNEAT_RELEASER_PRIVATE_KEY }}
           PUBLISH_PROJECTS: ${{ steps.publication.outputs.publish_projects }}
           MODULES: ${{ steps.modules.outputs.json }}
         run: |
           set -euo pipefail
           [[ -z "$PUBLISH_PROJECTS" || -n "${NPM_TOKEN:-}" ]] || { echo '::error::NPM_TOKEN is required before publishing checked npm artifacts'; exit 1; }
-          [[ "$MODULES" == '[]' || -n "${SNEAT_CI_READWRITE_TOKEN:-}" ]] || { echo '::error::SNEAT_CI_READWRITE_TOKEN is required before publishing releases with Go module tags'; exit 1; }
+          # This guard is the reason contactus/v0.12.11 was not lost a second
+          # time: the credential it names is checked before anything is
+          # published, not when the tag push is refused an hour later. It now
+          # names the App, because the App is what tags Go modules.
+          [[ "$MODULES" == '[]' || -n "${RELEASER_APP_ID:-}" ]] || { echo '::error::SNEAT_RELEASER_APP_ID variable is required before publishing releases with Go module tags'; exit 1; }
+          [[ "$MODULES" == '[]' || -n "${RELEASER_PRIVATE_KEY:-}" ]] || { echo '::error::SNEAT_RELEASER_PRIVATE_KEY secret is required before publishing releases with Go module tags'; exit 1; }
 
       - name: Publish npm packages from the verified release commit
         id: npm-publish
@@ -410,12 +416,18 @@ jobs:
   go-module-tags:
     needs: release
     if: needs.release.outputs.modules != '[]' && needs.release.outputs.modules != ''
-    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@895303a5328e2804bf022755f8441620e460eca3
+    uses: sneat-co/cicd/.github/workflows/go-module-tags.yml@81b1c28fabd5d6cbf0976ef074261e7300b1c1c8
     with:
       modules: ${{ needs.release.outputs.modules }}
       ref: ${{ needs.release.outputs.commit }}
     secrets:
-      git_token: ${{ secrets.SNEAT_CI_READWRITE_TOKEN }}
+      # The Sneat Releaser App replaces SNEAT_CI_READWRITE_TOKEN here. It was
+      # granted Workflows: write on 2026-09-18 (sneat-co/cicd#38) so it can tag
+      # a commit that changes files under .github/workflows/, which is the one
+      # thing an ordinary Actions token cannot do and the only reason this path
+      # ever held a personal credential.
+      app_id: ${{ vars.SNEAT_RELEASER_APP_ID }}
+      app_private_key: ${{ secrets.SNEAT_RELEASER_PRIVATE_KEY }}
 
   release-receipt:
     needs: [release, go-module-tags]
