@@ -141,15 +141,36 @@ jobs:
           SOURCE="$SOURCE" CANDIDATE="$candidate" node tools/release-candidate/release-candidate.mjs verify-generated
           [[ -z "$(git status --porcelain)" ]] || { echo '::error::release candidate left an uncommitted working tree'; exit 1; }
           echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+      # Mint a short-lived installation token for the Sneat Releaser App
+      # (sneat-dev, app id 4986653; Contents: write, Pull requests: write).
+      #
+      # A GITHUB_TOKEN cannot be used here: GitHub suppresses workflow
+      # triggering for events it creates, so a release PR opened with it would
+      # sit forever with no required checks and could never merge. That
+      # suppression is the entire reason this step previously held a personal
+      # access token.
+      #
+      # An installation token is exempt from the suppression in the same way,
+      # but it is not a person: it is scoped to the repositories the App is
+      # installed on, limited to two permissions, and expires within the hour.
+      # A leak of it cannot reach the rest of the fleet, and it cannot outlive
+      # the job the way a PAT outlives everything until someone rotates it.
+      - name: Mint the release app token
+        id: app-token
+        if: steps.plans.outputs.has == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.SNEAT_RELEASER_APP_ID }}
+          private-key: ${{ secrets.SNEAT_RELEASER_PRIVATE_KEY }}
+
       - name: Open the protected release pull request
         if: steps.plans.outputs.has == 'true'
         env:
-          # A normal GITHUB_TOKEN does not trigger the required pull-request CI.
-          GH_TOKEN: ${{ secrets.SNEAT_CI_READWRITE_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           SOURCE: ${{ steps.source.outputs.sha }}
         run: |
           set -euo pipefail
-          [[ -n "${GH_TOKEN:-}" ]] || { echo '::error::SNEAT_CI_READWRITE_TOKEN is required to open a release PR that triggers protected CI'; exit 1; }
+          [[ -n "${GH_TOKEN:-}" ]] || { echo '::error::Sneat Releaser app token is empty; check the SNEAT_RELEASER_APP_ID variable and SNEAT_RELEASER_PRIVATE_KEY secret'; exit 1; }
           gh auth setup-git
           existing="$(gh pr list --base main --state open --json headRefName,headRefOid,isCrossRepository --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("release/contracts-")))]')"
           count="$(node -e 'process.stdout.write(String(JSON.parse(process.argv[1]).length))' "$existing")"
