@@ -9,12 +9,70 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: write
 
 concurrency:
   group: contract-release-prepare
   cancel-in-progress: false
 
 jobs:
+  # A release that does not happen must say so.
+  #
+  # Both release workflows key on `conclusion == 'success'`, which cannot tell
+  # "the code is bad" from "the module proxy hiccuped" — both arrive as
+  # `failure`. When the guard is false the jobs simply do not run, and GitHub
+  # renders that as a grey `skipped`, indistinguishable from "correctly skipped,
+  # nothing to release". On 2026-09-17 a transient proxy.golang.org read error
+  # in an unrelated Go module silently cost contactus/v0.12.11: the fix sat on
+  # main, unreleased, and no signal existed anywhere that a release had been
+  # dropped.
+  #
+  # This job is the signal. It cannot decide whether the failure was real, and
+  # it deliberately does not try — it reports that a releasable commit reached
+  # main without releasing, and names the run to inspect.
+  announce-skipped:
+    if: github.event.workflow_run.conclusion != 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update the skipped-release report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_ID: ${{ github.event.workflow_run.id }}
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          title="Release skipped: CI concluded ${CI_CONCLUSION} on main"
+          body=$(printf '%s\n' \
+            "A push to \`main\` did not release." \
+            "" \
+            "- commit: \`${CI_SHA}\`" \
+            "- CI conclusion: \`${CI_CONCLUSION}\`" \
+            "- run: ${CI_URL}" \
+            "" \
+            "\`Prepare release\` and \`Publish\` both require a successful CI run on" \
+            "main, so neither ran. If the failure was transient — a module-proxy" \
+            "read error, a runner outage, a cancelled run — re-run the failed jobs" \
+            "and both workflows will fire again on the new conclusion:" \
+            "" \
+            "    gh run rerun ${CI_ID} --repo ${GITHUB_REPOSITORY} --failed" \
+            "" \
+            "If the failure was real, fix it on main; the release follows the fix." \
+            "" \
+            "This issue is opened automatically because a skipped release is" \
+            "otherwise indistinguishable from no release being due.")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label release-skipped --json number --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh label create release-skipped --repo "$GITHUB_REPOSITORY" \
+              --description "A push to main did not release" --color B60205 2>/dev/null || true
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label release-skipped --body "$body"
+          fi
+
   prepare:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
