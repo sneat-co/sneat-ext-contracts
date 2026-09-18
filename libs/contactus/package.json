@@ -1,6 +1,6 @@
 {
   "name": "@sneat/extension-contactus-contract",
-  "version": "0.12.10",
+  "version": "0.12.11",
   "publishConfig": {
     "access": "public"
   },

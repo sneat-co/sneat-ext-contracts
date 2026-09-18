@@ -1,62 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "6c3d2ee2236d3aa7d289ee6ccce36e9fa4969123",
+  "reviewedSource": "6d675c8880b0208eefba28d7442e2941a0927824",
   "plans": [
     {
-      "path": ".nx/version-plans/media-contract-first-publish.md",
-      "sha256": "6b47a2910cb5a3fca6395882a0086c1cd992c81e30d8e0e3de972700e33331c0"
+      "path": ".nx/version-plans/contactus-media-require-fix.md",
+      "sha256": "f16b28f90c0c627f28ec71e9e1cb618037dec9d83a8bc9ead92ed77c652c42af"
     }
   ],
   "releases": [
-    {
-      "family": "assetus",
-      "project": "assetus-contract",
-      "package": "@sneat/extension-assetus-contract",
-      "manifestPath": "libs/assetus/package.json",
-      "changelogPath": "libs/assetus/CHANGELOG.md",
-      "version": "0.2.4",
-      "npmTag": "assetus-contract-v0.2.4",
-      "siblingGoTag": null
-    },
     {
       "family": "contactus",
       "project": "contactus-contract",
       "package": "@sneat/extension-contactus-contract",
       "manifestPath": "libs/contactus/package.json",
       "changelogPath": "libs/contactus/CHANGELOG.md",
-      "version": "0.12.10",
-      "npmTag": "contactus-contract-v0.12.10",
-      "siblingGoTag": "contactus/v0.12.10"
-    },
-    {
-      "family": "docus",
-      "project": "docus-contract",
-      "package": "@sneat/extension-docus-contract",
-      "manifestPath": "libs/docus/package.json",
-      "changelogPath": "libs/docus/CHANGELOG.md",
-      "version": "0.0.7",
-      "npmTag": "docus-contract-v0.0.7",
-      "siblingGoTag": null
-    },
-    {
-      "family": "listus",
-      "project": "listus-contract",
-      "package": "@sneat/extension-listus-contract",
-      "manifestPath": "libs/listus/package.json",
-      "changelogPath": "libs/listus/CHANGELOG.md",
-      "version": "0.0.11",
-      "npmTag": "listus-contract-v0.0.11",
-      "siblingGoTag": "listus/v0.0.11"
-    },
-    {
-      "family": "media",
-      "project": "media-contract",
-      "package": "@sneat/extension-media-contract",
-      "manifestPath": "libs/media/package.json",
-      "changelogPath": "libs/media/CHANGELOG.md",
-      "version": "0.1.1",
-      "npmTag": "media-contract-v0.1.1",
-      "siblingGoTag": "media/v0.1.1"
+      "version": "0.12.11",
+      "npmTag": "contactus-contract-v0.12.11",
+      "siblingGoTag": "contactus/v0.12.11"
     }
   ]
 }
