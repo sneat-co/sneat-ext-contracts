@@ -11,10 +11,4 @@ packages:
 # alone is not sufficient — see .pnpmfile.cjs for the reliable fix.
 overrides:
   'zone.js': '-'
-
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@swc/core'
-  - esbuild
-  - nx
-  - unrs-resolver
+  js-yaml: ">=4.3.2"
