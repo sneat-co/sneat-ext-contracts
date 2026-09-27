@@ -111,6 +111,24 @@ jobs:
           go test -count=1 -coverprofile=cover.out ./...
           awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
 
+  trackus-coverage:
+    name: trackus 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trackus
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: trackus/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
   release-candidate-policy:
     runs-on: ubuntu-latest
     steps:
@@ -134,7 +152,7 @@ jobs:
     # branch protection. This job only combines the results above.
     name: Required checks passed
     if: ${{ always() }}
-    needs: [nx, tier-coherence, discover-go, go, listus-coverage, release-candidate-policy]
+    needs: [nx, tier-coherence, discover-go, go, listus-coverage, trackus-coverage, release-candidate-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
