@@ -11,6 +11,12 @@ func TestSaveListItemDateTaskRequestValidation(t *testing.T) {
 		"active without date": func(v *SaveListItemDateTaskRequest) { v.DueDate = "" },
 		"invalid date":        func(v *SaveListItemDateTaskRequest) { v.DueDate = "2026-02-30" },
 		"negative revision":   func(v *SaveListItemDateTaskRequest) { v.ExpectedTaskRevision = -1 },
+		"overflow revision":   func(v *SaveListItemDateTaskRequest) { v.ExpectedTaskRevision = SourceTodoMaxSafeInteger + 1 },
+		"invalid spaceID":     func(v *SaveListItemDateTaskRequest) { v.SpaceID = "" },
+		"invalid listID":      func(v *SaveListItemDateTaskRequest) { v.ListID = " leading_space" },
+		"invalid itemID":      func(v *SaveListItemDateTaskRequest) { v.ItemID = "" },
+		"invalid operationID": func(v *SaveListItemDateTaskRequest) { v.OperationID = "" },
+		"unsupported state":   func(v *SaveListItemDateTaskRequest) { v.State = "invalid" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := valid
@@ -25,5 +31,11 @@ func TestSaveListItemDateTaskRequestValidation(t *testing.T) {
 	canceled.DueDate = ""
 	if err := canceled.Validate(); err != nil {
 		t.Fatalf("valid canceled request: %v", err)
+	}
+	completed := valid
+	completed.State = SourceTodoCompleted
+	completed.DueDate = ""
+	if err := completed.Validate(); err != nil {
+		t.Fatalf("valid completed request: %v", err)
 	}
 }
