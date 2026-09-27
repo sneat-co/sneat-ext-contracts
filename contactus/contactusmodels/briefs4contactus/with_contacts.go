@@ -135,7 +135,8 @@ func (v *WithMultiSpaceContacts[T]) ParentContactBrief() (i int, id dbmodels.Spa
 // GetContactBriefByID returns contactBrief brief by ContactID
 func (v *WithMultiSpaceContacts[T]) GetContactBriefByID(spaceID coretypes.SpaceID, contactID string) (i int, brief T) {
 	id := dbmodels.NewSpaceItemID(spaceID, contactID)
-	if brief, ok := v.Contacts[string(id)]; !ok {
+	var ok bool
+	if brief, ok = v.Contacts[string(id)]; !ok {
 		return -1, brief
 	}
 	return slice.Index(v.ContactIDs, string(id)), brief

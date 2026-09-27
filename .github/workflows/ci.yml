@@ -129,6 +129,24 @@ jobs:
           go test -count=1 -coverprofile=cover.out ./...
           awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
 
+  contactus-coverage:
+    name: contactus 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contactus
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: contactus/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
   release-candidate-policy:
     runs-on: ubuntu-latest
     steps:
@@ -152,7 +170,7 @@ jobs:
     # branch protection. This job only combines the results above.
     name: Required checks passed
     if: ${{ always() }}
-    needs: [nx, tier-coherence, discover-go, go, listus-coverage, trackus-coverage, release-candidate-policy]
+    needs: [nx, tier-coherence, discover-go, go, listus-coverage, trackus-coverage, contactus-coverage, release-candidate-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -164,6 +182,8 @@ jobs:
           GO_DIRS: ${{ needs.discover-go.outputs.dirs }}
           GO_RESULT: ${{ needs.go.result }}
           LISTUS_COVERAGE_RESULT: ${{ needs.listus-coverage.result }}
+          TRACKUS_COVERAGE_RESULT: ${{ needs.trackus-coverage.result }}
+          CONTACTUS_COVERAGE_RESULT: ${{ needs.contactus-coverage.result }}
           RELEASE_CANDIDATE_POLICY_RESULT: ${{ needs.release-candidate-policy.result }}
         run: |
           set -eu
@@ -179,6 +199,8 @@ jobs:
           require_success "Tier coherence" "$TIER_COHERENCE_RESULT"
           require_success "Go module discovery" "$DISCOVER_GO_RESULT"
           require_success "Listus 100% test coverage" "$LISTUS_COVERAGE_RESULT"
+          require_success "Trackus 100% test coverage" "$TRACKUS_COVERAGE_RESULT"
+          require_success "Contactus 100% test coverage" "$CONTACTUS_COVERAGE_RESULT"
           require_success "Release candidate policy" "$RELEASE_CANDIDATE_POLICY_RESULT"
 
           if [ "$GO_DIRS" = "[]" ]; then

@@ -121,9 +121,6 @@ func (v *ContactBrief) Validate() error {
 	if err := v.RolesField.Validate(); err != nil {
 		return err
 	}
-	if err := v.WithUserID.Validate(); err != nil {
-		return err
-	}
 	if v.PetKind != "" {
 		if !const4contactus.IsKnownPetPetKind(v.PetKind) {
 			return validation.NewErrBadRecordFieldValue("species", "unknown value: "+v.PetKind)
