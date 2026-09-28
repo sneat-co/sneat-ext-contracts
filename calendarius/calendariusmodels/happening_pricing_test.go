@@ -101,3 +101,50 @@ func TestHappeningPriceAmountUsesCanonicalMinorUnitWireValue(t *testing.T) {
 		t.Fatalf("money amount JSON = %s, want %s", got, want)
 	}
 }
+
+func TestHappeningPricing_Additional(t *testing.T) {
+	// validateProjectionNumbers: term.length exceeds max safe integer
+	p1 := HappeningPrice{Term: Term{Length: int(EventHappeningMaxSafeInteger + 1)}}
+	if err := p1.validateProjectionNumbers(); err == nil {
+		t.Fatal("expected error for term.length exceeding safe integer")
+	}
+
+	// validateProjectionNumbers: expenseQuantity exceeds max safe integer
+	p2 := HappeningPrice{ExpenseQuantity: int(EventHappeningMaxSafeInteger + 1)}
+	if err := p2.validateProjectionNumbers(); err == nil {
+		t.Fatal("expected error for expenseQuantity exceeding safe integer")
+	}
+
+	// HappeningPrice.Validate: ID == "*"
+	p3 := HappeningPrice{ID: "*"}
+	if err := p3.Validate(); err == nil {
+		t.Fatal("expected error for ID == *")
+	}
+
+	// HappeningPrice.Validate: invalid Amount
+	p4 := HappeningPrice{Term: Term{Unit: TermUnitDay, Length: 1}, Amount: money.Amount{Currency: "invalid!"}}
+	if err := p4.Validate(); err == nil {
+		t.Fatal("expected error for invalid amount")
+	}
+
+	// Term.String()
+	if got := (Term{Unit: TermUnitSingle, Length: 1}).String(); got != "single" {
+		t.Fatalf("expected single, got %s", got)
+	}
+	if got := (Term{Unit: TermUnitDay, Length: 1}).String(); got != "1 day" {
+		t.Fatalf("expected '1 day', got %s", got)
+	}
+	if got := (Term{Unit: TermUnitDay, Length: 5}).String(); got != "5 days" {
+		t.Fatalf("expected '5 days', got %s", got)
+	}
+
+	// Term.Validate(): unit == ""
+	if err := (Term{Unit: "", Length: 1}).Validate(); err == nil {
+		t.Fatal("expected error for empty unit")
+	}
+
+	// Term.Validate(): length < 1
+	if err := (Term{Unit: TermUnitDay, Length: 0}).Validate(); err == nil {
+		t.Fatal("expected error for length < 1")
+	}
+}

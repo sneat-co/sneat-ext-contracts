@@ -77,3 +77,107 @@ func TestSourceLinkedDateTaskHappeningItemRef(t *testing.T) {
 		t.Fatalf("ref=%+v", ref)
 	}
 }
+
+func TestSourceLinkedDateTask_AdditionalValidation(t *testing.T) {
+	// SourceLinkedDateTaskRelatedRef: invalid ItemRef
+	r1 := SourceLinkedDateTaskRelatedRef{ItemRef: coretypes.ItemRef{}, Role: "source"}
+	if err := r1.Validate(); err == nil {
+		t.Fatal("expected error for invalid ItemRef")
+	}
+	// SourceLinkedDateTaskRelatedRef: invalid Role
+	r2 := SourceLinkedDateTaskRelatedRef{ItemRef: coretypes.ItemRef{ExtID: "ext", Collection: "col", ItemID: "id"}, Role: ""}
+	if err := r2.Validate(); err == nil {
+		t.Fatal("expected error for empty Role")
+	}
+
+	// SourceLinkedDateTaskRef: invalid SpaceID
+	ref := SourceLinkedDateTaskRef{OwnerSpaceID: "invalid/space", Namespace: "debtus", RecordID: "r1", LineID: "l1"}
+	if err := ref.Validate(); err == nil {
+		t.Fatal("expected error for invalid spaceID")
+	}
+	// SourceLinkedDateTaskRef: invalid Namespace
+	ref = SourceLinkedDateTaskRef{OwnerSpaceID: "space1", Namespace: "", RecordID: "r1", LineID: "l1"}
+	if err := ref.Validate(); err == nil {
+		t.Fatal("expected error for empty namespace")
+	}
+	// SourceLinkedDateTaskRef: invalid RecordID (contains tab)
+	ref = SourceLinkedDateTaskRef{OwnerSpaceID: "space1", Namespace: "debtus", RecordID: "r\t1", LineID: "l1"}
+	if err := ref.Validate(); err == nil {
+		t.Fatal("expected error for invalid recordID")
+	}
+
+	// SourceLinkedDateTask.Validate
+	validRef := SourceLinkedDateTaskRef{OwnerSpaceID: "space1", Namespace: "debtus", RecordID: "r1", LineID: "l1"}
+	// invalid happeningID or revision
+	t1 := SourceLinkedDateTask{HappeningID: "", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted}
+	if err := t1.Validate(); err == nil {
+		t.Fatal("expected error for empty happeningID")
+	}
+	// invalid title
+	t2 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "", State: SourceLinkedDateTaskCompleted}
+	if err := t2.Validate(); err == nil {
+		t.Fatal("expected error for empty title")
+	}
+	// unsupported state
+	t3 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: "unknown"}
+	if err := t3.Validate(); err == nil {
+		t.Fatal("expected error for unknown state")
+	}
+	// active state with empty dueDate
+	t4 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskActive, DueDate: ""}
+	if err := t4.Validate(); err == nil {
+		t.Fatal("expected error for active task with empty dueDate")
+	}
+	// actionID without actionDisposition
+	t5 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted, ActionID: "act"}
+	if err := t5.Validate(); err == nil {
+		t.Fatal("expected error for actionID without actionDisposition")
+	}
+	// actionDisposition without actionID
+	t6 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted, ActionDisposition: SourceLinkedDateTaskNavigate}
+	if err := t6.Validate(); err == nil {
+		t.Fatal("expected error for actionDisposition without actionID")
+	}
+	// actionID untrimmed
+	t7 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted, ActionID: " act ", ActionDisposition: SourceLinkedDateTaskNavigate}
+	if err := t7.Validate(); err == nil {
+		t.Fatal("expected error for untrimmed actionID")
+	}
+	// actionDisposition RequiresInput
+	t8 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted, ActionID: "act", ActionDisposition: SourceLinkedDateTaskRequiresInput}
+	if err := t8.Validate(); err != nil {
+		t.Fatalf("unexpected error for RequiresInput: %v", err)
+	}
+	// empty actionDisposition and empty actionID -> return nil
+	t9 := SourceLinkedDateTask{HappeningID: "h1", Revision: 1, Source: validRef, Title: "task", State: SourceLinkedDateTaskCompleted}
+	if err := t9.Validate(); err != nil {
+		t.Fatalf("unexpected error for empty action: %v", err)
+	}
+
+	// MutateSourceLinkedDateTaskRequest
+	req := validLinkedTaskRequest()
+	req.OperationID = ""
+	if err := req.Validate(); err == nil {
+		t.Fatal("expected error for empty operationID")
+	}
+	req = validLinkedTaskRequest()
+	req.ExpectedRevision = -1
+	if err := req.Validate(); err == nil {
+		t.Fatal("expected error for negative expectedRevision")
+	}
+	req = validLinkedTaskRequest()
+	req.Related = nil
+	if err := req.Validate(); err == nil {
+		t.Fatal("expected error for nil related")
+	}
+	req = validLinkedTaskRequest()
+	req.Related = []SourceLinkedDateTaskRelatedRef{}
+	if err := req.Validate(); err == nil {
+		t.Fatal("expected error for empty related")
+	}
+	req = validLinkedTaskRequest()
+	req.Related = []SourceLinkedDateTaskRelatedRef{{ItemRef: coretypes.ItemRef{}, Role: "source"}}
+	if err := req.Validate(); err == nil {
+		t.Fatal("expected error for invalid related itemRef")
+	}
+}

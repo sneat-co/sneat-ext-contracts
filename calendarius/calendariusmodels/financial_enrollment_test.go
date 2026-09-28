@@ -31,3 +31,49 @@ func TestResolveFinancialEnrollmentRequestCanonicalScope(t *testing.T) {
 		}
 	}
 }
+
+func TestFinancialEnrollmentSubjectRef_Validate(t *testing.T) {
+	ref := FinancialEnrollmentSubjectRef{ExtensionID: "invalid", EntityID: "e1"}
+	if err := ref.Validate(); err == nil {
+		t.Fatal("expected error for unsupported extension")
+	}
+	ref = FinancialEnrollmentSubjectRef{ExtensionID: FinancialEnrollmentSubjectAssetus, EntityID: "e1"}
+	if err := ref.Validate(); err != nil {
+		t.Fatalf("unexpected error for assetus: %v", err)
+	}
+	ref = FinancialEnrollmentSubjectRef{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: ""}
+	if err := ref.Validate(); err == nil {
+		t.Fatal("expected error for empty entityID")
+	}
+}
+
+func TestFinancialEnrollmentScope_Validate_Additional(t *testing.T) {
+	s := FinancialEnrollmentScope{Kind: "unsupported", Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "e1"}}}
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for unsupported kind")
+	}
+	s = FinancialEnrollmentScope{Kind: FinancialEnrollmentScopeSubjects, Subjects: []FinancialEnrollmentSubjectRef{{ExtensionID: "invalid", EntityID: "e1"}}}
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for invalid subject")
+	}
+	s = FinancialEnrollmentScope{
+		Kind: FinancialEnrollmentScopeSubjects,
+		Subjects: []FinancialEnrollmentSubjectRef{
+			{ExtensionID: FinancialEnrollmentSubjectContactus, EntityID: "e1"},
+			{ExtensionID: FinancialEnrollmentSubjectAssetus, EntityID: "e1"},
+		},
+	}
+	canon := s.Canonical()
+	if canon.Subjects[0].ExtensionID != FinancialEnrollmentSubjectAssetus {
+		t.Fatalf("expected assetus first, got %s", canon.Subjects[0].ExtensionID)
+	}
+	r := ResolveFinancialEnrollmentRequest{
+		OwnerSpaceID: "",
+		HappeningID:  "h1",
+		OperationID:  "op1",
+		Scope:        FinancialEnrollmentScope{Kind: FinancialEnrollmentScopeWholeHappening, Subjects: []FinancialEnrollmentSubjectRef{}},
+	}
+	if err := r.Validate(); err == nil {
+		t.Fatal("expected error for empty ownerSpaceID")
+	}
+}

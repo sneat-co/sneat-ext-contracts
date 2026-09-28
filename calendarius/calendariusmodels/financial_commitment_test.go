@@ -149,3 +149,157 @@ func TestFinancialCommitmentPeriodsAreBoundedOwnerEconomicMonths(t *testing.T) {
 		t.Fatal("accepted economic months out of canonical order")
 	}
 }
+
+func TestFinancialCommitment_AdditionalCoverage(t *testing.T) {
+	// 1. FinancialCommitmentPage
+	// HasMore != (NextCursor != "")
+	p1 := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}, HasMore: true, NextCursor: ""}
+	if err := p1.Validate(); err == nil {
+		t.Fatal("expected error for HasMore without NextCursor")
+	}
+	// IncompleteReason invalid
+	p2 := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{}, IncompleteReason: "invalid"}
+	if err := p2.Validate(); err == nil {
+		t.Fatal("expected error for invalid IncompleteReason")
+	}
+	// Facts[i].Validate error
+	p3 := FinancialCommitmentPage{Facts: []FinancialCommitmentFact{{SpaceID: ""}}}
+	if err := p3.Validate(); err == nil {
+		t.Fatal("expected error for invalid Fact in Page")
+	}
+
+	// 2. FinancialCommitmentFact
+	validFact := FinancialCommitmentFact{
+		SpaceID: "space1", HappeningID: "h1", Title: "Utility",
+		Prices:       []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: 12000, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{}}},
+		Occurrences:  []FinancialCommitmentOccurrenceFact{{OccurrenceID: "o1", ScheduledDate: "2026-09-01", EffectiveDate: "2026-09-01"}},
+	}
+	// invalid spaceID
+	f := validFact
+	f.SpaceID = ""
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for empty spaceID")
+	}
+	// empty title
+	f = validFact
+	f.Title = "   "
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for empty title")
+	}
+	// negative priceRevision
+	f = validFact
+	f.PriceRevision = -1
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for negative priceRevision")
+	}
+	// occurrences exceeds max
+	f = validFact
+	f.Occurrences = make([]FinancialCommitmentOccurrenceFact, MaxFinancialCommitmentOccurrencesPerFact+1)
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for exceeding max occurrences")
+	}
+	// occurrencesIncompleteReason invalid
+	f = validFact
+	f.Occurrences = make([]FinancialCommitmentOccurrenceFact, MaxFinancialCommitmentOccurrencesPerFact)
+	f.OccurrencesIncompleteReason = "invalid_reason"
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for invalid OccurrencesIncompleteReason")
+	}
+	// activeFromISO > activeToISO
+	f = validFact
+	f.ActiveFromISO = "2026-10-01"
+	f.ActiveToISO = "2026-09-01"
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for activeFrom > activeTo")
+	}
+	// price.ExpenseQuantity <= 0
+	f = validFact
+	f.Prices = []FinancialCommitmentPriceFact{{PriceID: "p1", ExpenseQuantity: 0}}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for non-positive expenseQuantity")
+	}
+	// duplicate priceID
+	f = validFact
+	pGood := FinancialCommitmentPriceFact{PriceID: "p1", AmountMinor: 100, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{}}
+	f.Prices = []FinancialCommitmentPriceFact{pGood, pGood}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for duplicate priceID")
+	}
+	// price.Validate() fails
+	f = validFact
+	f.Prices = []FinancialCommitmentPriceFact{{PriceID: "p1", AmountMinor: -1, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{}}}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for invalid price")
+	}
+	// occurrenceID invalid
+	f = validFact
+	f.Occurrences = []FinancialCommitmentOccurrenceFact{{OccurrenceID: ""}}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for empty occurrenceID")
+	}
+	// duplicate occurrenceID
+	f = validFact
+	occGood := FinancialCommitmentOccurrenceFact{OccurrenceID: "o1", ScheduledDate: "2026-09-01", EffectiveDate: "2026-09-01"}
+	f.Occurrences = []FinancialCommitmentOccurrenceFact{occGood, occGood}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for duplicate occurrenceID")
+	}
+	// occurrence contactLinks invalid
+	f = validFact
+	occWithBadLink := occGood
+	occWithBadLink.ContactLinks = []FinancialCommitmentContactLink{{ContactID: ""}}
+	f.Occurrences = []FinancialCommitmentOccurrenceFact{occWithBadLink}
+	if err := f.Validate(); err == nil {
+		t.Fatal("expected error for invalid contactLinks in occurrence")
+	}
+
+	// 3. FinancialCommitmentPriceFact
+	// invalid priceID
+	pf := FinancialCommitmentPriceFact{PriceID: ""}
+	if err := pf.Validate(); err == nil {
+		t.Fatal("expected error for empty priceID")
+	}
+	// invalid fields
+	pf = FinancialCommitmentPriceFact{PriceID: "p1", Currency: "", ExpenseQuantity: 1}
+	if err := pf.Validate(); err == nil {
+		t.Fatal("expected error for empty currency")
+	}
+	// nil periods
+	pf = FinancialCommitmentPriceFact{PriceID: "p1", AmountMinor: 100, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: nil}
+	if err := pf.Validate(); err == nil {
+		t.Fatal("expected error for nil periods")
+	}
+	// periods exceeds max
+	pf = FinancialCommitmentPriceFact{PriceID: "p1", AmountMinor: 100, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: make([]FinancialCommitmentPeriodFact, MaxFinancialCommitmentPeriodsPerPrice+1)}
+	if err := pf.Validate(); err == nil {
+		t.Fatal("expected error for exceeding max periods")
+	}
+	// period.Validate() fails
+	badPeriod := FinancialCommitmentPeriodFact{OccurrenceID: "", PeriodStartDate: "2026-09-01", PeriodEndDate: "2026-09-30"}
+	pf = FinancialCommitmentPriceFact{PriceID: "p1", AmountMinor: 100, Currency: "EUR", ExpenseQuantity: 1, Term: FinancialCommitmentTerm{Unit: "month", Length: 1}, Periods: []FinancialCommitmentPeriodFact{badPeriod}}
+	if err := pf.Validate(); err == nil {
+		t.Fatal("expected error for invalid period in price")
+	}
+
+	// 4. FinancialCommitmentPeriodFact
+	// invalid dates
+	period := FinancialCommitmentPeriodFact{OccurrenceID: "p1", PeriodStartDate: "2026-9-1", PeriodEndDate: "2026-09-30"}
+	if err := period.Validate(); err == nil {
+		t.Fatal("expected error for invalid date format")
+	}
+
+	// 5. Helpers: validateUniqueIDs with invalid ID
+	if err := validateUniqueIDs("ids", []string{""}); err == nil {
+		t.Fatal("expected error for empty ID in validateUniqueIDs")
+	}
+	// role untrimmed or empty
+	links := []FinancialCommitmentContactLink{{ContactID: "c1", Roles: []string{""}}}
+	if err := validateCommitmentContactLinks("links", links); err == nil {
+		t.Fatal("expected error for empty role")
+	}
+	// duplicate role
+	links = []FinancialCommitmentContactLink{{ContactID: "c1", Roles: []string{"admin", "admin"}}}
+	if err := validateCommitmentContactLinks("links", links); err == nil {
+		t.Fatal("expected error for duplicate role")
+	}
+}

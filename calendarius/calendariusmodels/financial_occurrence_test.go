@@ -33,3 +33,20 @@ func TestValidateFinancialOccurrenceID(t *testing.T) {
 		require.Error(t, ValidateFinancialOccurrenceID(value))
 	}
 }
+
+func TestFinancialOccurrenceQuery_Additional(t *testing.T) {
+	valid := FinancialOccurrenceQuery{SpaceID: "space1", HappeningID: "h1", FromDate: "2026-09-01", ToDate: "2026-09-02"}
+	require.NoError(t, valid.ValidateForResolve())
+
+	invalid := FinancialOccurrenceQuery{SpaceID: "bad/space", HappeningID: "h1", FromDate: "2026-09-01", ToDate: "2026-09-02"}
+	require.Error(t, invalid.ValidateForResolve())
+
+	ctrlHappening := FinancialOccurrenceQuery{SpaceID: "space1", HappeningID: "h1\x00", FromDate: "2026-09-01", ToDate: "2026-09-02"}
+	require.Error(t, ctrlHappening.Validate())
+
+	atHappening := FinancialOccurrenceQuery{SpaceID: "space1", HappeningID: "h@1", FromDate: "2026-09-01", ToDate: "2026-09-02"}
+	require.Error(t, atHappening.Validate())
+
+	tildeSpace := FinancialOccurrenceQuery{SpaceID: "test~123", HappeningID: "h1", FromDate: "2026-09-01", ToDate: "2026-09-02"}
+	require.Error(t, tildeSpace.Validate())
+}

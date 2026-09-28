@@ -331,3 +331,300 @@ func TestEventHappeningScopesValidateUTF8ByteBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestHappening_FullCoverage(t *testing.T) {
+	// 1. EventHappeningHierarchy child link ID error
+	h := EventHappeningHierarchy{ChildHappeningIDs: []string{" bad "}}
+	if err := h.Validate("parent"); err == nil {
+		t.Fatal("expected error for bad child link ID")
+	}
+
+	// 2. EventHappeningSpec validation branches
+	base := scheduledEventSpec()
+	// invalid UTCOffset
+	s := base
+	s.UTCOffset = "bad"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for invalid UTCOffset")
+	}
+	// invalid EndDate
+	s = base
+	s.EndDate = "bad"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for invalid EndDate")
+	}
+	// invalid EndTime
+	s = base
+	s.EndTime = "bad"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for invalid EndTime")
+	}
+	// invalid EndUTCOffset
+	s = base
+	s.EndUTCOffset = "bad"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for invalid EndUTCOffset")
+	}
+	// invalid Description (untrimmed)
+	s = base
+	s.Description = " untrimmed "
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for untrimmed Description")
+	}
+	// UTCOffset without completeStart
+	s = EventHappeningSpec{Title: "Title", UTCOffset: "+01:00"}
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for UTCOffset without completeStart")
+	}
+	// EndUTCOffset without EndTime
+	s = base
+	s.EndTime = ""
+	s.EndUTCOffset = "+01:00"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for EndUTCOffset without EndTime")
+	}
+	// EndTime without completeStart
+	s = EventHappeningSpec{Title: "Title", EndTime: "14:00", EndUTCOffset: "+01:00"}
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for EndTime without completeStart")
+	}
+	// EndTime without EndUTCOffset
+	s = base
+	s.EndUTCOffset = ""
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for EndTime without EndUTCOffset")
+	}
+	// End local time invalid (EndUTCOffset mismatching timezone)
+	s = base
+	s.EndUTCOffset = "+05:00"
+	if err := s.Validate(); err == nil {
+		t.Fatal("expected error for mismatching EndUTCOffset")
+	}
+
+	// 3. EventHappening.Validate
+	validEvent := EventHappening{
+		ID:        "h1",
+		Type:      EventHappeningTypeSingle,
+		Kind:      EventHappeningKindEvent,
+		Version:   1,
+		Title:     "Picnic",
+		Date:      "2026-08-01",
+		Time:      "12:30",
+		TimeZone:  "Europe/Dublin",
+		UTCOffset: "+01:00",
+		CreatedBy: "user1",
+		CreatedAt: time.Now().UTC(),
+		Status:    EventHappeningStatusActive,
+	}
+	if err := validEvent.Validate(); err != nil {
+		t.Fatalf("validEvent failed: %v", err)
+	}
+	// Single with recurrence
+	badEv := validEvent
+	badEv.Recurrence = &EventHappeningRecurrence{Repeats: "daily"}
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for single with recurrence")
+	}
+	// Recurring with invalid recurrence
+	badEv = validEvent
+	badEv.Type = EventHappeningTypeRecurring
+	badEv.Recurrence = &EventHappeningRecurrence{Repeats: "bad"}
+	badEv.Date, badEv.Time, badEv.UTCOffset = "", "", ""
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for recurring with invalid recurrence")
+	}
+	// Recurring with concrete schedule
+	badEv = validEvent
+	badEv.Type = EventHappeningTypeRecurring
+	badEv.Recurrence = &EventHappeningRecurrence{Repeats: "weekly"}
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for recurring with concrete schedule")
+	}
+	// Recurring without concrete schedule (valid)
+	recEv := validEvent
+	recEv.Type = EventHappeningTypeRecurring
+	recEv.Recurrence = &EventHappeningRecurrence{Repeats: "weekly"}
+	recEv.Date, recEv.Time, recEv.UTCOffset = "", "", ""
+	if err := recEv.Validate(); err != nil {
+		t.Fatalf("valid recurring event failed: %v", err)
+	}
+	// Unknown happening type
+	badEv = validEvent
+	badEv.Type = "unknown"
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for unknown happening type")
+	}
+	// Price projection error
+	badEv = validEvent
+	badEv.WithHappeningPrices = WithHappeningPrices{Prices: []*HappeningPrice{{ID: " bad "}}}
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for bad price projection")
+	}
+	// Hierarchy error
+	badEv = validEvent
+	badEv.Hierarchy = EventHappeningHierarchy{ParentHappeningID: "h1"}
+	if err := badEv.Validate(); err == nil {
+		t.Fatal("expected error for hierarchy self-parenting")
+	}
+
+	// 4. EventHappeningMutationDisposition and EventHappeningMutation
+	for _, disp := range []EventHappeningMutationDisposition{
+		EventHappeningCreated, EventHappeningChanged, EventHappeningUnchanged, EventHappeningReused,
+	} {
+		if !disp.IsValid() {
+			t.Fatalf("disp %q should be valid", disp)
+		}
+	}
+	if EventHappeningMutationDisposition("unknown").IsValid() {
+		t.Fatal("unknown disposition should be invalid")
+	}
+	mut := EventHappeningMutation{Disposition: "unknown", Event: validEvent}
+	if err := mut.Validate(); err == nil {
+		t.Fatal("expected error for invalid disposition in mutation")
+	}
+	mut.Disposition = EventHappeningCreated
+	if err := mut.Validate(); err != nil {
+		t.Fatalf("valid mutation failed: %v", err)
+	}
+
+	// 5. CreateEventHappeningRequest
+	creq := CreateEventHappeningRequest{
+		RequestID: "req1",
+		Type:      EventHappeningTypeSingle,
+		Spec:      scheduledEventSpec(),
+	}
+	if err := creq.Validate(); err != nil {
+		t.Fatalf("creq failed: %v", err)
+	}
+	// invalid requestID
+	badC := creq
+	badC.RequestID = " bad "
+	if err := badC.Validate(); err == nil {
+		t.Fatal("expected error for bad requestID in create")
+	}
+	if _, err := badC.Fingerprint(); err == nil {
+		t.Fatal("expected error for bad requestID in Fingerprint")
+	}
+	// invalid spec
+	badC = creq
+	badC.Spec.Title = ""
+	if err := badC.Validate(); err == nil {
+		t.Fatal("expected error for bad spec in create")
+	}
+	// single with recurrence
+	badC = creq
+	badC.Recurrence = &EventHappeningRecurrence{Repeats: "daily"}
+	if err := badC.Validate(); err == nil {
+		t.Fatal("expected error for single with recurrence in create")
+	}
+	// recurring with nil recurrence
+	badC = creq
+	badC.Type = EventHappeningTypeRecurring
+	badC.Recurrence = nil
+	if err := badC.Validate(); err == nil {
+		t.Fatal("expected error for recurring with nil recurrence in create")
+	}
+	// unknown type
+	badC = creq
+	badC.Type = "unknown"
+	if err := badC.Validate(); err == nil {
+		t.Fatal("expected error for unknown type in create")
+	}
+	// Fingerprint with nil price in prices
+	pCreq := creq
+	pCreq.WithHappeningPrices = WithHappeningPrices{Prices: []*HappeningPrice{nil}}
+	if _, err := pCreq.Fingerprint(); err != nil {
+		t.Fatalf("Fingerprint with nil price failed: %v", err)
+	}
+
+	// 6. UpdateEventHappeningRequest
+	badStr := " bad "
+	durVal := 30
+	badDur := -1
+	ureq := UpdateEventHappeningRequest{
+		RequestID:       "req1",
+		ExpectedVersion: 1,
+		DurationMinutes: &durVal,
+	}
+	if err := ureq.Validate(); err != nil {
+		t.Fatalf("valid ureq failed: %v", err)
+	}
+	if _, err := ureq.Fingerprint("h1"); err != nil {
+		t.Fatalf("valid ureq Fingerprint failed: %v", err)
+	}
+	// Fingerprint bad happeningID
+	if _, err := ureq.Fingerprint(" bad "); err == nil {
+		t.Fatal("expected error for bad happeningID in update Fingerprint")
+	}
+	// bad requestID
+	badU := ureq
+	badU.RequestID = " bad "
+	if err := badU.Validate(); err == nil {
+		t.Fatal("expected error for bad requestID in update")
+	}
+	if _, err := badU.Fingerprint("h1"); err == nil {
+		t.Fatal("expected error for bad requestID in update Fingerprint")
+	}
+	// individual bad fields in update
+	for _, mutator := range []func(*UpdateEventHappeningRequest){
+		func(u *UpdateEventHappeningRequest) { u.Title = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.Date = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.Time = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.TimeZone = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.UTCOffset = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.EndDate = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.EndTime = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.EndUTCOffset = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.Location = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.Description = &badStr },
+		func(u *UpdateEventHappeningRequest) { u.DurationMinutes = &badDur },
+	} {
+		u := ureq
+		mutator(&u)
+		if err := u.Validate(); err == nil {
+			t.Fatal("expected error for bad field in update")
+		}
+	}
+
+	// 7. Low-level helper validation functions
+	if err := validateEventHappeningDate("d", "\xff"); err == nil {
+		t.Fatal("expected error for invalid utf8 in date")
+	}
+	if err := validateEventHappeningTime("t", "\xff"); err == nil {
+		t.Fatal("expected error for invalid utf8 in time")
+	}
+	if err := validateEventHappeningTimeZone(" Europe/Dublin"); err == nil {
+		t.Fatal("expected error for untrimmed timezone")
+	}
+	if err := validateEventHappeningTimeZone("Local"); err == nil {
+		t.Fatal("expected error for Local timezone")
+	}
+	if err := validateEventHappeningOffset("o", "\xff"); err == nil {
+		t.Fatal("expected error for invalid utf8 in offset")
+	}
+	if err := validateEventHappeningOffset("o", "bad"); err == nil {
+		t.Fatal("expected error for bad offset string")
+	}
+	if _, err := eventHappeningOffsetSeconds("+1:00"); err == nil {
+		t.Fatal("expected error for non ±HH:MM offset")
+	}
+	if _, err := eventHappeningOffsetSeconds("+15:00"); err == nil {
+		t.Fatal("expected error for offset > 14:00")
+	}
+	if sec, err := eventHappeningOffsetSeconds("-05:00"); err != nil || sec != -5*3600 {
+		t.Fatalf("unexpected result for -05:00: sec=%d, err=%v", sec, err)
+	}
+	if _, err := eventHappeningInstant("bad-date", "12:00", "UTC", "+00:00"); err == nil {
+		t.Fatal("expected error for bad date in eventHappeningInstant")
+	}
+	if _, err := eventHappeningInstant("2026-08-01", "bad-time", "UTC", "+00:00"); err == nil {
+		t.Fatal("expected error for bad time in eventHappeningInstant")
+	}
+	if _, err := eventHappeningInstant("2026-08-01", "12:00", "UTC", "bad-offset"); err == nil {
+		t.Fatal("expected error for bad offset in eventHappeningInstant")
+	}
+	if _, err := eventHappeningInstant("2026-08-01", "12:00", "bad-zone", "+00:00"); err == nil {
+		t.Fatal("expected error for bad zone in eventHappeningInstant")
+	}
+}
+
