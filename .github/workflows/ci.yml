@@ -147,6 +147,24 @@ jobs:
           go test -count=1 -coverprofile=cover.out ./...
           awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
 
+  media-coverage:
+    name: media 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: media
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: media/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
   release-candidate-policy:
     runs-on: ubuntu-latest
     steps:
