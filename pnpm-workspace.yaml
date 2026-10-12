@@ -10,6 +10,8 @@ packages:
 # peerDependenciesMeta marks them optional (pnpm/pnpm#11155), so the override
 # alone is not sufficient — see .pnpmfile.cjs for the reliable fix.
 overrides:
+  'js-yaml@4': ^4.3.2
+  'undici@7': ^7.29.1
   'zone.js': '-'
 
 onlyBuiltDependencies:
