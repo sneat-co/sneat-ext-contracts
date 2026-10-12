@@ -464,9 +464,9 @@ func TestWithMultiSpaceContacts_Methods(t *testing.T) {
 	m := &WithMultiSpaceContacts[*testBrief]{}
 
 	tb := &testBrief{ContactBrief: ContactBrief{
-		Type:        ContactTypePerson,
-		Title:       "Bob",
-		WithUserID:  dbmodels.WithUserID{UserID: "u_bob"},
+		Type:                  ContactTypePerson,
+		Title:                 "Bob",
+		WithUserID:            dbmodels.WithUserID{UserID: "u_bob"},
 		WithOptionalRelatedAs: dbmodels.WithOptionalRelatedAs{RelatedAs: "parent"},
 	}}
 
@@ -636,5 +636,3 @@ func TestRemaining19UncoveredBlocks(t *testing.T) {
 		t.Fatal("expected error on invalid AccountsOfUser")
 	}
 }
-
-
