@@ -25,17 +25,17 @@ func TestSourceTodoSpecValidation(t *testing.T) {
 	}
 
 	for name, mutate := range map[string]func(*SourceTodoSpec){
-		"invalid spaceID":        func(v *SourceTodoSpec) { v.SpaceID = "" },
-		"empty listID":           func(v *SourceTodoSpec) { v.ListID = "" },
-		"untrimmed listID":       func(v *SourceTodoSpec) { v.ListID = "  todo" },
-		"invalid record listID":  func(v *SourceTodoSpec) { v.ListID = "todo list" },
-		"empty title":            func(v *SourceTodoSpec) { v.Title = "" },
-		"invalid source":         func(v *SourceTodoSpec) { v.Source = coretypes.ItemRef{} },
-		"invalid dueHappening":   func(v *SourceTodoSpec) { v.DueHappening = coretypes.ItemRef{} },
-		"zero revision":          func(v *SourceTodoSpec) { v.DueTaskRevision = 0 },
-		"overflow revision":      func(v *SourceTodoSpec) { v.DueTaskRevision = SourceTodoMaxSafeInteger + 1 },
-		"invalid state":          func(v *SourceTodoSpec) { v.State = "unknown" },
-		"invalid disposition":    func(v *SourceTodoSpec) { v.CompletionDisposition = "execute" },
+		"invalid spaceID":       func(v *SourceTodoSpec) { v.SpaceID = "" },
+		"empty listID":          func(v *SourceTodoSpec) { v.ListID = "" },
+		"untrimmed listID":      func(v *SourceTodoSpec) { v.ListID = "  todo" },
+		"invalid record listID": func(v *SourceTodoSpec) { v.ListID = "todo list" },
+		"empty title":           func(v *SourceTodoSpec) { v.Title = "" },
+		"invalid source":        func(v *SourceTodoSpec) { v.Source = coretypes.ItemRef{} },
+		"invalid dueHappening":  func(v *SourceTodoSpec) { v.DueHappening = coretypes.ItemRef{} },
+		"zero revision":         func(v *SourceTodoSpec) { v.DueTaskRevision = 0 },
+		"overflow revision":     func(v *SourceTodoSpec) { v.DueTaskRevision = SourceTodoMaxSafeInteger + 1 },
+		"invalid state":         func(v *SourceTodoSpec) { v.State = "unknown" },
+		"invalid disposition":   func(v *SourceTodoSpec) { v.CompletionDisposition = "execute" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := valid
@@ -87,4 +87,3 @@ func TestSourceTodoPlanViewValidation(t *testing.T) {
 		})
 	}
 }
-
