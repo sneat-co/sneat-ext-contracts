@@ -28,6 +28,21 @@ func TestErrorKeepsCausePrivate(t *testing.T) {
 	if err.Error() == cause.Error() {
 		t.Fatal("public error string exposed its private cause")
 	}
+
+	// Field formatting
+	errWithField := &Error{Code: ErrorCodeValidation, Field: "name"}
+	if got := errWithField.Error(); got != "sportius: validation (name)" {
+		t.Fatalf("unexpected error string with field: got %q, want %q", got, "sportius: validation (name)")
+	}
+
+	// nil receiver
+	var nilErr *Error
+	if got := nilErr.Error(); got != "<nil>" {
+		t.Fatalf("unexpected nil error string: got %q, want \"<nil>\"", got)
+	}
+	if got := nilErr.Unwrap(); got != nil {
+		t.Fatalf("unexpected nil unwrap: got %v, want nil", got)
+	}
 }
 
 func TestUpdateRequestsCanExplicitlyClearOptionalFields(t *testing.T) {
