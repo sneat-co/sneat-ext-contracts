@@ -79,6 +79,26 @@ func TestLevelAtLeast(t *testing.T) {
 	}
 }
 
+func TestLevelAtLeast_Panics(t *testing.T) {
+	t.Run("receiver invalid", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic for invalid receiver")
+			}
+		}()
+		_ = participation.Level("invalid").AtLeast(participation.LevelYes)
+	})
+
+	t.Run("other invalid", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected panic for invalid other")
+			}
+		}()
+		_ = participation.LevelYes.AtLeast(participation.Level("invalid"))
+	})
+}
+
 // TestLevelCoarseMapping verifies the total mapping of Level → Coarse.
 func TestLevelCoarseMapping(t *testing.T) {
 	tests := []struct {

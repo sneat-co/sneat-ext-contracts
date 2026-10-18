@@ -165,6 +165,60 @@ jobs:
           go test -count=1 -coverprofile=cover.out ./...
           awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
 
+  bookius-coverage:
+    name: bookius 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bookius
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: bookius/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
+  eventius-coverage:
+    name: eventius 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eventius
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: eventius/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
+  sportius-coverage:
+    name: sportius 100% test coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sportius
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: sportius/go.mod
+      - name: Test with 100% coverage
+        run: |
+          go test -count=1 -coverprofile=cover.out ./...
+          awk 'NR>1 && $NF==0 {print; bad=1} END{exit bad}' cover.out
+
   release-candidate-policy:
     runs-on: ubuntu-latest
     steps:
@@ -188,7 +242,7 @@ jobs:
     # branch protection. This job only combines the results above.
     name: Required checks passed
     if: ${{ always() }}
-    needs: [nx, tier-coherence, discover-go, go, listus-coverage, trackus-coverage, contactus-coverage, release-candidate-policy]
+    needs: [nx, tier-coherence, discover-go, go, listus-coverage, trackus-coverage, contactus-coverage, media-coverage, bookius-coverage, eventius-coverage, sportius-coverage, release-candidate-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -202,6 +256,10 @@ jobs:
           LISTUS_COVERAGE_RESULT: ${{ needs.listus-coverage.result }}
           TRACKUS_COVERAGE_RESULT: ${{ needs.trackus-coverage.result }}
           CONTACTUS_COVERAGE_RESULT: ${{ needs.contactus-coverage.result }}
+          MEDIA_COVERAGE_RESULT: ${{ needs.media-coverage.result }}
+          BOOKIUS_COVERAGE_RESULT: ${{ needs.bookius-coverage.result }}
+          EVENTIUS_COVERAGE_RESULT: ${{ needs.eventius-coverage.result }}
+          SPORTIUS_COVERAGE_RESULT: ${{ needs.sportius-coverage.result }}
           RELEASE_CANDIDATE_POLICY_RESULT: ${{ needs.release-candidate-policy.result }}
         run: |
           set -eu
@@ -219,6 +277,10 @@ jobs:
           require_success "Listus 100% test coverage" "$LISTUS_COVERAGE_RESULT"
           require_success "Trackus 100% test coverage" "$TRACKUS_COVERAGE_RESULT"
           require_success "Contactus 100% test coverage" "$CONTACTUS_COVERAGE_RESULT"
+          require_success "Media 100% test coverage" "$MEDIA_COVERAGE_RESULT"
+          require_success "Bookius 100% test coverage" "$BOOKIUS_COVERAGE_RESULT"
+          require_success "Eventius 100% test coverage" "$EVENTIUS_COVERAGE_RESULT"
+          require_success "Sportius 100% test coverage" "$SPORTIUS_COVERAGE_RESULT"
           require_success "Release candidate policy" "$RELEASE_CANDIDATE_POLICY_RESULT"
 
           if [ "$GO_DIRS" = "[]" ]; then
