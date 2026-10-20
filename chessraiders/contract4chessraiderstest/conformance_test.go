@@ -2,6 +2,7 @@ package contract4chessraiderstest_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -225,5 +226,219 @@ func TestCheckMatchLobbyApplicationRejectsNonCompliantImplementation(t *testing.
 	)
 	if len(violations) == 0 {
 		t.Fatal("want at least one violation against an implementation that starts with one side seated, got none")
+	}
+}
+
+type mockLobbyApplication struct {
+	*memoryLobbyApplication
+	onCreateLobby func(ctx context.Context, creator contract4chessraiders.Player, mode contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error)
+	onJoin        func(ctx context.Context, matchID string, joiner contract4chessraiders.Player) (contract4chessraiders.LobbyView, error)
+	onVoteReady   func(ctx context.Context, matchID, callerUserID string, ready bool) (contract4chessraiders.LobbyView, error)
+	onStart       func(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error)
+	onGet         func(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error)
+}
+
+func (m *mockLobbyApplication) CreateLobby(ctx context.Context, creator contract4chessraiders.Player, mode contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error) {
+	if m.onCreateLobby != nil {
+		return m.onCreateLobby(ctx, creator, mode)
+	}
+	return m.memoryLobbyApplication.CreateLobby(ctx, creator, mode)
+}
+
+func (m *mockLobbyApplication) Join(ctx context.Context, matchID string, joiner contract4chessraiders.Player) (contract4chessraiders.LobbyView, error) {
+	if m.onJoin != nil {
+		return m.onJoin(ctx, matchID, joiner)
+	}
+	return m.memoryLobbyApplication.Join(ctx, matchID, joiner)
+}
+
+func (m *mockLobbyApplication) VoteReady(ctx context.Context, matchID, callerUserID string, ready bool) (contract4chessraiders.LobbyView, error) {
+	if m.onVoteReady != nil {
+		return m.onVoteReady(ctx, matchID, callerUserID, ready)
+	}
+	return m.memoryLobbyApplication.VoteReady(ctx, matchID, callerUserID, ready)
+}
+
+func (m *mockLobbyApplication) Start(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error) {
+	if m.onStart != nil {
+		return m.onStart(ctx, matchID, callerUserID)
+	}
+	return m.memoryLobbyApplication.Start(ctx, matchID, callerUserID)
+}
+
+func (m *mockLobbyApplication) Get(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error) {
+	if m.onGet != nil {
+		return m.onGet(ctx, matchID, callerUserID)
+	}
+	return m.memoryLobbyApplication.Get(ctx, matchID, callerUserID)
+}
+
+func TestCheckMatchLobbyApplicationRejectionCases(t *testing.T) {
+	tests := []struct {
+		name string
+		mock func() contract4chessraiders.MatchLobbyApplication
+	}{
+		{
+			name: "create lobby returns error",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				return &mockLobbyApplication{
+					memoryLobbyApplication: newMemoryLobbyApplication(),
+					onCreateLobby: func(_ context.Context, _ contract4chessraiders.Player, _ contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error) {
+						return contract4chessraiders.LobbyView{}, errors.New("cannot create")
+					},
+				}
+			},
+		},
+		{
+			name: "create lobby returns empty match ID",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				return &mockLobbyApplication{
+					memoryLobbyApplication: newMemoryLobbyApplication(),
+					onCreateLobby: func(ctx context.Context, c contract4chessraiders.Player, m contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error) {
+						mem := newMemoryLobbyApplication()
+						v, err := mem.CreateLobby(ctx, c, m)
+						v.MatchID = ""
+						return v, err
+					},
+				}
+			},
+		},
+		{
+			name: "create lobby returns non-lobby lifecycle",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				return &mockLobbyApplication{
+					memoryLobbyApplication: newMemoryLobbyApplication(),
+					onCreateLobby: func(ctx context.Context, c contract4chessraiders.Player, m contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error) {
+						mem := newMemoryLobbyApplication()
+						v, err := mem.CreateLobby(ctx, c, m)
+						v.Lifecycle = contract4chessraiders.LifecyclePlaying
+						return v, err
+					},
+				}
+			},
+		},
+		{
+			name: "create lobby returns wrong created by",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				return &mockLobbyApplication{
+					memoryLobbyApplication: newMemoryLobbyApplication(),
+					onCreateLobby: func(ctx context.Context, c contract4chessraiders.Player, m contract4chessraiders.CaptureMode) (contract4chessraiders.LobbyView, error) {
+						mem := newMemoryLobbyApplication()
+						v, err := mem.CreateLobby(ctx, c, m)
+						v.CreatedBy = "other"
+						return v, err
+					},
+				}
+			},
+		},
+		{
+			name: "join returns invalid black seats",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onJoin: func(ctx context.Context, matchID string, joiner contract4chessraiders.Player) (contract4chessraiders.LobbyView, error) {
+						v, err := mem.Join(ctx, matchID, joiner)
+						v.Black = nil
+						return v, err
+					},
+				}
+			},
+		},
+		{
+			name: "creator vote ready fails",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onVoteReady: func(ctx context.Context, matchID, callerUserID string, ready bool) (contract4chessraiders.LobbyView, error) {
+						if callerUserID == "creator" {
+							return contract4chessraiders.LobbyView{}, errors.New("vote error")
+						}
+						return mem.VoteReady(ctx, matchID, callerUserID, ready)
+					},
+				}
+			},
+		},
+		{
+			name: "opponent vote ready fails",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onVoteReady: func(ctx context.Context, matchID, callerUserID string, ready bool) (contract4chessraiders.LobbyView, error) {
+						if callerUserID == "opponent" {
+							return contract4chessraiders.LobbyView{}, errors.New("vote error")
+						}
+						return mem.VoteReady(ctx, matchID, callerUserID, ready)
+					},
+				}
+			},
+		},
+		{
+			name: "start fails for non-creator",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onStart: func(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error) {
+						if callerUserID == "opponent" {
+							return contract4chessraiders.LobbyView{}, errors.New("start error")
+						}
+						return mem.Start(ctx, matchID, callerUserID)
+					},
+				}
+			},
+		},
+		{
+			name: "start leaves lifecycle as lobby",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onStart: func(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error) {
+						v, err := mem.Start(ctx, matchID, callerUserID)
+						v.Lifecycle = contract4chessraiders.LifecycleLobby
+						return v, err
+					},
+				}
+			},
+		},
+		{
+			name: "join after start returns non-ErrNotInLobby error",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onJoin: func(ctx context.Context, matchID string, joiner contract4chessraiders.Player) (contract4chessraiders.LobbyView, error) {
+						if joiner.UserID == "stranger" {
+							return contract4chessraiders.LobbyView{}, errors.New("unexpected error")
+						}
+						return mem.Join(ctx, matchID, joiner)
+					},
+				}
+			},
+		},
+		{
+			name: "get unknown match returns non-ErrMatchNotFound error",
+			mock: func() contract4chessraiders.MatchLobbyApplication {
+				mem := newMemoryLobbyApplication()
+				return &mockLobbyApplication{
+					memoryLobbyApplication: mem,
+					onGet: func(ctx context.Context, matchID, callerUserID string) (contract4chessraiders.LobbyView, error) {
+						return contract4chessraiders.LobbyView{}, errors.New("unexpected error")
+					},
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			violations := contract4chessraiderstest.CheckMatchLobbyApplication(tc.mock)
+			if len(violations) == 0 {
+				t.Fatalf("case %q: expected violations, got none", tc.name)
+			}
+		})
 	}
 }
