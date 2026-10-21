@@ -8,4 +8,4 @@ go 1.26.0
 
 toolchain go1.27.0
 
-require github.com/sneat-co/sneat-go-core/convospec v0.1.0
+require github.com/sneat-co/sneat-go-core/convospec v0.1.3
