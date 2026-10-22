@@ -7,8 +7,8 @@
   "peerDependencies": {
     "@angular/core": "^21.0.0",
     "rxjs": "^7.0.0",
-    "@sneat/core": "^0.27.6",
-    "@sneat/extension-calendarius-contract": "^0.22.0"
+    "@sneat/core": "^0.27.40",
+    "@sneat/extension-calendarius-contract": "^0.27.0"
   },
   "sideEffects": false
 }
