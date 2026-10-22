@@ -9,6 +9,8 @@ overrides:
   undici@7: ^7.29.1
   zone.js: '-'
 
+pnpmfileChecksum: sha256-phYdiKep7yPcepTcLC9/o2n9Gh0VmfeXtkwL7EReNbQ=
+
 importers:
 
   .:
@@ -887,11 +889,8 @@ packages:
     peerDependencies:
       '@angular/compiler': 21.2.21
       rxjs: ^6.5.3 || ^7.4.0
-      zone.js: '*'
     peerDependenciesMeta:
       '@angular/compiler':
-        optional: true
-      zone.js:
         optional: true
 
   '@angular/core@22.1.3':
@@ -900,11 +899,8 @@ packages:
     peerDependencies:
       '@angular/compiler': 22.1.3
       rxjs: ^6.5.3 || ^7.4.0
-      zone.js: '*'
     peerDependenciesMeta:
       '@angular/compiler':
-        optional: true
-      zone.js:
         optional: true
 
   '@angular/forms@22.1.3':
@@ -2603,10 +2599,6 @@ packages:
       '@angular/forms': '>=18.0.0'
       '@angular/router': '>=18.0.0'
       rxjs: '>=7.5.0'
-      zone.js: '*'
-    peerDependenciesMeta:
-      zone.js:
-        optional: true
 
   '@ionic/core@9.0.1':
     resolution: {integrity: sha512-70fIYFxGuBFYOanWIl1PF3/emB+xVQjLQ9OZqgI+9ki8nEZH1y90YkTtAmleLl2jTx6TUpSaJpdUnzkBreIt7w==}
