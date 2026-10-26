@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "6d675c8880b0208eefba28d7442e2941a0927824",
+  "reviewedSource": "d4e8b88f3c40876acc7b01fe3eeee75809744d26",
   "plans": [
     {
-      "path": ".nx/version-plans/contactus-media-require-fix.md",
-      "sha256": "f16b28f90c0c627f28ec71e9e1cb618037dec9d83a8bc9ead92ed77c652c42af"
+      "path": ".nx/version-plans/version-plan-1793010015736.md",
+      "sha256": "c2b0675e659a988968201c1211668b6a7d9a8412acc4c98c1c9495b2217ca6e1"
     }
   ],
   "releases": [
     {
-      "family": "contactus",
-      "project": "contactus-contract",
-      "package": "@sneat/extension-contactus-contract",
-      "manifestPath": "libs/contactus/package.json",
-      "changelogPath": "libs/contactus/CHANGELOG.md",
-      "version": "0.12.11",
-      "npmTag": "contactus-contract-v0.12.11",
-      "siblingGoTag": "contactus/v0.12.11"
+      "family": "bookius",
+      "project": "bookius-contract",
+      "package": "@sneat/extension-bookius-contract",
+      "manifestPath": "libs/bookius/package.json",
+      "changelogPath": "libs/bookius/CHANGELOG.md",
+      "version": "0.5.0",
+      "npmTag": "bookius-contract-v0.5.0",
+      "siblingGoTag": "bookius/v0.5.0"
     }
   ]
 }
