@@ -43,7 +43,7 @@ Verbatim from `spec/features/ext-contracts-monorepo/README.md`
 > version of exactly that contract, minutes after merge, with correct
 > provenance; no other contract republished.*
 
-In practice, that is:
+The release workflow contract is:
 
 1. Clone this repo. Edit one contract lib under `libs/<family>/`.
 2. Add an **Nx version plan** naming that project and its bump
@@ -55,15 +55,18 @@ In practice, that is:
    (`docs/boundaries.md`), peer-range strictness, the zone.js guard, and the
    tier-coherence check (every owned contract's npm-latest still installs and
    type-checks together).
-4. On merge to `main`, the release pipeline (`publish.yml`) runs
-   `nx release --yes` in **independent** (per-project) mode: it versions,
-   changelogs, and publishes **only** the projects named in the version plans
-   that were merged. Every other contract in the repo — however many there
-   are — is untouched. No other npm package republishes because your PR
-   touched a shared file.
+4. After the source merges to `main` and CI succeeds, `prepare-release.yml`
+   runs Nx versioning and changelog generation in **independent** (per-project)
+   mode and opens a protected release-candidate PR. Its committed manifest
+   binds the reviewed source, consumed plans, and exact package/tag set.
+5. Review and merge that release-candidate PR. Successful CI on its exact
+   `main` merge lets `publish.yml` publish the bound candidate. A manual retry
+   must name that same merged, successful-CI commit through `source_ref`.
+   Only the projects named in the consumed plans are published; touching a
+   shared file does not republish other contracts.
 
 Good result: npm shows the new version of exactly the contract you changed,
-minutes after merge, with correct provenance. Nothing else on npm moves.
+with provenance bound to the reviewed release-candidate merge.
 
 ### Lockstep family versioning (npm + Go)
 

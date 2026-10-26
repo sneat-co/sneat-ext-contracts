@@ -24,6 +24,7 @@ describe('Bookius booking DTOs', () => {
 
   it('captures anonymous public booking requests', () => {
     const request: BookiusCreateBookingRequest = {
+      spaceID: 'space-1',
       bookingTypeID: 'investor-call',
       requestedSlot: {
         start: '2026-07-07T10:00:00Z',
