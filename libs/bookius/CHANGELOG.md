@@ -1,3 +1,13 @@
+## 0.5.0 (2026-10-26)
+
+### ⚠️  Breaking Changes
+
+- Require an explicit owning SpaceID for booking requests and responses. This breaks callers that omitted spaceID; bookius-contract moves from 0.4.3 to 0.5.0 on the 0.x release train. ([cf3ab24](https://github.com/sneat-co/sneat-ext-contracts/commit/cf3ab24))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.4.3 (2026-09-02)
 
 ### 🩹 Fixes
