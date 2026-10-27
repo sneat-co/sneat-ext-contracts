@@ -6,7 +6,7 @@ toolchain go1.27.3
 
 require (
 	github.com/crediterra/money v0.4.2
-	github.com/dal-go/dalgo v0.95.3
+	github.com/dal-go/dalgo v0.95.4
 	github.com/sneat-co/sneat-go-core v0.69.0
 	github.com/stretchr/testify v1.12.1
 	github.com/strongo/decimal v0.1.5
