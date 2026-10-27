@@ -98,6 +98,7 @@ export interface BookiusBookingTransition {
 }
 
 export interface BookiusBookingDbo extends IWithCreated {
+  readonly spaceID: string;
   readonly bookingTypeID: string;
   readonly bookingPageID?: string;
   readonly state: BookiusBookingState;
@@ -133,7 +134,7 @@ export interface BookiusCreateBookingTypeRequest {
 }
 
 export interface BookiusCreateBookingRequest {
-  readonly spaceID?: string;
+  readonly spaceID: string;
   readonly bookingTypeID: string;
   readonly bookingPageID?: string;
   readonly requestedSlot: BookiusSlot;
