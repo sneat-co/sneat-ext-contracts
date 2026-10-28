@@ -371,3 +371,30 @@ test('mirrors nx major-zero semantics when computing the expected plan version',
   assert.equal(bumpVersion('1.4.2', 'minor'), '1.5.0');
   assert.equal(bumpVersion('1.4.2', 'patch'), '1.4.3');
 });
+
+test('preflights immutable sibling Go tags before offering unpublished npm artifacts', () => {
+  const checkedMain = 'a'.repeat(40);
+  const release = {
+    project: 'contactus-contract', package: '@sneat/extension-contactus-contract',
+    version: '0.12.13', npmTag: 'contactus-contract-v0.12.13',
+    siblingGoTag: 'contactus/v0.12.13',
+  };
+  const input = {
+    releases: [release], checkedMain, remoteTags: {}, npmIntegrities: {},
+    localIntegrities: { '@sneat/extension-contactus-contract@0.12.13': 'sha512-local' },
+  };
+  const pending = { publishProjects: ['contactus-contract'], tagsToPush: ['contactus-contract-v0.12.13'] };
+  assert.deepEqual(classifyPublication(input), pending);
+  assert.deepEqual(classifyPublication({ ...input, remoteTags: {
+    [release.siblingGoTag]: { rawObject: 'b'.repeat(40), peeledCommit: checkedMain },
+  } }), pending);
+  for (const existing of [
+    { rawObject: 'b'.repeat(40), peeledCommit: 'c'.repeat(40) },
+    { rawObject: 'c'.repeat(40), peeledCommit: null },
+    { rawObject: null, peeledCommit: checkedMain },
+  ]) {
+    assert.throws(() => classifyPublication({ ...input, remoteTags: {
+      [release.siblingGoTag]: existing,
+    } }), /sibling Go tag contactus\/v0\.12\.13.*choose a new family version/);
+  }
+});

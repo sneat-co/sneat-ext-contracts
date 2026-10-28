@@ -250,11 +250,14 @@ jobs:
         run: |
           set -euo pipefail
           remote_tags='{}'; npm_integrities='{}'
-          while IFS=$'\t' read -r name version tag; do
-            tag_rows="$(git ls-remote origin "refs/tags/${tag}" "refs/tags/${tag}^{}")"
-            raw_object="$(awk -v ref="refs/tags/${tag}" '$2 == ref {print $1}' <<<"$tag_rows")"
-            peeled_commit="$(awk -v ref="refs/tags/${tag}^{}" '$2 == ref {print $1}' <<<"$tag_rows")"
-            remote_tags="$(node -e 'const v=JSON.parse(process.argv[1]);v[process.argv[2]]=process.argv[3]?{rawObject:process.argv[3],peeledCommit:process.argv[4]||null}:null;process.stdout.write(JSON.stringify(v))' "$remote_tags" "$tag" "$raw_object" "$peeled_commit")"
+          while IFS=$'\t' read -r name version npm_tag go_tag; do
+            for tag in "$npm_tag" "$go_tag"; do
+              [[ -n "$tag" ]] || continue
+              tag_rows="$(git ls-remote origin "refs/tags/${tag}" "refs/tags/${tag}^{}")"
+              raw_object="$(awk -v ref="refs/tags/${tag}" '$2 == ref {print $1}' <<<"$tag_rows")"
+              peeled_commit="$(awk -v ref="refs/tags/${tag}^{}" '$2 == ref {print $1}' <<<"$tag_rows")"
+              remote_tags="$(node -e 'const v=JSON.parse(process.argv[1]);v[process.argv[2]]=process.argv[3]?{rawObject:process.argv[3],peeledCommit:process.argv[4]||null}:null;process.stdout.write(JSON.stringify(v))' "$remote_tags" "$tag" "$raw_object" "$peeled_commit")"
+            done
             integrity=''
             for attempt in 1 2 3 4 5 6; do
               error_file="$(mktemp)"
@@ -268,7 +271,7 @@ jobs:
               [[ "$attempt" == 6 ]] || sleep 5
             done
             npm_integrities="$(node -e 'const v=JSON.parse(process.argv[1]);v[process.argv[2]]=process.argv[3]||null;process.stdout.write(JSON.stringify(v))' "$npm_integrities" "${name}@${version}" "$integrity")"
-          done < <(node -e 'for(const r of require("./.nx/release-candidate.json").releases) console.log([r.package,r.version,r.npmTag].join("\t"))')
+          done < <(node -e 'for(const r of require("./.nx/release-candidate.json").releases) console.log([r.package,r.version,r.npmTag,r.siblingGoTag || ""].join("\t"))')
           releases="$(node -e 'process.stdout.write(JSON.stringify(require("./.nx/release-candidate.json").releases))')"
           assessment="$(RELEASES="$releases" CHECKED_MAIN="$SOURCE" REMOTE_TAGS="$remote_tags" NPM_INTEGRITIES="$npm_integrities" LOCAL_INTEGRITIES="$LOCAL_INTEGRITIES" node tools/release-candidate/release-candidate.mjs classify)"
           publish_projects="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).publishProjects.join(","))' "$assessment")"
