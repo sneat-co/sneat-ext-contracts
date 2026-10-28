@@ -1,42 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "9ef4e9d68f3da97f8b9ae0436777ea582b185909",
+  "reviewedSource": "87de6caf47d2f490175113165c40b321fe1f756d",
   "plans": [
     {
-      "path": ".nx/version-plans/publishable-media-peers.md",
-      "sha256": "d85f1221ec83cfc2353d4791efed315c133ed8e74f1594eecbf401202a3e9468"
+      "path": ".nx/version-plans/forward-go-tag-recovery.md",
+      "sha256": "b582275b06f360d74ffec4cb9e8b4e3d9c96d7a3d7a63f04c514af10d41f48d1"
     }
   ],
   "releases": [
-    {
-      "family": "assetus",
-      "project": "assetus-contract",
-      "package": "@sneat/extension-assetus-contract",
-      "manifestPath": "libs/assetus/package.json",
-      "changelogPath": "libs/assetus/CHANGELOG.md",
-      "version": "0.2.5",
-      "npmTag": "assetus-contract-v0.2.5",
-      "siblingGoTag": null
-    },
     {
       "family": "contactus",
       "project": "contactus-contract",
       "package": "@sneat/extension-contactus-contract",
       "manifestPath": "libs/contactus/package.json",
       "changelogPath": "libs/contactus/CHANGELOG.md",
-      "version": "0.12.12",
-      "npmTag": "contactus-contract-v0.12.12",
-      "siblingGoTag": "contactus/v0.12.12"
-    },
-    {
-      "family": "docus",
-      "project": "docus-contract",
-      "package": "@sneat/extension-docus-contract",
-      "manifestPath": "libs/docus/package.json",
-      "changelogPath": "libs/docus/CHANGELOG.md",
-      "version": "0.0.8",
-      "npmTag": "docus-contract-v0.0.8",
-      "siblingGoTag": null
+      "version": "0.12.13",
+      "npmTag": "contactus-contract-v0.12.13",
+      "siblingGoTag": "contactus/v0.12.13"
     },
     {
       "family": "listus",
@@ -44,9 +24,9 @@
       "package": "@sneat/extension-listus-contract",
       "manifestPath": "libs/listus/package.json",
       "changelogPath": "libs/listus/CHANGELOG.md",
-      "version": "0.0.12",
-      "npmTag": "listus-contract-v0.0.12",
-      "siblingGoTag": "listus/v0.0.12"
+      "version": "0.0.13",
+      "npmTag": "listus-contract-v0.0.13",
+      "siblingGoTag": "listus/v0.0.13"
     }
   ]
 }

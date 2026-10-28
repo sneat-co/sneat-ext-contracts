@@ -1,3 +1,13 @@
+## 0.0.13 (2026-10-28)
+
+### 🩹 Fixes
+
+- Advance Contactus and Listus to the next shared npm/Go patch versions after the previous npm publication encountered immutable Go tags from older commits. Preserve those existing tags and publish the current reviewed dependency payload under new versions. ([9432489](https://github.com/sneat-co/sneat-ext-contracts/commit/9432489))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.0.12 (2026-10-28)
 
 ### 🩹 Fixes
