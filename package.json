@@ -12,7 +12,8 @@
     "test:tier-coherence": "node --test tools/tier-coherence/check.test.mjs",
     "peer-range-guard": "node tools/peer-range-guard/check.mjs",
     "test:contract-generator": "vitest run --config tools/contract-generator/vitest.config.mts",
-    "test:release-candidate": "node --test tools/release-candidate/release-candidate.test.mjs"
+    "test:release-candidate": "node --test tools/release-candidate/release-candidate.test.mjs",
+    "test:peer-range-guard": "node --test tools/peer-range-guard/check.test.mjs"
   },
   "devDependencies": {
     "@sneat/extension-media-contract": "workspace:*",

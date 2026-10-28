@@ -57,8 +57,10 @@ jobs:
       # duplicate-DI-token errors. tools/contract-generator/generator.ts's
       # caretOf() keeps newly-scaffolded families out of this; this guard
       # catches a hand-edit or future generator regression.
-      - name: Peer-range guard (no exact @sneat/* pins)
-        run: node tools/peer-range-guard/check.mjs
+      - name: Publishable dependency range guard
+        run: |
+          node --test tools/peer-range-guard/check.test.mjs
+          node tools/peer-range-guard/check.mjs
 
   discover-go:
     runs-on: ubuntu-latest

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Peer-range guard (REQ peer-range-no-exact-pins): fails CI if any
 // libs/<family>/package.json declares a bare EXACT version (no ^/~/range
-// operator) for a @sneat/* entry in peerDependencies or dependencies.
+// operator) for a @sneat/* dependency or a workspace protocol in any published
+// dependency field. Workspace references must resolve to registry ranges before packing.
 //
 // Why this exists: `@nx/angular:package` (ng-packagr) copies a lib's source
 // package.json fields — including peerDependencies — straight into the
@@ -19,7 +20,7 @@
 // generator regression, or a copy-pasted libs/<family>/package.json).
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,56 +36,48 @@ const libsDir = path.join(repoRoot, 'libs');
 // non-0.0.x bare exact pins are this script's target.
 const isBareExact = (v) => typeof v === 'string' && /^\d/.test(v) && !/^0\.0\.\d/.test(v);
 
-function main() {
-  if (!existsSync(libsDir)) {
-    console.log('peer-range-guard: no libs/ directory — trivial pass.');
-    return;
-  }
-
+// ng-packagr and npm pack preserve dependency metadata verbatim. The same
+// scanner runs on source manifests in CI and on dist manifests before packing.
+export function inspectPackages(libsDir) {
+  if (!existsSync(libsDir)) return { checked: 0, violations: [] };
   const families = readdirSync(libsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name);
-
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
   const violations = [];
-
+  let checked = 0;
   for (const family of families) {
     const pkgPath = path.join(libsDir, family, 'package.json');
     if (!existsSync(pkgPath)) continue;
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-
-    for (const field of ['peerDependencies', 'dependencies']) {
-      const deps = pkg[field];
-      if (!deps) continue;
-      for (const [name, range] of Object.entries(deps)) {
-        if (name.startsWith('@sneat/') && isBareExact(range)) {
-          violations.push({
-            file: path.relative(repoRoot, pkgPath),
-            field,
-            name,
-            range,
-          });
+    if (pkg.private === true) continue;
+    checked++;
+    for (const field of ['peerDependencies', 'dependencies', 'optionalDependencies']) {
+      for (const [name, range] of Object.entries(pkg[field] ?? {})) {
+        let reason;
+        if (typeof range === 'string' && range.startsWith('workspace:')) {
+          reason = 'workspace protocol cannot be resolved outside this workspace';
+        } else if (name.startsWith('@sneat/') && isBareExact(range)) {
+          reason = 'missing range operator';
         }
+        if (reason) violations.push({ file: pkgPath, field, name, range, reason });
       }
     }
   }
+  return { checked, violations };
+}
 
-  if (violations.length > 0) {
-    console.error(
-      `peer-range-guard: ${violations.length} exact @sneat/* peer/dependency pin(s) found — ` +
-        'these must be caret ranges (e.g. "^0.27.6", not "0.27.6"), or a consumer whose ' +
-        'installed version has drifted even one patch gets a second copy installed to satisfy ' +
-        'the unmet peer (Angular NG0201 duplicate-DI-token errors).\n',
-    );
+function main() {
+  const directory = process.argv[2] ? path.resolve(process.argv[2]) : libsDir;
+  const { checked, violations } = inspectPackages(directory);
+  if (violations.length) {
+    console.error(`peer-range-guard: ${violations.length} unpublishable dependency range(s):`);
     for (const v of violations) {
-      console.error(`  ${v.file}: ${v.field}["${v.name}"] = "${v.range}" (missing ^)`);
+      console.error(`  ${path.relative(repoRoot, v.file)}: ${v.field}["${v.name}"] = "${v.range}" (${v.reason})`);
     }
     process.exitCode = 1;
     return;
   }
-
-  console.log(
-    `peer-range-guard: checked ${families.length} lib(s) — no exact @sneat/* peer/dependency pins.`,
-  );
+  console.log(`peer-range-guard: checked ${checked} publishable package(s) — dependency ranges are publishable.`);
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
