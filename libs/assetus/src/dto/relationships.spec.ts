@@ -116,8 +116,8 @@ describe('relationship DTOs (relationships-frontend-preserved)', () => {
   it('resolves the multi-space association keyed by spaceID', () => {
     const withSpaces: IWithAssetSpaces = asset;
     expect(Object.keys(withSpaces.spaces ?? {})).toEqual(['s1', 's2']);
-    const s1: IAssetusSpaceBrief = withSpaces.spaces!['s1'];
-    expect(s1.assets?.['a1'].name).toBe('Family car');
+    const s1: IAssetusSpaceBrief | undefined = withSpaces.spaces?.['s1'];
+    expect(s1?.assets?.['a1'].name).toBe('Family car');
     // multi-space is additive to the single owning spaceIDs.
     expect(asset.spaceIDs).toEqual(['s1']);
   });

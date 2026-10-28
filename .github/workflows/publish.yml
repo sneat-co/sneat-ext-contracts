@@ -228,6 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm nx run-many -t build --projects="$PROJECTS" --skip-nx-cache
+          node tools/peer-range-guard/check.mjs dist/libs
           mkdir -p .release-artifacts
           integrities='{}'
           while IFS=$'\t' read -r family project name version; do
