@@ -39,6 +39,17 @@ test('binds one planned package and sibling Go tag to a two-parent checked merge
   ]);
 });
 
+test('rejects an automatically generated dependent npm tag outside the reviewed plan', () => {
+  const repo = newFixture();
+  process.chdir(repo.path);
+  git(['tag', 'docus-contract-v0.0.8', repo.candidate]);
+
+  assert.throws(
+    () => createReleaseMetadata({ source: repo.source, candidate: repo.candidate }),
+    /Generated candidate contains unplanned npm tags: docus-contract-v0\.0\.8/,
+  );
+});
+
 test('validates the actual generated pull-request head and checked main revision', () => {
   const repo = newFixture();
   process.chdir(repo.path);
