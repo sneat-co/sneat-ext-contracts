@@ -1,22 +1,52 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "d4e8b88f3c40876acc7b01fe3eeee75809744d26",
+  "reviewedSource": "9ef4e9d68f3da97f8b9ae0436777ea582b185909",
   "plans": [
     {
-      "path": ".nx/version-plans/version-plan-1793010015736.md",
-      "sha256": "c2b0675e659a988968201c1211668b6a7d9a8412acc4c98c1c9495b2217ca6e1"
+      "path": ".nx/version-plans/publishable-media-peers.md",
+      "sha256": "d85f1221ec83cfc2353d4791efed315c133ed8e74f1594eecbf401202a3e9468"
     }
   ],
   "releases": [
     {
-      "family": "bookius",
-      "project": "bookius-contract",
-      "package": "@sneat/extension-bookius-contract",
-      "manifestPath": "libs/bookius/package.json",
-      "changelogPath": "libs/bookius/CHANGELOG.md",
-      "version": "0.5.0",
-      "npmTag": "bookius-contract-v0.5.0",
-      "siblingGoTag": "bookius/v0.5.0"
+      "family": "assetus",
+      "project": "assetus-contract",
+      "package": "@sneat/extension-assetus-contract",
+      "manifestPath": "libs/assetus/package.json",
+      "changelogPath": "libs/assetus/CHANGELOG.md",
+      "version": "0.2.5",
+      "npmTag": "assetus-contract-v0.2.5",
+      "siblingGoTag": null
+    },
+    {
+      "family": "contactus",
+      "project": "contactus-contract",
+      "package": "@sneat/extension-contactus-contract",
+      "manifestPath": "libs/contactus/package.json",
+      "changelogPath": "libs/contactus/CHANGELOG.md",
+      "version": "0.12.12",
+      "npmTag": "contactus-contract-v0.12.12",
+      "siblingGoTag": "contactus/v0.12.12"
+    },
+    {
+      "family": "docus",
+      "project": "docus-contract",
+      "package": "@sneat/extension-docus-contract",
+      "manifestPath": "libs/docus/package.json",
+      "changelogPath": "libs/docus/CHANGELOG.md",
+      "version": "0.0.8",
+      "npmTag": "docus-contract-v0.0.8",
+      "siblingGoTag": null
+    },
+    {
+      "family": "listus",
+      "project": "listus-contract",
+      "package": "@sneat/extension-listus-contract",
+      "manifestPath": "libs/listus/package.json",
+      "changelogPath": "libs/listus/CHANGELOG.md",
+      "version": "0.0.12",
+      "npmTag": "listus-contract-v0.0.12",
+      "siblingGoTag": "listus/v0.0.12"
     }
   ]
 }
