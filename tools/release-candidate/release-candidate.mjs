@@ -140,6 +140,16 @@ export function classifyPublication({
   const publishProjects = [];
   const tagsToPush = [];
   for (const release of releases) {
+    // Check sibling Go ownership before returning any npm publication work.
+    // Existing immutable tags require a new family version, even when the
+    // npm artifact has not yet been published.
+    const siblingGoTag = release.siblingGoTag && remoteTags[release.siblingGoTag];
+    if (siblingGoTag && (!siblingGoTag.rawObject || !siblingGoTag.peeledCommit)) {
+      fail(`Remote sibling Go tag ${release.siblingGoTag} must be an annotated tag with a peeled commit; choose a new family version.`);
+    }
+    if (siblingGoTag && siblingGoTag.peeledCommit !== checkedMain) {
+      fail(`Remote sibling Go tag ${release.siblingGoTag} resolves outside checked main; choose a new family version.`);
+    }
     const remoteTag = remoteTags[release.npmTag];
     if (remoteTag && (!remoteTag.rawObject || !remoteTag.peeledCommit)) {
       fail(`Remote tag ${release.npmTag} must be an annotated tag with a peeled commit.`);
