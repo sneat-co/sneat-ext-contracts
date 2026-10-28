@@ -22,6 +22,17 @@ const repoRoot = path.resolve(here, '..', '..');
 const manifestPath = path.join(repoRoot, 'contracts.json');
 const workDir = path.join(here, '.tmp', 'consumer');
 
+function runPnpm(args, options = {}) {
+  try {
+    return execFileSync('pnpm', args, options);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return execFileSync('corepack', ['pnpm', ...args], options);
+    }
+    throw error;
+  }
+}
+
 function readTypescriptVersion() {
   const rootPkg = JSON.parse(
     readFileSync(path.join(repoRoot, 'package.json'), 'utf8'),
@@ -74,7 +85,7 @@ function packLocalContract(entry) {
   );
   const packDir = path.join(workDir, 'local-packages');
   mkdirSync(packDir, { recursive: true });
-  execFileSync('pnpm', ['nx', 'build', project.name, '--skip-nx-cache'], {
+  runPnpm(['nx', 'build', project.name, '--skip-nx-cache'], {
     cwd: repoRoot,
     stdio: 'inherit',
   });
@@ -201,14 +212,13 @@ function main() {
   // package's published .d.ts/.js on disk for `tsc` to type-check against —
   // it never executes any package's code — so skipping build scripts
   // entirely is correct here, not a risk tolerated for convenience.
-  execFileSync(
-    'pnpm',
+  runPnpm(
     ['install', '--ignore-workspace', '--ignore-scripts', '--no-frozen-lockfile'],
     { cwd: workDir, stdio: 'inherit' },
   );
 
   console.log('tier-coherence: type-checking the synthetic consumer...');
-  execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], {
+  runPnpm(['exec', 'tsc', '-p', 'tsconfig.json'], {
     cwd: workDir,
     stdio: 'inherit',
   });

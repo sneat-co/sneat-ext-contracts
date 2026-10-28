@@ -10,8 +10,8 @@ toolchain go1.27.3
 
 require (
 	github.com/dal-go/dalgo v0.95.4
-	github.com/sneat-co/sneat-go-core v0.69.0
-	github.com/sneat-co/sneat-go-core/convospec v0.1.2
+	github.com/sneat-co/sneat-go-core v0.72.2
+	github.com/sneat-co/sneat-go-core/convospec v0.1.3
 )
 
 require (
