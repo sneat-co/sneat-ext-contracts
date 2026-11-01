@@ -1,4 +1,4 @@
-import { Timestamp } from '@firebase/firestore';
+import type { Timestamp } from 'firebase/firestore';
 import { IIdAndBrief, IIdAndOptionalBriefAndOptionalDbo } from '@sneat/core';
 import { ISpaceContext } from '@sneat/space-models';
 
@@ -6,12 +6,18 @@ export type TrackerValueType =
   | 'int'
   | 'float'
   | 'string'
+  | 'boolean'
+  /** @deprecated Use the canonical backend value 'boolean'. */
   | 'bool'
   | 'money'
   | 'integers'
   | 'floats';
 
-export type NumberKind = 'absolute' | 'cumulative';
+export type NumberKind =
+  | 'absolute'
+  | 'summable'
+  /** @deprecated Use the canonical backend value 'summable'. */
+  | 'cumulative';
 
 export type TrackBy = 'space' | 'contact' | 'asset';
 
@@ -22,11 +28,7 @@ export interface IWithEntryType {
 }
 
 export type TrackerCategory =
-  | 'fitness'
-  | 'health'
-  | 'home'
-  | 'vehicles'
-  | string;
+  'fitness' | 'health' | 'home' | 'vehicles' | string;
 
 export interface ITrackerBrief extends IWithEntryType {
   readonly categories: readonly TrackerCategory[];
@@ -133,7 +135,23 @@ export type TrackerPointBrief =
 // 	readonly s?: string;
 // }
 
+/** Sharing metadata is descriptive; it does not establish read/write authority. */
+export interface ITrackerShareDetail {
+  readonly byUserID: string;
+  readonly permissions: readonly string[];
+}
+
 export interface ITrackerDbo extends ITrackerBrief {
+  /** Absent on older projections. */
+  readonly status?: 'active' | 'archived';
+  /** Entity reference -> destination Space ID -> share. */
+  readonly sharedTo?: Readonly<
+    Record<string, Readonly<Record<string, ITrackerShareDetail>>>
+  >;
+  /** Source Space ID -> entity reference -> share. */
+  readonly sharedFrom?: Readonly<
+    Record<string, Readonly<Record<string, ITrackerShareDetail>>>
+  >;
   readonly entries: Readonly<
     Record<string, Readonly<Record<string, TrackerPointBrief>>>
   >;
@@ -152,6 +170,7 @@ export const standardTrackers: readonly IIdAndBrief<ITrackerBrief>[] = [
     brief: {
       trackBy: ['contact'],
       valueType: 'int',
+      numberKind: 'summable',
       categories: ['fitness'],
       title: 'Push-ups',
       emoji: '🏋️',
@@ -162,6 +181,7 @@ export const standardTrackers: readonly IIdAndBrief<ITrackerBrief>[] = [
     brief: {
       trackBy: ['contact'],
       valueType: 'int',
+      numberKind: 'summable',
       categories: ['fitness'],
       title: 'Pull-ups',
       emoji: '🏋️',

@@ -14,7 +14,18 @@ export interface IAddTrackerPointRequest {
   readonly trackerID: string;
   readonly trackByKind: 'space' | 'contact' | 'asset';
   readonly trackByID: string;
+  /** Retain across retries of the same point; the backend upserts this ID. */
+  readonly entryID?: string;
+  /** ISO/RFC3339 event instant, not a Firestore Timestamp. */
+  readonly ts?: string;
+  readonly n?: string;
   readonly i?: number;
+  readonly f?: number;
+  readonly s?: string;
+  readonly b?: boolean;
+  readonly m?: number;
+  readonly I?: readonly number[];
+  readonly F?: readonly number[];
 }
 
 export interface IDeleteTrackerPointsRequest {
