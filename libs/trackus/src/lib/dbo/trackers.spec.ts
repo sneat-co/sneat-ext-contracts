@@ -15,15 +15,33 @@ const VALUE_TYPES: readonly TrackerValueType[] = [
   'int',
   'float',
   'string',
+  'boolean',
   'bool',
   'money',
   'integers',
   'floats',
 ];
 const TRACK_BY: readonly TrackBy[] = ['space', 'contact', 'asset'];
-const NUMBER_KINDS: readonly NumberKind[] = ['absolute', 'cumulative'];
+const NUMBER_KINDS: readonly NumberKind[] = [
+  'absolute',
+  'summable',
+  'cumulative',
+];
 
 describe('standardTrackers catalogue', () => {
+  it.each(['_push_ups', '_pull_ups'])(
+    '%s matches integer summable contact metadata',
+    (id) => {
+      expect(
+        standardTrackers.find((tracker) => tracker.id === id)?.brief,
+      ).toMatchObject({
+        valueType: 'int',
+        numberKind: 'summable',
+        trackBy: ['contact'],
+      });
+    },
+  );
+
   it('defines at least one standard tracker', () => {
     expect(standardTrackers.length).toBeGreaterThan(0);
   });

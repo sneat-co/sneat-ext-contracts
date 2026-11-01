@@ -1,6 +1,6 @@
 import { InjectionToken } from '@angular/core';
-import { Observable } from 'rxjs';
-import {
+import type { Observable } from 'rxjs';
+import type {
   ModuleSpaceItemService,
   SpaceModuleService,
 } from '@sneat/space-services';
