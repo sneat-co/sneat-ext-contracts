@@ -5,6 +5,7 @@ import type {
 } from '@sneat/extension-template-contract';
 
 export * from '@sneat/extension-template-contract';
+export * from './goal-definition';
 
 // Commitius currently specializes the maintained list extension. Keeping these
 // aliases in its contract gives hosts a Commitius-owned API boundary while the
