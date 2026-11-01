@@ -21,3 +21,18 @@ compatibility correction does not add or replace service methods.
 Source package versions stay unchanged until the protected release process.
 Strict packed-consumer validation qualifies the complete Angular 22 graph;
 it does not establish Angular 21 support for this graph.
+
+## Structured goal values
+
+Additive goal-definition and goal-terms exports describe reviewed calendar
+windows, version-bound evidence/create fields, filtered semantic pages,
+full amendment proposals and owner-only version/change history. They add no
+payment behavior, result evaluator or runtime service implementation. Keep ISO
+instants as strings to preserve server timestamp precision. Supported and
+unsupported semantic pages are distinct; clients must honor server action and
+support flags instead of inferring consent from progress or approval counts.
+
+Actor and bot-channel identity come from trusted host context, never body
+fields. Space membership and referee capabilities do not grant owner-history
+listing. Publication and actual host integration are separate release gates;
+the existing service alias/token and package versions remain unchanged here.
