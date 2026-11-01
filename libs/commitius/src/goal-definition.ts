@@ -170,3 +170,32 @@ export interface IReviewedCommitmentGoal {
   readonly goalDefinition: ICommitmentGoalDefinition;
   readonly expectedCalendarDigest: string;
 }
+
+export interface IGoalCalendarOffsetChoice {
+  readonly instant: string;
+  readonly offsetSeconds: number;
+}
+
+export interface IGoalCalendarOffsetChoiceRequired {
+  readonly code: "calendar_offset_choice_required";
+  readonly message: string;
+  readonly field: "start" | "cutoff";
+  readonly localDateTime: string;
+  readonly candidates: readonly IGoalCalendarOffsetChoice[];
+}
+
+export interface IGoalCalendarInputError {
+  readonly code:
+    | "invalid_calendar"
+    | "invalid_json"
+    | "request_too_large"
+    | "unsupported_media_type"
+    | "method_not_allowed"
+    | "calendar_unavailable";
+  readonly message: string;
+  readonly field?: string;
+}
+
+export interface IGoalCalendarErrorResponse {
+  readonly error: IGoalCalendarOffsetChoiceRequired | IGoalCalendarInputError;
+}
