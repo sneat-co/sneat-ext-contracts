@@ -131,10 +131,18 @@ export type IGoalCalendarPreviewRequest = {
 export interface INormalizedGoalPeriod {
   readonly id: string;
   readonly localLabel: string;
-  /** Start-inclusive/end-exclusive absolute instants, frozen in the snapshot. */
+  /** Envelope bounds for ordering/display; membership uses intervals below. */
   readonly startAt: string;
   readonly endAt: string;
   readonly partial: boolean;
+  /** Exact frozen membership; a civil date can have disjoint UTC intervals. */
+  readonly intervals: readonly INormalizedGoalInterval[];
+}
+
+export interface INormalizedGoalInterval {
+  /** Start-inclusive/end-exclusive absolute instants. */
+  readonly startAt: string;
+  readonly endAt: string;
 }
 
 export type IGoalCalendarPreview = {
