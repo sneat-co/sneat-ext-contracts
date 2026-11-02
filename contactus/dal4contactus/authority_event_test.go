@@ -22,4 +22,9 @@ func TestAuthorityEventNativeRootAndValidation(t *testing.T) {
 	if r, err = NewAuthorityEventRecord(e); err == nil || r != nil {
 		t.Fatal("invalid event received a persistence envelope")
 	}
+	e.V = 1
+	e.TransitionKind = "unknown_kind"
+	if r, err = NewAuthorityEventRecord(e); err == nil || r != nil {
+		t.Fatal("invalid transition kind received a persistence envelope")
+	}
 }
