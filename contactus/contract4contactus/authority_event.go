@@ -9,6 +9,7 @@ import (
 	"time"
 
 	core "github.com/sneat-co/sneat-go-core"
+	"github.com/sneat-co/sneat-go-core/coretypes"
 )
 
 const AuthorityEventsCollection = "authorityEvents"
@@ -31,7 +32,7 @@ type ContactAuthorityEvent struct {
 }
 
 func (e ContactAuthorityEvent) Validate() error {
-	if e.V != 1 || !core.IsAlphanumericOrUnderscore(e.SpaceID) || !core.IsAlphanumericOrUnderscore(e.ContactID) || e.ObservedAt.IsZero() {
+	if e.V != 1 || coretypes.ValidateSpaceID(coretypes.SpaceID(e.SpaceID)) != nil || !core.IsAlphanumericOrUnderscore(e.ContactID) || e.ObservedAt.IsZero() {
 		return errors.New("invalid native contact authority event")
 	}
 	for _, epoch := range []string{e.MembershipGeneration, e.BindingGeneration} {
