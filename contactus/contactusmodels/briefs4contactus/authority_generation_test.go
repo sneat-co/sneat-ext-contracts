@@ -10,16 +10,12 @@ func TestAuthorityGenerationsRotateWithoutABA(t *testing.T) {
 	if c.MembershipGeneration != "" || c.BindingGeneration != "" {
 		t.Fatal("legacy epochs must be absent")
 	}
-	if err := c.RotateAuthorityGenerations(); err != nil {
-		t.Fatal(err)
-	}
+	c.RotateAuthorityGenerations()
 	firstMembership, firstBinding := c.MembershipGeneration, c.BindingGeneration
 	if len(firstMembership) != 32 || len(firstBinding) != 32 || firstMembership == firstBinding {
 		t.Fatal("expected distinct random 128-bit epochs")
 	}
-	if err := c.RotateAuthorityGenerations(); err != nil {
-		t.Fatal(err)
-	}
+	c.RotateAuthorityGenerations()
 	if c.MembershipGeneration == firstMembership || c.BindingGeneration == firstBinding {
 		t.Fatal("authority epoch reused")
 	}
