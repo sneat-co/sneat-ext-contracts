@@ -13,6 +13,10 @@ import (
 
 // ContactBase is used in dbo4contactus.ContactDbo and in requests to create a contactBrief
 type ContactBase struct {
+	// Opaque native authority epochs; never accepted from client mutation data.
+	MembershipGeneration string `json:"membershipGeneration,omitempty" firestore:"membershipGeneration,omitempty"`
+	BindingGeneration    string `json:"bindingGeneration,omitempty" firestore:"bindingGeneration,omitempty"`
+
 	ContactBrief
 
 	Status dbmodels.Status `json:"status" firestore:"status"` // active, archived
