@@ -1,6 +1,7 @@
 package contract4contactus
 
 import (
+	"github.com/sneat-co/sneat-go-core/coretypes"
 	"strings"
 	"testing"
 	"time"
@@ -42,5 +43,13 @@ func TestAuthorityEventValidationAndIdentity(t *testing.T) {
 		if err := e.Validate(); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestAuthorityEventAcceptsNativeSpotSpaceID(t *testing.T) {
+	e := validAuthorityEvent()
+	e.SpaceID = coretypes.SpotSpaceIDPrefix + "native_spot"
+	if err := e.Validate(); err != nil {
+		t.Fatal(err)
 	}
 }
