@@ -7,6 +7,7 @@ import type {
 export * from '@sneat/extension-template-contract';
 export * from './goal-definition';
 export * from './goal-terms';
+export * from './reviewed-create';
 export * from './goal-accountability';
 export * from './commitment-pages';
 
