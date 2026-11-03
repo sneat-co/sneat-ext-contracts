@@ -1,52 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "a05ee41f32d424ea4c72f7e647270faba3c13f13",
+  "reviewedSource": "6cc962b660df54d0ea982b07f2fdfe2db0dbb868",
   "plans": [
     {
-      "path": ".nx/version-plans/ibetican-trackus-compatibility.md",
-      "sha256": "ccca1f8a8a11faa58f738ff31bdeac3b27946c0dc21e99cfb21321ac0050c7c3"
+      "path": ".nx/version-plans/ibetican-goals-and-owner-reads.md",
+      "sha256": "2d9480fedab33404a9202153d4321bd8c2e8cc33f015292795d8933c016af9b3"
     }
   ],
   "releases": [
-    {
-      "family": "assetus",
-      "project": "assetus-contract",
-      "package": "@sneat/extension-assetus-contract",
-      "manifestPath": "libs/assetus/package.json",
-      "changelogPath": "libs/assetus/CHANGELOG.md",
-      "version": "0.2.6",
-      "npmTag": "assetus-contract-v0.2.6",
-      "siblingGoTag": null
-    },
     {
       "family": "commitius",
       "project": "commitius-contract",
       "package": "@sneat/extension-commitius-contract",
       "manifestPath": "libs/commitius/package.json",
       "changelogPath": "libs/commitius/CHANGELOG.md",
-      "version": "0.1.4",
-      "npmTag": "commitius-contract-v0.1.4",
+      "version": "0.1.5",
+      "npmTag": "commitius-contract-v0.1.5",
       "siblingGoTag": null
-    },
-    {
-      "family": "docus",
-      "project": "docus-contract",
-      "package": "@sneat/extension-docus-contract",
-      "manifestPath": "libs/docus/package.json",
-      "changelogPath": "libs/docus/CHANGELOG.md",
-      "version": "0.0.9",
-      "npmTag": "docus-contract-v0.0.9",
-      "siblingGoTag": null
-    },
-    {
-      "family": "trackus",
-      "project": "trackus-contract",
-      "package": "@sneat/extension-trackus-contract",
-      "manifestPath": "libs/trackus/package.json",
-      "changelogPath": "libs/trackus/CHANGELOG.md",
-      "version": "0.2.0",
-      "npmTag": "trackus-contract-v0.2.0",
-      "siblingGoTag": "trackus/v0.2.0"
     }
   ]
 }
