@@ -53,9 +53,13 @@ not public list fields. These types do not mount a route or enable a release.
 
 The current contextual-goal/page candidate passes local lint, tests, package
 build and a separate TypeScript gate. Its exact positive goal examples also
-pass the owning Go validator. A fresh strict packed-consumer gate remains
-open: the existing template0.0.29/shared0.27.46 peer graph resolves
-core-public0.26.6 and lacks required core-public/telemetry declarations.
-No dependency check was suppressed, package version changed or artifact
-published. Resolve and qualify the intended consumer peer context before
-calling this candidate ready for publication or app cutover.
+pass the owning Go validator. Strict packed public-entry compilation passes
+in ibetican's cached app peer context: template0.0.29, shared/core-public0.27.46
+and Angular22.2.4, with skipLibCheck=false and unchanged dependencies.
+
+The contracts workspace's older frozen peer context still fails that strict
+check: it resolves core-public0.26.6 and lacks required core-public/telemetry
+declarations. The successful app-context check does not qualify that older
+graph, a fresh install, every consumer, app workflows or deployment. No check
+was suppressed, package version changed or artifact published. Protected
+release/registry verification and actual app integration remain required.
