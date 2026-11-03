@@ -19,8 +19,9 @@ uses shared Sneat 0.27.46. Keep the reexports and token identity intact; this
 compatibility correction does not add or replace service methods.
 
 Source package versions stay unchanged until the protected release process.
-Strict packed-consumer validation qualifies the complete Angular 22 graph;
-it does not establish Angular 21 support for this graph.
+Publication requires strict packed-consumer qualification of the complete
+Angular 22 peer graph; package build success alone does not establish that
+compatibility or Angular 21 support.
 
 ## Structured goal values
 
@@ -36,3 +37,25 @@ Actor and bot-channel identity come from trusted host context, never body
 fields. Space membership and referee capabilities do not grant owner-history
 listing. Publication and actual host integration are separate release gates;
 the existing service alias/token and package versions remain unchanged here.
+
+Schema2 adds explicitly reviewed activity/role context while schema1 remains a
+separate supported input/read type. Standard push-up/pull-up names reuse the
+public Trackus vocabulary; context is meaning, not a tracker/source binding.
+Do not infer or upgrade it from a goal title. The server remains authoritative
+for safe integers, bounded text, calendar coherence and duplicate axes.
+
+The bounded owner-page types describe fixed identity/date/compatible-target
+orders, current saved-example selection, ID-only unavailable rows and explicit
+live coverage. Cursor metadata is non-confidential and grants no authority.
+Target values are promises, not activity, verified outcomes or achievements.
+Derived caches, raw Space/snapshot/source IDs and reconciliation operations are
+not public list fields. These types do not mount a route or enable a release.
+
+The current contextual-goal/page candidate passes local lint, tests, package
+build and a separate TypeScript gate. Its exact positive goal examples also
+pass the owning Go validator. A fresh strict packed-consumer gate remains
+open: the existing template0.0.29/shared0.27.46 peer graph resolves
+core-public0.26.6 and lacks required core-public/telemetry declarations.
+No dependency check was suppressed, package version changed or artifact
+published. Resolve and qualify the intended consumer peer context before
+calling this candidate ready for publication or app cutover.

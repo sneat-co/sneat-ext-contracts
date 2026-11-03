@@ -1,5 +1,6 @@
 /** Additive wire values. These definitions do not establish a result or move money. */
 export const COMMITMENT_GOAL_SCHEMA_VERSION = 1 as const;
+export const COMMITMENT_GOAL_CONTEXT_SCHEMA_VERSION = 2 as const;
 export const GOAL_CALENDAR_NORMALIZATION_VERSION = "goal-calendar-v1" as const;
 
 export type GoalEvaluationKind =
@@ -20,7 +21,7 @@ interface NumericGoalTarget extends GoalClauseIdentity {
 }
 
 /** Canonical units use the existing Trackus vocabulary, without a runtime dependency. */
-export type INumericGoalClause = NumericGoalTarget &
+type GoalNumericMetric =
   (
     | { readonly metric: "distance"; readonly unitOfMeasure: "meter" }
     | { readonly metric: "duration"; readonly unitOfMeasure: "second" }
@@ -37,7 +38,44 @@ export type INumericGoalClause = NumericGoalTarget &
       }
   );
 
+/** Existing schema1 remains readable without inventing missing activity. */
+export type INumericGoalClause = NumericGoalTarget & GoalNumericMetric & {
+  readonly context?: never;
+};
+
+/** Immutable goal meaning, not a tracker binding, observation or authority. */
+export interface IDeclaredGoalNumericContext {
+  readonly version: 1;
+  readonly activity: { readonly kind: "declared"; readonly value: string };
+  readonly role: string;
+}
+
+export interface IStandardGoalNumericContext {
+  readonly version: 1;
+  readonly activity: {
+    readonly kind: "trackus-standard";
+    /** Public Trackus standard activity vocabulary; no runtime dependency. */
+    readonly value: "_push_ups" | "_pull_ups";
+  };
+  readonly role: string;
+}
+
+/** Schema2 makes ambiguous numeric activity explicit. The server validates
+ * trimmed bounded text, safe targets, duplicate axes and all saved semantics. */
+export type IContextualNumericGoalClause = NumericGoalTarget & (
+  | (Extract<GoalNumericMetric, { metric: "distance" | "duration" }> & {
+      readonly context: IDeclaredGoalNumericContext;
+    })
+  | (Extract<GoalNumericMetric, { metric: "repetitions" }> & {
+      readonly context: IDeclaredGoalNumericContext | IStandardGoalNumericContext;
+    })
+  | (Extract<GoalNumericMetric, { metric: "distinct-items" | "occurrences" }> & {
+      readonly context?: IDeclaredGoalNumericContext;
+    })
+);
+
 export interface IAssessmentGoalClause extends GoalClauseIdentity {
+  readonly context?: never;
   readonly kind: "assessment";
   readonly scheme: "cefr";
   readonly subject: string;
@@ -46,6 +84,7 @@ export interface IAssessmentGoalClause extends GoalClauseIdentity {
 }
 
 export interface IEventGoalClause extends GoalClauseIdentity {
+  readonly context?: never;
   readonly kind: "event";
   /** The certified21.0975km event, not an inferred21,100m GPS threshold. */
   readonly eventType: "certified-half-marathon";
@@ -53,6 +92,7 @@ export interface IEventGoalClause extends GoalClauseIdentity {
 }
 
 export interface IRubricGoalClause extends GoalClauseIdentity {
+  readonly context?: never;
   readonly kind: "rubric";
   readonly description: string;
 }
@@ -90,15 +130,34 @@ export type IGoalEvaluation = GoalEvaluationStart &
     | ({ readonly kind: "every-period" } & GoalPeriodPolicy)
   );
 
-/** The enclosing create/change request supplies the one authoritative deadline. */
-export interface ICommitmentGoalDefinition {
-  readonly schemaVersion: typeof COMMITMENT_GOAL_SCHEMA_VERSION;
+export type IContextualGoalClause =
+  | IContextualNumericGoalClause
+  | IAssessmentGoalClause
+  | IEventGoalClause
+  | IRubricGoalClause;
+
+interface CommitmentGoalDefinitionContent {
   readonly templateID?: string;
   readonly conjunction: "all";
   readonly evaluation: IGoalEvaluation;
-  readonly clauses: readonly IGoalClause[];
   readonly verificationRubric?: string;
 }
+
+export interface ILegacyCommitmentGoalDefinition extends CommitmentGoalDefinitionContent {
+  readonly schemaVersion: typeof COMMITMENT_GOAL_SCHEMA_VERSION;
+  readonly clauses: readonly IGoalClause[];
+}
+
+export interface IContextualCommitmentGoalDefinition extends CommitmentGoalDefinitionContent {
+  readonly schemaVersion: typeof COMMITMENT_GOAL_CONTEXT_SCHEMA_VERSION;
+  readonly clauses: readonly IContextualGoalClause[];
+}
+
+/** The enclosing create/change request supplies the authoritative deadline.
+ * Explicit discriminants preserve schema1 without silently upgrading context. */
+export type ICommitmentGoalDefinition =
+  | ILegacyCommitmentGoalDefinition
+  | IContextualCommitmentGoalDefinition;
 
 export interface IGoalLocalDateTime {
   /** Zone-local ISO date/time without a UTC suffix or offset. */

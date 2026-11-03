@@ -11,3 +11,24 @@ export type CommitmentAccountability =
       accountabilityMode: 'none';
       verificationMode: 'self-report';
     };
+
+
+/** Filtered response provenance. An owner declaration is never referee
+ * verification, a payment receipt or a certificate. ISO instants stay strings. */
+export interface ISelfReportedCompletion {
+  readonly basis: 'self-report';
+  readonly reportedAt: string;
+  readonly termsVersion: number;
+}
+
+export type ICommitmentAccountabilityView =
+  | {
+      readonly accountabilityMode: 'financial';
+      readonly verificationMode: 'referee';
+      readonly completion?: never;
+    }
+  | {
+      readonly accountabilityMode: 'none';
+      readonly verificationMode: 'self-report';
+      readonly completion?: ISelfReportedCompletion;
+    };
