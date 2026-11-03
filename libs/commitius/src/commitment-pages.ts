@@ -100,3 +100,24 @@ export type ICommitmentListErrorResponse = {
         readonly restartOrder?: never;
       };
 };
+
+/** Authenticated owner point read; visibility/referee tokens confer no access. */
+export interface IReadOwnedCommitmentRequest {
+  readonly commitmentID: string;
+}
+
+/** Same filtered row as an owner page, without searching a list or implying
+ * history completeness. A cold URL can read current held/refund metadata. */
+export interface IOwnedCommitmentRead {
+  readonly item: ICommitmentListItem;
+  readonly consistency: 'live';
+  readonly evaluatedAt: string;
+}
+
+export interface IOwnedCommitmentReadErrorResponse {
+  readonly error: {
+    readonly code: 'method_not_allowed' | 'dependency_unavailable' | 'unauthenticated'
+      | 'rate_limit' | 'unsupported_media_type' | 'invalid_request'
+      | 'request_too_large' | 'not_found' | 'read_unavailable';
+  };
+}

@@ -10,6 +10,8 @@ import {
   type IContextualNumericGoalClause,
   type IGoalTermsPage,
   type IListCommitmentPageRequest,
+  type IOwnedCommitmentRead,
+  type IReadOwnedCommitmentRequest,
 } from './index';
 
 const evaluation = {
@@ -113,5 +115,8 @@ describe('public goal and bounded page wire types', () => {
     } as const satisfies ICommitmentListPage;
     expectTypeOf(page).toExtend<ICommitmentListPage>();
     expect(page.evaluatedAt).toContain('.123456Z');
+    const cold={item:page.items[0],consistency:'live',evaluatedAt:page.evaluatedAt} as const satisfies IOwnedCommitmentRead;
+    expectTypeOf(cold).toExtend<IOwnedCommitmentRead>();
+    expectTypeOf<Extract<'owner'|'homeSpaceID'|'refereeToken',keyof IReadOwnedCommitmentRequest>>().toEqualTypeOf<never>();
   });
 });
