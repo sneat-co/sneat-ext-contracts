@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup pnpm + Node
         uses: sneat-co/cicd/actions/setup-pnpm-node@main
@@ -68,7 +68,7 @@ jobs:
       dirs: ${{ steps.discover.outputs.dirs }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Auto-discovers every "<family>/go.mod" (Decisions: Go contract halves,
       # option (b) — one go.mod per extension, github.com/sneat-co/
@@ -104,8 +104,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: listus/go.mod
       - name: Test with 100% coverage
@@ -122,8 +122,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: trackus/go.mod
       - name: Test with 100% coverage
@@ -140,8 +140,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: contactus/go.mod
       - name: Test with 100% coverage
@@ -158,8 +158,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: media/go.mod
       - name: Test with 100% coverage
@@ -176,8 +176,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: bookius/go.mod
       - name: Test with 100% coverage
@@ -194,8 +194,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: eventius/go.mod
       - name: Test with 100% coverage
@@ -212,8 +212,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: sportius/go.mod
       - name: Test with 100% coverage
@@ -230,8 +230,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: chessraiders/go.mod
       - name: Test with 100% coverage
@@ -248,8 +248,8 @@ jobs:
     env:
       GOWORK: "off"
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: gameboard/go.mod
       - name: Test with 100% coverage
@@ -261,7 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Pull-request GITHUB_SHA is a synthetic merge. Release validation

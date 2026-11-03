@@ -93,7 +93,7 @@ jobs:
           [[ "$CI_EVENT" == push && "$CI_BRANCH" == main && "$CI_NAME" == CI ]] || { echo '::error::release preparation requires the successful CI push run on main'; exit 1; }
           [[ "$CI_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo '::error::CI source must be a full lowercase SHA'; exit 1; }
           echo "sha=$CI_SHA" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ steps.source.outputs.sha }}
@@ -110,12 +110,12 @@ jobs:
         id: plans
         run: |
           if compgen -G '.nx/version-plans/*.md' >/dev/null; then echo 'has=true' >> "$GITHUB_OUTPUT"; else echo 'has=false' >> "$GITHUB_OUTPUT"; fi
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.plans.outputs.has == 'true'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.plans.outputs.has == 'true'
         with:
-          node-version: 22
+          node-version: 26
       - run: pnpm install --frozen-lockfile
         if: steps.plans.outputs.has == 'true'
       - name: Generate the release candidate
