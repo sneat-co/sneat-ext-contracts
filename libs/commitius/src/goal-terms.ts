@@ -113,13 +113,14 @@ export interface IRequestGoalTermsChange {
   readonly newValue?: never;
 }
 
-export type GoalChangeStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'unappliable';
+export type GoalChangeStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'unappliable' | 'owner-confirmed';
 
 export interface IGoalTermsChangeOutcome {
   readonly changeID: string;
   readonly baseVersion: number;
   readonly proposedVersion: number;
-  readonly status: 'pending';
+  /** Paid proposals await consent; self-report amendments close by owner decision. */
+  readonly status: 'pending' | 'owner-confirmed';
 }
 
 export interface IReadGoalChangeRequest {
