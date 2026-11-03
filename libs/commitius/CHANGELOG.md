@@ -1,3 +1,13 @@
+## 0.1.6 (2026-11-03)
+
+### 🚀 Features
+
+- Publish the reviewed creation retry request, response and error-code types from PR #112. Reuse the existing typed-goal fields and preserve current exports, service aliases and injection tokens. The operation response establishes neither current funding nor lifecycle state. This additive contract release does not enable host routes, client workflows, jobs or financial behavior. ([5f15d1a](https://github.com/sneat-co/sneat-ext-contracts/commit/5f15d1a))
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok
+
 ## 0.1.5 (2026-11-03)
 
 ### 🚀 Features
