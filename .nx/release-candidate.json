@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "af04a60cd10ea92cd51693e4367db610c9af7644",
+  "reviewedSource": "e350a97c8fab3baa6cd42e2ef46f6d18c7f682b5",
   "plans": [
     {
-      "path": ".nx/version-plans/ibetican-reviewed-create-retry.md",
-      "sha256": "e3c72162aad5bc49ab1f47c4a7f3f4a6902695e936498ab40b7f8a9d8e147c61"
+      "path": ".nx/version-plans/intouchios-contract-initial.md",
+      "sha256": "40b6466efdbac03644ac656933ea7f8278ef6ff03ed9c8020e7482e45cdaf3ad"
     }
   ],
   "releases": [
     {
-      "family": "commitius",
-      "project": "commitius-contract",
-      "package": "@sneat/extension-commitius-contract",
-      "manifestPath": "libs/commitius/package.json",
-      "changelogPath": "libs/commitius/CHANGELOG.md",
-      "version": "0.1.6",
-      "npmTag": "commitius-contract-v0.1.6",
+      "family": "intouchios",
+      "project": "intouchios-contract",
+      "package": "@sneat/extension-intouchios-contract",
+      "manifestPath": "libs/intouchios/package.json",
+      "changelogPath": "libs/intouchios/CHANGELOG.md",
+      "version": "0.1.0",
+      "npmTag": "intouchios-contract-v0.1.0",
       "siblingGoTag": null
     }
   ]
