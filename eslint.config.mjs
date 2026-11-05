@@ -73,6 +73,7 @@ export default [
             { sourceTag: 'family:togethered', onlyDependOnLibsWithTags: ['family:togethered'] },
             { sourceTag: 'family:circleus', onlyDependOnLibsWithTags: ['family:circleus'] },
             { sourceTag: 'family:sneatclub', onlyDependOnLibsWithTags: ['family:sneatclub'] },
+            { sourceTag: 'family:intouchios', onlyDependOnLibsWithTags: ['family:intouchios'] },
           ],
         },
       ],
