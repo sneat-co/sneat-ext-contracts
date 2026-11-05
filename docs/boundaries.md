@@ -71,3 +71,11 @@ change:
    (`tools/tier-coherence/`) starts covering it.
 5. Only widen the constraint — and this table — when a specific cross-family
    edge is an approved, reviewed exception.
+
+## Registered families
+
+Every family scaffolded via `tools/contract-generator` (`pnpm nx g ./tools/contract-generator:contract <family>`), for a human-readable view alongside `contracts.json`:
+
+| Family | Nx project | npm package |
+| --- | --- | --- |
+| `intouchios` | `intouchios-contract` | `@sneat/extension-intouchios-contract` |

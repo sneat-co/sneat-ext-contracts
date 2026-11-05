@@ -1,0 +1,24 @@
+{
+  "name": "intouchios-contract",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/intouchios/src",
+  "projectType": "library",
+  "tags": ["family:intouchios", "layer:contract"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:package",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "project": "libs/intouchios/ng-package.json",
+        "tsConfig": "libs/intouchios/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": { "tsConfig": "libs/intouchios/tsconfig.lib.prod.json" }
+      },
+      "defaultConfiguration": "production"
+    },
+    "nx-release-publish": {
+      "options": { "packageRoot": "dist/{projectRoot}" }
+    }
+  }
+}
