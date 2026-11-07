@@ -29,6 +29,22 @@ function readTypescriptVersion() {
   return rootPkg.devDependencies?.typescript ?? 'latest';
 }
 
+function pnpmCommand(args, options = {}) {
+  const explicit = process.env.npm_execpath;
+  if (explicit) {
+    return execFileSync(explicit, args, options);
+  }
+
+  try {
+    return execFileSync('pnpm', args, options);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      return execFileSync('corepack', ['pnpm', ...args], options);
+    }
+    throw error;
+  }
+}
+
 // A contracts.json entry is either a plain string (npm package follows the
 // default @sneat/extension-<entry>-contract pattern) or, when the published
 // name doesn't match its dir/family tag, { dir, npmName }. `dir` is what we
@@ -74,7 +90,7 @@ function packLocalContract(entry) {
   );
   const packDir = path.join(workDir, 'local-packages');
   mkdirSync(packDir, { recursive: true });
-  execFileSync('pnpm', ['nx', 'build', project.name, '--skip-nx-cache'], {
+  pnpmCommand(['nx', 'build', project.name, '--skip-nx-cache'], {
     cwd: repoRoot,
     stdio: 'inherit',
   });
@@ -201,14 +217,13 @@ function main() {
   // package's published .d.ts/.js on disk for `tsc` to type-check against —
   // it never executes any package's code — so skipping build scripts
   // entirely is correct here, not a risk tolerated for convenience.
-  execFileSync(
-    'pnpm',
+  pnpmCommand(
     ['install', '--ignore-workspace', '--ignore-scripts', '--no-frozen-lockfile'],
     { cwd: workDir, stdio: 'inherit' },
   );
 
   console.log('tier-coherence: type-checking the synthetic consumer...');
-  execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], {
+  pnpmCommand(['exec', 'tsc', '-p', 'tsconfig.json'], {
     cwd: workDir,
     stdio: 'inherit',
   });
