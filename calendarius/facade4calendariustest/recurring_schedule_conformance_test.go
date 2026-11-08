@@ -24,6 +24,7 @@ type referenceRecurring struct {
 	active      bool
 	cancelled   map[string]bool      // slotID/date
 	moved       map[string]time.Time // slotID/date
+	applied     map[string]bool      // slotID/date/requestID and participants/requestID
 }
 
 var _ facade4calendarius.RecurringScheduleFacade = (*referenceRecurringFacade)(nil)
@@ -55,7 +56,7 @@ func (f *referenceRecurringFacade) CreateRecurringHappening(_ context.Context, u
 	}
 	f.happenings[result.HappeningID] = &referenceRecurring{
 		request: request, fingerprint: request.Fingerprint(), active: true,
-		cancelled: map[string]bool{}, moved: map[string]time.Time{},
+		cancelled: map[string]bool{}, moved: map[string]time.Time{}, applied: map[string]bool{},
 	}
 	return result, nil
 }
@@ -107,10 +108,12 @@ func referenceSlotStart(request calendariusmodels.CreateRecurringHappeningReques
 
 func (f *referenceRecurringFacade) CancelOccurrence(_ context.Context, userID, spaceID, happeningID, slotID, localDate, _, requestID string) error {
 	h, _, err := f.occurrence(userID, spaceID, happeningID, slotID, localDate, requestID)
-	if err == nil {
-		h.cancelled[slotID+"/"+localDate] = true
+	if err != nil || h.applied[slotID+"/"+localDate+"/"+requestID] {
+		return err
 	}
-	return err
+	h.applied[slotID+"/"+localDate+"/"+requestID] = true
+	h.cancelled[slotID+"/"+localDate] = true
+	return nil
 }
 
 func (f *referenceRecurringFacade) RescheduleOccurrence(_ context.Context, userID, spaceID, happeningID, slotID, localDate string, newStart time.Time, requestID string) error {
@@ -121,6 +124,14 @@ func (f *referenceRecurringFacade) RescheduleOccurrence(_ context.Context, userI
 	if shift := newStart.Sub(original); shift > calendariusmodels.OccurrenceRescheduleMaxShift || -shift > calendariusmodels.OccurrenceRescheduleMaxShift {
 		return calendariusmodels.ErrInvalidRecurringRequest
 	}
+	loc, _ := calendariusmodels.LoadRecurringTimeZone(h.request.TimeZone)
+	if err = calendariusmodels.ValidateOccurrenceStart(newStart, loc); err != nil {
+		return err
+	}
+	if h.applied[slotID+"/"+localDate+"/"+requestID] {
+		return nil
+	}
+	h.applied[slotID+"/"+localDate+"/"+requestID] = true
 	delete(h.cancelled, slotID+"/"+localDate)
 	h.moved[slotID+"/"+localDate] = newStart
 	return nil
@@ -137,8 +148,12 @@ func (f *referenceRecurringFacade) SetParticipants(_ context.Context, userID, sp
 	if h == nil {
 		return facade4calendarius.ErrRecurringHappeningNotFound
 	}
+	if err := calendariusmodels.ValidateRecurringRequestID(requestID); err != nil || h.applied["participants/"+requestID] {
+		return err
+	}
+	h.applied["participants/"+requestID] = true
 	h.request.Participants = append([]string(nil), participants...)
-	return calendariusmodels.ValidateRecurringRequestID(requestID)
+	return nil
 }
 
 func (f *referenceRecurringFacade) CancelHappening(_ context.Context, userID, spaceID, happeningID, _, requestID string) error {
@@ -196,7 +211,12 @@ func (f *referenceRecurringFacade) ExpandOccurrences(_ context.Context, _, happe
 			})
 		}
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Start.Before(result[j].Start) })
+	sort.SliceStable(result, func(i, j int) bool {
+		if result[i].Start.Equal(result[j].Start) {
+			return result[i].SlotID < result[j].SlotID
+		}
+		return result[i].Start.Before(result[j].Start)
+	})
 	return result, nil
 }
 

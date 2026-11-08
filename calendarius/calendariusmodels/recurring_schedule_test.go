@@ -141,3 +141,43 @@ func TestRecurringValidators(t *testing.T) {
 		t.Fatalf("LoadRecurringTimeZone = %v, %v", loc, err)
 	}
 }
+
+func TestFingerprintNormalisesDefaultSlotIDs(t *testing.T) {
+	a, b := validRecurringRequest(), validRecurringRequest()
+	b.Slots[0].ID = "0"
+	if a.Fingerprint() != b.Fingerprint() {
+		t.Fatal(`slot ID "" and its default "0" must fingerprint equally`)
+	}
+}
+
+func TestValidateOccurrenceStart(t *testing.T) {
+	newYork, _ := time.LoadLocation("America/New_York")
+	for name, start := range map[string]time.Time{
+		"zero":        {},
+		"seconds":     time.Date(2026, time.May, 1, 9, 0, 1, 0, newYork),
+		"nanos":       time.Date(2026, time.May, 1, 9, 0, 0, 5, newYork),
+		"fold second": time.Date(2026, time.November, 1, 6, 30, 0, 0, time.UTC), // 01:30 EST
+	} {
+		if err := ValidateOccurrenceStart(start, newYork); !errors.Is(err, ErrInvalidRecurringRequest) {
+			t.Errorf("%s: error = %v", name, err)
+		}
+	}
+	for name, start := range map[string]time.Time{
+		"normal":     time.Date(2026, time.May, 1, 9, 0, 0, 0, newYork),
+		"fold first": time.Date(2026, time.November, 1, 5, 30, 0, 0, time.UTC), // 01:30 EDT
+	} {
+		if err := ValidateOccurrenceStart(start, newYork); err != nil {
+			t.Errorf("%s: error = %v", name, err)
+		}
+	}
+}
+
+func TestAppendRequestID(t *testing.T) {
+	var history []string
+	for i := range RecurringRequestIDHistoryMin + 5 {
+		history = AppendRequestID(history, strings.Repeat("r", i+1))
+	}
+	if len(history) != RecurringRequestIDHistoryMin || history[0] != strings.Repeat("r", 6) {
+		t.Fatalf("history = %d items, first %q", len(history), history[0])
+	}
+}

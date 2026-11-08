@@ -70,6 +70,9 @@ const (
 	// move from its original start. Providers rely on it to find moved
 	// occurrences when expanding a window.
 	OccurrenceRescheduleMaxShift = 31 * 24 * time.Hour
+	// RecurringRequestIDHistoryMin is how many applied request IDs a provider
+	// keeps per occurrence (and per Happening for SetParticipants), at least.
+	RecurringRequestIDHistoryMin = 20
 )
 
 // ErrInvalidRecurringRequest is wrapped by every request validation failure.
@@ -94,7 +97,9 @@ type RecurringWeeklySlot struct {
 // CreateRecurringHappeningRequest creates one recurring weekly Happening.
 // RequestID is the idempotency key: a replay with an identical payload returns
 // the originally created Happening; another payload under the same RequestID
-// (and the same principal and Space) returns ErrRequestIDConflict.
+// in the same Space returns ErrRequestIDConflict. The scope is (Space,
+// RequestID), not the principal: any authorized principal replaying the same
+// request in the Space gets the same Happening.
 type CreateRecurringHappeningRequest struct {
 	RequestID string
 	Kind      string
@@ -189,6 +194,12 @@ func (v CreateRecurringHappeningRequest) Validate() error {
 func (v CreateRecurringHappeningRequest) Fingerprint() string {
 	canonical := v
 	canonical.Extensions = nil
+	// Normalise defaulted slot IDs so "" and its explicit default are equal.
+	canonical.Slots = make([]RecurringWeeklySlot, len(v.Slots))
+	for i, slot := range v.Slots {
+		slot.ID = v.SlotID(i)
+		canonical.Slots[i] = slot
+	}
 	extensions := make(map[string]any, len(v.Extensions))
 	for id, data := range v.Extensions {
 		var decoded any
@@ -264,6 +275,32 @@ func ResolveLocalTime(year int, month time.Month, day, hour, minute int, loc *ti
 func sameWallClock(t time.Time, year int, month time.Month, day, hour, minute int) bool {
 	y, m, d := t.Date()
 	return y == year && m == month && d == day && t.Hour() == hour && t.Minute() == minute
+}
+
+// ValidateOccurrenceStart checks that start is storable as a local wall-clock
+// minute in loc: providers keep occurrence starts with minute precision as
+// local time, so an instant with seconds, or one that does not round-trip
+// through ResolveLocalTime (the second, later pass through a fall-back fold),
+// is rejected rather than silently moved.
+func ValidateOccurrenceStart(start time.Time, loc *time.Location) error {
+	if start.IsZero() || start.Second() != 0 || start.Nanosecond() != 0 {
+		return invalidRecurring("start must be a whole minute")
+	}
+	local := start.In(loc)
+	if resolved := ResolveLocalTime(local.Year(), local.Month(), local.Day(), local.Hour(), local.Minute(), loc); !resolved.Equal(start) {
+		return invalidRecurring("start %s is the later instant of an ambiguous local time in %s; it cannot be stored", start.UTC().Format(time.RFC3339), loc)
+	}
+	return nil
+}
+
+// AppendRequestID records an applied request ID, keeping at most
+// RecurringRequestIDHistoryMin most recent entries.
+func AppendRequestID(history []string, requestID string) []string {
+	history = append(history, requestID)
+	if extra := len(history) - RecurringRequestIDHistoryMin; extra > 0 {
+		history = append([]string(nil), history[extra:]...)
+	}
+	return history
 }
 
 // RecurringHappeningDisposition reports whether a create made a new Happening.

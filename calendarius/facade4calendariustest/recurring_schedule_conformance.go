@@ -212,4 +212,92 @@ func RunRecurringScheduleFacadeConformance(
 			t.Fatalf("CancelOccurrence(closed) error = %v", err)
 		}
 	})
+	t.Run("LateRetryNeverUndoesNewerChange", func(t *testing.T) {
+		facade := newFacade(t)
+		id := create(t, facade, "create-retry")
+		if err := facade.CancelOccurrence(ctx, user, space, id, "0", "2026-10-22", "", "cancel-r1"); err != nil {
+			t.Fatalf("CancelOccurrence() error = %v", err)
+		}
+		moved := time.Date(2026, time.October, 22, 19, 0, 0, 0, dublin)
+		if err := facade.RescheduleOccurrence(ctx, user, space, id, "0", "2026-10-22", moved, "move-r2"); err != nil {
+			t.Fatalf("RescheduleOccurrence() error = %v", err)
+		}
+		if err := facade.CancelOccurrence(ctx, user, space, id, "0", "2026-10-22", "", "cancel-r1"); err != nil {
+			t.Fatalf("late CancelOccurrence retry error = %v", err)
+		}
+		if o := expand(t, facade, id)[0]; o.Cancelled || !o.Start.Equal(moved) {
+			t.Fatalf("late retry undid the reschedule: %+v", o)
+		}
+		for _, step := range []struct{ requestID, participant string }{{"p1", "a"}, {"p2", "b"}, {"p1", "a"}} {
+			if err := facade.SetParticipants(ctx, user, space, id, []string{step.participant}, step.requestID); err != nil {
+				t.Fatalf("SetParticipants(%s) error = %v", step.requestID, err)
+			}
+		}
+		if got, err := facade.GetRecurring(ctx, space, id); err != nil || !slices.Equal(got.Participants, []string{"b"}) {
+			t.Fatalf("late SetParticipants retry = (%+v, %v)", got, err)
+		}
+	})
+
+	t.Run("RescheduleRejectsUnstorableStarts", func(t *testing.T) {
+		facade := newFacade(t)
+		id := create(t, facade, "create-unstorable")
+		// 2026-10-25 01:30 occurs twice in Dublin: 00:30Z (IST) then 01:30Z (GMT).
+		for name, start := range map[string]time.Time{
+			"second pass through fold": time.Date(2026, time.October, 25, 1, 30, 0, 0, time.UTC),
+			"seconds":                  time.Date(2026, time.October, 23, 10, 0, 30, 0, dublin),
+		} {
+			if err := facade.RescheduleOccurrence(ctx, user, space, id, "0", "2026-10-22", start, "r-"+name); !errors.Is(err, calendariusmodels.ErrInvalidRecurringRequest) {
+				t.Errorf("%s: error = %v, want ErrInvalidRecurringRequest", name, err)
+			}
+		}
+		first := time.Date(2026, time.October, 25, 0, 30, 0, 0, time.UTC)
+		if err := facade.RescheduleOccurrence(ctx, user, space, id, "0", "2026-10-22", first, "r-first"); err != nil {
+			t.Fatalf("first pass through fold error = %v", err)
+		}
+		if o := expand(t, facade, id)[0]; !o.Start.Equal(first) {
+			t.Fatalf("fold reschedule = %+v, want %v", o, first)
+		}
+	})
+
+	t.Run("MoveIntoWindowThenCancel", func(t *testing.T) {
+		facade := newFacade(t)
+		id := create(t, facade, "create-move-in")
+		moved := time.Date(2026, time.October, 21, 12, 0, 0, 0, dublin)
+		if err := facade.RescheduleOccurrence(ctx, user, space, id, "0", "2026-10-15", moved, "move-in"); err != nil {
+			t.Fatalf("RescheduleOccurrence() error = %v", err)
+		}
+		occurrences := expand(t, facade, id)
+		if len(occurrences) != 3 || occurrences[0].LocalDate != "2026-10-15" || !occurrences[0].Rescheduled || !occurrences[0].Start.Equal(moved) {
+			t.Fatalf("moved-in occurrences = %+v", occurrences)
+		}
+		if err := facade.CancelOccurrence(ctx, user, space, id, "0", "2026-10-15", "", "cancel-moved"); err != nil {
+			t.Fatalf("CancelOccurrence() error = %v", err)
+		}
+		if o := expand(t, facade, id)[0]; o.LocalDate != "2026-10-15" || !o.Cancelled || !o.Rescheduled || !o.Start.Equal(moved) {
+			t.Fatalf("cancel after reschedule = %+v", o)
+		}
+	})
+
+	t.Run("SlotsInDSTGapAndFold", func(t *testing.T) {
+		facade := newFacade(t)
+		request := ConformanceRecurringRequest("create-night")
+		request.StartDate = "2026-03-01"
+		request.Slots[0].Weekdays = []calendariusmodels.WeekdayCode{calendariusmodels.Sunday}
+		request.Slots[0].Start = "01:30"
+		created, err := facade.CreateRecurringHappening(ctx, user, space, request)
+		if err != nil {
+			t.Fatalf("CreateRecurringHappening() error = %v", err)
+		}
+		for name, c := range map[string]struct{ from, want time.Time }{
+			// 2026-03-29 01:00-02:00 does not exist in Dublin: 01:30 moves forward to 02:30 IST.
+			"gap": {time.Date(2026, time.March, 28, 0, 0, 0, 0, time.UTC), time.Date(2026, time.March, 29, 1, 30, 0, 0, time.UTC)},
+			// 2026-10-25 01:30 is ambiguous: the earlier (IST) instant wins.
+			"fold": {time.Date(2026, time.October, 24, 0, 0, 0, 0, time.UTC), time.Date(2026, time.October, 25, 0, 30, 0, 0, time.UTC)},
+		} {
+			occurrences, err := facade.ExpandOccurrences(ctx, space, created.HappeningID, "", c.from, c.from.AddDate(0, 0, 2))
+			if err != nil || len(occurrences) != 1 || !occurrences[0].Start.Equal(c.want) {
+				t.Errorf("%s: occurrences = (%+v, %v), want start %v", name, occurrences, err, c.want)
+			}
+		}
+	})
 }

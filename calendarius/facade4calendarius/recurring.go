@@ -23,7 +23,10 @@ type RecurringHappeningsFacade interface {
 	// for legacy slots without one (empty = UTC). An invalid stored or
 	// fallback zone is an error, never a silent UTC. Per-date adjustments are
 	// honoured: cancelled occurrences are returned with Cancelled=true, and
-	// rescheduled ones carry their moved Start/End with Rescheduled=true.
+	// rescheduled ones carry their moved Start/End with Rescheduled=true. A
+	// stored per-date move further than
+	// calendariusmodels.OccurrenceRescheduleMaxShift keeps the original date
+	// with the adjusted time, so an occurrence never silently disappears.
 	// Wall-clock times are kept across DST changes; a time in a DST gap moves
 	// forward and an ambiguous time takes the earlier instant
 	// (calendariusmodels.ResolveLocalTime).
@@ -52,10 +55,13 @@ var (
 //
 // Idempotency: CreateRecurringHappening derives the Happening ID from
 // (spaceID, RequestID) and stores the payload fingerprint, so a replay returns
-// Disposition=reused and a different payload returns ErrRequestIDConflict. The
-// other mutations are state-setting (cancel, move-to, replace), so replaying
-// the same request is a no-op; requestID is validated and recorded but a later
-// different request wins.
+// Disposition=reused and a different payload returns ErrRequestIDConflict.
+// For CancelOccurrence/RescheduleOccurrence providers record the applied
+// request IDs per occurrence, and for SetParticipants per Happening (at least
+// the last calendariusmodels.RecurringRequestIDHistoryMin): a request whose
+// ID was already applied there is a no-op, even after later requests, so a
+// late retry never undoes a newer change. CancelHappening is terminal; a
+// replay is a no-op.
 type RecurringScheduleFacade interface {
 	RecurringHappeningsFacade
 
@@ -75,7 +81,10 @@ type RecurringScheduleFacade interface {
 	// RescheduleOccurrence moves one occurrence (identified by its original
 	// local date) to newStart, keeping its duration. The move is limited to
 	// calendariusmodels.OccurrenceRescheduleMaxShift; rescheduling a cancelled
-	// occurrence reinstates it at the new time.
+	// occurrence reinstates it at the new time. newStart is kept with minute
+	// precision as local time in the slot's zone: an instant with seconds, or
+	// the later instant of an ambiguous fall-back local time, is rejected with
+	// ErrInvalidRecurringRequest (calendariusmodels.ValidateOccurrenceStart).
 	RescheduleOccurrence(
 		ctx context.Context,
 		userID, spaceID, happeningID, slotID, localDate string,
