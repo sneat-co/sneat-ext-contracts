@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "e350a97c8fab3baa6cd42e2ef46f6d18c7f682b5",
+  "reviewedSource": "0a38f53d101ac30d1320db973f33bf04d9a34a06",
   "plans": [
     {
-      "path": ".nx/version-plans/intouchios-contract-initial.md",
-      "sha256": "40b6466efdbac03644ac656933ea7f8278ef6ff03ed9c8020e7482e45cdaf3ad"
+      "path": ".nx/version-plans/calendarius-recurring-schedule.md",
+      "sha256": "c32280da9a1fdf6ef8cbff19bb5623654fda6dd9de57589a4f6b6d623fe2497c"
     }
   ],
   "releases": [
     {
-      "family": "intouchios",
-      "project": "intouchios-contract",
-      "package": "@sneat/extension-intouchios-contract",
-      "manifestPath": "libs/intouchios/package.json",
-      "changelogPath": "libs/intouchios/CHANGELOG.md",
-      "version": "0.1.0",
-      "npmTag": "intouchios-contract-v0.1.0",
-      "siblingGoTag": null
+      "family": "calendarius",
+      "project": "calendarius-contract",
+      "package": "@sneat/extension-calendarius-contract",
+      "manifestPath": "libs/calendarius/package.json",
+      "changelogPath": "libs/calendarius/CHANGELOG.md",
+      "version": "0.28.0",
+      "npmTag": "calendarius-contract-v0.28.0",
+      "siblingGoTag": "calendarius/v0.28.0"
     }
   ]
 }
