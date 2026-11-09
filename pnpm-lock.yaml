@@ -167,6 +167,8 @@ overrides:
   undici@7: ^8.0.0
   zone.js: '-'
 
+pnpmfileChecksum: sha256-phYdiKep7yPcepTcLC9/o2n9Gh0VmfeXtkwL7EReNbQ=
+
 importers:
 
   .:
