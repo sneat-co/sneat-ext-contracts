@@ -6,7 +6,7 @@
   },
   "peerDependencies": {
     "@sneat/extension-assetus-contract": "^0.2.2",
-    "vitest": "^4.0.9"
+    "vitest": "^4.0.9 || ^5.0.0"
   },
   "sideEffects": false
 }

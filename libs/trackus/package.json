@@ -10,8 +10,8 @@
     "@sneat/core": "^0.27.6",
     "@sneat/space-models": "^0.27.6",
     "@sneat/space-services": "^0.27.6",
-    "vitest": "^4.0.9",
-    "firebase": "^12.0.0"
+    "vitest": "^4.0.9 || ^5.0.0",
+    "firebase": "^12.0.0 || ^13.0.0"
   },
   "sideEffects": false,
   "module": "fesm2022/sneat-extension-trackus-contract.mjs",
