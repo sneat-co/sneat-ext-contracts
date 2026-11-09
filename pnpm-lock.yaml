@@ -9,6 +9,8 @@ overrides:
   undici@7: ^7.29.1
   zone.js: '-'
 
+pnpmfileChecksum: sha256-phYdiKep7yPcepTcLC9/o2n9Gh0VmfeXtkwL7EReNbQ=
+
 importers:
 
   .:
