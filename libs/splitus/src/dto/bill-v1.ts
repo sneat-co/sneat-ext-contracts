@@ -1028,10 +1028,14 @@ function nonNegativeAmount(
     return parseExactDecimalString(value);
   } catch (error) {
     if (error instanceof RangeError) {
-      throw new RangeError(`${name}: ${error.message}`);
+      const wrappedError = new RangeError(`${name}: ${error.message}`);
+      Object.defineProperty(wrappedError, 'cause', { value: error });
+      throw wrappedError;
     }
     if (error instanceof Error) {
-      throw new TypeError(`${name}: ${error.message}`);
+      const wrappedError = new TypeError(`${name}: ${error.message}`);
+      Object.defineProperty(wrappedError, 'cause', { value: error });
+      throw wrappedError;
     }
     throw error;
   }

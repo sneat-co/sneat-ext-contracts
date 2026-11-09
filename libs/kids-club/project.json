@@ -5,11 +5,10 @@
   "projectType": "library",
   "tags": ["family:kids-club", "layer:contract"],
   "targets": {
-    "vite:test": {
-      "executor": "@nx/vitest:test",
+    "test": {
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "viTestConfig": "libs/kids-club/vitest.config.mts",
+        "config": "./vitest.config.mts",
         "passWithNoTests": true
       },
       "configurations": {

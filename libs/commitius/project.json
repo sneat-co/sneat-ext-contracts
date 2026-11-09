@@ -30,9 +30,8 @@
       }
     },
     "test": {
-      "executor": "@nx/vitest:test",
       "options": {
-        "configFile": "libs/commitius/vitest.config.mts"
+        "config": "./vitest.config.mts"
       }
     }
   }

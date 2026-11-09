@@ -34,7 +34,7 @@
         "{workspaceRoot}/eslint.config.mjs"
       ]
     },
-    "@nx/vitest:test": {
+    "test": {
       "cache": true,
       "inputs": [
         "default",
