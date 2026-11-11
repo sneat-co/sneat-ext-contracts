@@ -6,6 +6,6 @@ module github.com/sneat-co/sneat-ext-contracts/trackus
 
 go 1.26.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require github.com/sneat-co/sneat-go-core/convospec v0.1.0
