@@ -5,11 +5,11 @@ go 1.26.0
 toolchain go1.27.4
 
 require (
-	github.com/dal-go/dalgo v0.102.3
+	github.com/dal-go/dalgo v0.102.4
 	github.com/sneat-co/sneat-ext-contracts/media v0.1.1
 	github.com/sneat-co/sneat-go-core v0.63.0
-	github.com/strongo/slice v0.3.14
-	github.com/strongo/strongoapp v0.31.72
+	github.com/strongo/slice v0.3.15
+	github.com/strongo/strongoapp v0.31.73
 	github.com/strongo/validation v0.0.17
 )
 
