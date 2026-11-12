@@ -6,10 +6,10 @@ module github.com/sneat-co/sneat-ext-contracts/listus
 
 go 1.26.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
-	github.com/dal-go/dalgo v0.102.2
+	github.com/dal-go/dalgo v0.102.3
 	github.com/sneat-co/sneat-go-core v0.69.0
 	github.com/sneat-co/sneat-go-core/convospec v0.1.2
 )
