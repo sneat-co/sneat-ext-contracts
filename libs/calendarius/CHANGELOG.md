@@ -1,3 +1,23 @@
+## 0.29.0 (2026-11-15)
+
+### ⚠️  Breaking Changes
+
+- Add the live-show participant roles `host`, `moderator` and `caller` to ([356fa6b](https://github.com/sneat-co/sneat-ext-contracts/commit/356fa6b))
+  `HappeningParticipantRole` and `happeningParticipantRoles`, after the existing
+  four (order and `defaultHappeningParticipantRole` unchanged), matching the
+  calendarius backend.
+
+  On the wire this is additive. For TypeScript it is breaking: widening the union
+  breaks an exhaustive `switch` over it, such as the calendarius UI's
+  `happeningParticipantRoleTitle`, which must add the three cases when it adopts
+  this version. `major` on the 0.x train gives 0.29.0, outside the `^0.28.0`
+  ranges consumers declare, so nobody receives the wider union on a routine
+  patch update.
+
+### ❤️ Thank You
+
+- Alexander Trakhimenok @trakhimenok
+
 ## 0.28.0 (2026-11-08)
 
 ### ⚠️  Breaking Changes

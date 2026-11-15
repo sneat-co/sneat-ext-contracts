@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "reviewedSource": "0a38f53d101ac30d1320db973f33bf04d9a34a06",
+  "reviewedSource": "a441fb5ac1c439d6452ca56db49d29058b661806",
   "plans": [
     {
-      "path": ".nx/version-plans/calendarius-recurring-schedule.md",
-      "sha256": "c32280da9a1fdf6ef8cbff19bb5623654fda6dd9de57589a4f6b6d623fe2497c"
+      "path": ".nx/version-plans/calendarius-show-roles.md",
+      "sha256": "0e418977f7d3cdbf94d59e53ad9660046ede4669c5bbfec1e4956fb66cf0d968"
     }
   ],
   "releases": [
@@ -14,9 +14,9 @@
       "package": "@sneat/extension-calendarius-contract",
       "manifestPath": "libs/calendarius/package.json",
       "changelogPath": "libs/calendarius/CHANGELOG.md",
-      "version": "0.28.0",
-      "npmTag": "calendarius-contract-v0.28.0",
-      "siblingGoTag": "calendarius/v0.28.0"
+      "version": "0.29.0",
+      "npmTag": "calendarius-contract-v0.29.0",
+      "siblingGoTag": "calendarius/v0.29.0"
     }
   ]
 }
