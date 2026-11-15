@@ -23,6 +23,7 @@ describe('happening participant roles', () => {
       'host',
       'moderator',
       'caller',
+      'speaker',
     ]);
   });
 
@@ -33,7 +34,7 @@ describe('happening participant roles', () => {
       'organizer',
       'assistant',
     ]);
-    for (const role of ['host', 'moderator', 'caller']) {
+    for (const role of ['host', 'moderator', 'caller', 'speaker']) {
       expect(isKnownHappeningParticipantRole(role)).toBe(true);
     }
   });
@@ -68,7 +69,10 @@ describe('happening participant roles', () => {
       'MODERATOR',
       'callers',
       'spectator',
-      'speaker',
+      'Speaker',
+      ' speaker',
+      'speakers',
+      'event-speaker',
     ]) {
       expect(isKnownHappeningParticipantRole(role)).toBe(false);
     }
