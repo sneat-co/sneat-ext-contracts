@@ -20,7 +20,22 @@ describe('happening participant roles', () => {
       'teacher',
       'organizer',
       'assistant',
+      'host',
+      'moderator',
+      'caller',
     ]);
+  });
+
+  it('adds the live-show roles after the original four, leaving them as they were', () => {
+    expect(happeningParticipantRoles.slice(0, 4)).toEqual([
+      'participant',
+      'teacher',
+      'organizer',
+      'assistant',
+    ]);
+    for (const role of ['host', 'moderator', 'caller']) {
+      expect(isKnownHappeningParticipantRole(role)).toBe(true);
+    }
   });
 
   it('defaults to participant, the value every pre-existing caller produced', () => {
@@ -47,6 +62,13 @@ describe('happening participant roles', () => {
       'student',
       'owner',
       'event-attendee',
+      'Host',
+      ' host',
+      'event-host',
+      'MODERATOR',
+      'callers',
+      'spectator',
+      'speaker',
     ]) {
       expect(isKnownHappeningParticipantRole(role)).toBe(false);
     }
