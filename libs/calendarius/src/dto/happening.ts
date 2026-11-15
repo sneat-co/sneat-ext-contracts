@@ -37,7 +37,20 @@ export type HappeningParticipantRole =
   | 'participant'
   | 'teacher'
   | 'organizer'
-  | 'assistant';
+  | 'assistant'
+  /**
+   * The three below are for a happening that is a live show with a video room
+   * (AskStage), added after the four above. Calendarius only accepts and stores
+   * them; what each allows is decided by the product that reads it.
+   * `host` runs the show; `moderator` approves, rejects and hides the
+   * audience's questions; `caller` has asked, or been queued, to be called in
+   * (holding it admits no one to the call). The show's "in the call right now"
+   * role is not here: its natural name, `participant`, is already the default
+   * role above.
+   */
+  | 'host'
+  | 'moderator'
+  | 'caller';
 
 /**
  * Every HappeningParticipantRole, in the backend's declared order. Use this to
@@ -49,6 +62,9 @@ export const happeningParticipantRoles: readonly HappeningParticipantRole[] = [
   'teacher',
   'organizer',
   'assistant',
+  'host',
+  'moderator',
+  'caller',
 ];
 
 /**
