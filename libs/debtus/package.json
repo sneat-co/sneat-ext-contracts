@@ -2,7 +2,7 @@
   "name": "@sneat/extension-debtus-contract",
   "version": "0.2.4",
   "peerDependencies": {
-    "@angular/core": "^21.0.0",
+    "@angular/core": "^21.0.0 || ^22.0.0",
     "rxjs": "^7.0.0"
   },
   "sideEffects": false,

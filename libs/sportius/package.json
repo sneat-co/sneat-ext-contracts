@@ -5,11 +5,11 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@angular/core": "^21.0.0",
+    "@angular/core": "^21.0.0 || ^22.0.0",
     "@sneat/dto": "^0.27.6",
     "@sneat/space-models": "^0.27.6",
     "rxjs": "^7.0.0",
-    "vitest": "4.1.12"
+    "vitest": "5.1.0"
   },
   "sideEffects": false
 }
