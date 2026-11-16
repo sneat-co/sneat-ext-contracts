@@ -4,4 +4,4 @@ go 1.26.0
 
 toolchain go1.27.4
 
-require github.com/strongo/validation v0.0.17
+require github.com/strongo/validation v0.0.18
