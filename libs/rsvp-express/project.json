@@ -5,15 +5,12 @@
   "projectType": "library",
   "tags": ["family:rsvp-express", "layer:contract"],
   "targets": {
-    "vite:test": {
-      "executor": "@nx/vitest:test",
+    "test": {
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "viTestConfig": "libs/rsvp-express/vitest.config.mts",
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": { "update": false, "run": true, "coverage": true }
+        "cwd": "libs/rsvp-express",
+        "command": "vitest run"
       }
     },
     "build": {

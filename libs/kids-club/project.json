@@ -5,15 +5,12 @@
   "projectType": "library",
   "tags": ["family:kids-club", "layer:contract"],
   "targets": {
-    "vite:test": {
-      "executor": "@nx/vitest:test",
+    "test": {
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "viTestConfig": "libs/kids-club/vitest.config.mts",
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": { "update": false, "run": true, "coverage": true }
+        "cwd": "libs/kids-club",
+        "command": "vitest run"
       }
     },
     "build": {

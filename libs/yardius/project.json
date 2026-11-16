@@ -5,15 +5,12 @@
   "projectType": "library",
   "tags": ["family:yardius", "layer:contract"],
   "targets": {
-    "vite:test": {
-      "executor": "@nx/vitest:test",
+    "test": {
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "viTestConfig": "libs/yardius/vitest.config.mts",
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": { "update": false, "run": true, "coverage": true }
+        "cwd": "libs/yardius",
+        "command": "vitest run"
       }
     },
     "build": {
