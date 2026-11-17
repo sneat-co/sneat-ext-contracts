@@ -81,6 +81,8 @@ github.com/strongo/validation v0.0.13 h1:EgRfP5XBZSVoiOd4805OGCOVqZndeqFONpSmdSe
 github.com/strongo/validation v0.0.13/go.mod h1:EY+//fgQhn6rr0rOvWRJuUCTSk5BIETZL2bL9CIDhbs=
 github.com/strongo/validation v0.0.17 h1:xIYI58B+82ai7vBJc4wKpj2KLDFC9L/PpkzmSZHHRzU=
 github.com/strongo/validation v0.0.17/go.mod h1:95QitYgp3A+Yq5p5dpylCgFi6nglCIkUcF8pC7Xh3qw=
+github.com/strongo/validation v0.0.18 h1:RlSCPsgAYaNU+jl4XDhbaQQn4fNoyNGIUd/fh5EcfXM=
+github.com/strongo/validation v0.0.18/go.mod h1:lyS4a8AddH+6xB7omJN6Ycx/oetqTkQD7vJvDQ71+EI=
 go.uber.org/mock v0.6.0 h1:hyF9dfmbgIX5EfOdasqLsWD6xqpNZlXblLB/Dbnwv3Y=
 go.uber.org/mock v0.6.0/go.mod h1:KiVJ4BqZJaMj4svdfmHM0AUx4NJYO8ZNpPnZn1Z+BBU=
 golang.org/x/sys v0.30.0 h1:QjkSwP/36a20jFYWkSue1YwXzLmsV5Gfq7Eiy72C1uc=

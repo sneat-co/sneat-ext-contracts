@@ -10,7 +10,7 @@ require (
 	github.com/sneat-co/sneat-go-core v0.63.0
 	github.com/strongo/slice v0.3.15
 	github.com/strongo/strongoapp v0.31.73
-	github.com/strongo/validation v0.0.17
+	github.com/strongo/validation v0.0.18
 )
 
 require golang.org/x/sys v0.30.0 // indirect
