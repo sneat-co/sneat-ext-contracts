@@ -24,6 +24,8 @@ describe('happening participant roles', () => {
       'moderator',
       'caller',
       'speaker',
+      'viewer',
+      'follow-upper',
     ]);
   });
 
@@ -34,7 +36,14 @@ describe('happening participant roles', () => {
       'organizer',
       'assistant',
     ]);
-    for (const role of ['host', 'moderator', 'caller', 'speaker']) {
+    for (const role of [
+      'host',
+      'moderator',
+      'caller',
+      'speaker',
+      'viewer',
+      'follow-upper',
+    ]) {
       expect(isKnownHappeningParticipantRole(role)).toBe(true);
     }
   });

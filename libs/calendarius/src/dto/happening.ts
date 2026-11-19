@@ -39,20 +39,27 @@ export type HappeningParticipantRole =
   | 'organizer'
   | 'assistant'
   /**
-   * The four below are for a happening that is a live show with a video room
+   * The six below are for a happening that is a live show with a video room
    * (AskStage), added after the four above. Calendarius only accepts and stores
    * them; what each allows is decided by the product that reads it.
    * `host` runs the show; `moderator` approves, rejects and hides the
    * audience's questions; `caller` has asked, or been queued, to be called in
    * (holding it admits no one to the call); `speaker` may be in the call right
-   * now. An audience member moves spectator (no show role) -> `caller` ->
-   * `speaker`; taking them off the call revokes it. `participant` keeps its
-   * meaning above and never means "admitted to the call".
+   * now; `viewer` is a view-only person in the call (a Space member or a
+   * contact, like `caller` and `speaker`); `follow-upper` is a staff
+   * assignment for a private follow-up room on the show and grants no host or
+   * moderator authority.
+   * An audience member moves spectator (no show role) -> `caller` ->
+   * `speaker`; taking them off the call revokes it. A `viewer` is not on that
+   * path: an accepted call-in turn gives them `speaker`. `participant` keeps
+   * its meaning above and never means "admitted to the call".
    */
   | 'host'
   | 'moderator'
   | 'caller'
-  | 'speaker';
+  | 'speaker'
+  | 'viewer'
+  | 'follow-upper';
 
 /**
  * Every HappeningParticipantRole, in the backend's declared order. Use this to
@@ -68,6 +75,8 @@ export const happeningParticipantRoles: readonly HappeningParticipantRole[] = [
   'moderator',
   'caller',
   'speaker',
+  'viewer',
+  'follow-upper',
 ];
 
 /**
