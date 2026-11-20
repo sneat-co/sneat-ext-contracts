@@ -5,13 +5,13 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@angular/core": "^21.0.0",
+    "@angular/core": "^21.0.0 || ^22.0.0",
     "rxjs": "^7.0.0",
     "@sneat/core": "^0.27.6",
     "@sneat/data": "^0.27.6",
     "@sneat/dto": "^0.27.6",
     "@sneat/space-models": "^0.27.6",
-    "vitest": "^4.0.9"
+    "vitest": "^4.0.9 || ^5.0.0"
   },
   "sideEffects": false,
   "module": "fesm2022/sneat-extension-localius-contract.mjs",
