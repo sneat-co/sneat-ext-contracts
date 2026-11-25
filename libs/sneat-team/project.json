@@ -5,15 +5,12 @@
   "projectType": "library",
   "tags": ["family:sneat-team", "layer:contract"],
   "targets": {
-    "vite:test": {
-      "executor": "@nx/vitest:test",
+    "test": {
+      "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "viTestConfig": "libs/sneat-team/vitest.config.mts",
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": { "update": false, "run": true, "coverage": true }
+        "cwd": "libs/sneat-team",
+        "command": "vitest run"
       }
     },
     "build": {

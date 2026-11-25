@@ -30,9 +30,11 @@
       }
     },
     "test": {
-      "executor": "@nx/vitest:test",
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "configFile": "libs/commitius/vitest.config.mts"
+        "cwd": "libs/commitius",
+        "command": "vitest run"
       }
     }
   }
