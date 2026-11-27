@@ -416,8 +416,8 @@ importers:
         version: 22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)
     devDependencies:
       '@sneat/extension-template-contract':
-        specifier: 0.0.39
-        version: 0.0.39(f03f72ab31dcda80cfa1c407daee06fd)
+        specifier: 0.0.38
+        version: 0.0.38(f03f72ab31dcda80cfa1c407daee06fd)
 
   libs/communitycentrum:
     dependencies:
@@ -4488,8 +4488,8 @@ packages:
   '@sneat/extension-media-contract@0.1.1':
     resolution: {integrity: sha512-aQkvScRtT6bR5PiBfDz5qOreYOpQrDVuuwoeZA1oqJbjH1lTngoTKGY6BkZlH4t1evkcV/XbYEGlPTJ34eiIVQ==}
 
-  '@sneat/extension-template-contract@0.0.39':
-    resolution: {integrity: sha512-h+vQnBuQ5PBsJkHEXTG8bvKR5DpD5/rr2o/gtPTmoX4/XcMDYnbhgiqXz+HgdKEpfXc6WwrPWI2XHTgJEywo1g==}
+  '@sneat/extension-template-contract@0.0.38':
+    resolution: {integrity: sha512-j5eoheIsh1WZ1SORnodqnrozdxlmzNGTkJpIeWAu76SO3WuFHTP6hdciMlJHGhX9nCkAbDTAnC3ydNyLOry/Jw==}
     peerDependencies:
       '@angular/core': ^22.0.0
       '@sneat/core': ^0.27.51
@@ -11885,7 +11885,7 @@ snapshots:
     dependencies:
       tslib: 2.9.1
 
-  '@sneat/extension-template-contract@0.0.39(f03f72ab31dcda80cfa1c407daee06fd)':
+  '@sneat/extension-template-contract@0.0.38(f03f72ab31dcda80cfa1c407daee06fd)':
     dependencies:
       '@angular/core': 22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)
       '@sneat/core': 0.27.53(@angular/animations@22.3.0(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)))(@angular/common@22.3.0(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2))(@angular/router@22.1.3(@angular/common@22.3.0(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2))(@angular/platform-browser@22.3.0(@angular/animations@22.3.0(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)))(@angular/common@22.3.0(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)))(rxjs@7.8.2))(@ionic/angular@9.0.1(43b790bdfd2204a3390e1244ea6738d4))(@sneat/core-public@0.27.53(@angular/core@22.3.0(@angular/compiler@22.3.0)(rxjs@7.8.2)))(firebase@12.19.0)(rxjs@7.8.2)
