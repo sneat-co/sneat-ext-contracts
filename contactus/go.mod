@@ -5,7 +5,7 @@ go 1.26.0
 toolchain go1.27.4
 
 require (
-	github.com/dal-go/dalgo v0.102.6
+	github.com/dal-go/dalgo v0.103.1
 	github.com/sneat-co/sneat-ext-contracts/media v0.1.2
 	github.com/sneat-co/sneat-go-core v0.81.7
 	github.com/strongo/slice v0.3.15
